@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 17+ gates private-address traffic (10.0.2.2, LAN IPs) behind this runtime permission. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
     <!-- The local backend is plain HTTP; release builds keep the default (cleartext blocked). -->
     <application android:usesCleartextTraffic="true" />
 
