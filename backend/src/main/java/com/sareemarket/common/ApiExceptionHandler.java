@@ -9,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
@@ -23,6 +24,17 @@ class ApiExceptionHandler {
 	ResponseEntity<ApiError> handleInvalid(MethodArgumentNotValidException e) {
 		Map<String, String> fields = new LinkedHashMap<>();
 		e.getBindingResult().getFieldErrors().forEach(fe -> fields.putIfAbsent(fe.getField(), fe.getDefaultMessage()));
+		return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", "Some fields are invalid", fields));
+	}
+
+	// Constraints placed directly on a controller parameter, such as @Min on ?page=.
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	ResponseEntity<ApiError> handleParameterInvalid(HandlerMethodValidationException e) {
+		Map<String, String> fields = new LinkedHashMap<>();
+		e.getParameterValidationResults().forEach(result -> {
+			String name = result.getMethodParameter().getParameterName();
+			result.getResolvableErrors().forEach(error -> fields.putIfAbsent(name == null ? "parameter" : name, error.getDefaultMessage()));
+		});
 		return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", "Some fields are invalid", fields));
 	}
 

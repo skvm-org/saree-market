@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import com.sareemarket.collection.SareeCollectionRepository;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.ImageStorage;
 import com.sareemarket.item.dto.ItemDto;
+import com.sareemarket.notification.event.ItemsRestocked;
 
 import tools.jackson.databind.JsonNode;
 
@@ -39,8 +41,11 @@ public class ItemService {
 
 	private final ImageStorage storage;
 
+	private final ApplicationEventPublisher events;
+
 	ItemService(ItemRepository items, SareeCollectionRepository collections, ImageProcessor processor,
-			ImageStorage storage) {
+			ImageStorage storage, ApplicationEventPublisher events) {
+		this.events = events;
 		this.items = items;
 		this.collections = collections;
 		this.processor = processor;
@@ -133,6 +138,10 @@ public class ItemService {
 				errors.put("status", "must be AVAILABLE or SOLD_OUT");
 			}
 			else {
+				// Going from sold out back to available is news for followers; the other way is not.
+				if (item.getStatus() == ItemStatus.SOLD_OUT && status == ItemStatus.AVAILABLE) {
+					events.publishEvent(new ItemsRestocked(sellerId, item.getCollectionId(), 1));
+				}
 				item.setStatus(status);
 			}
 		}
@@ -143,9 +152,16 @@ public class ItemService {
 		return ItemDto.of(items.save(item), price);
 	}
 
-	/** Marks every photo of a collection available or sold out. The caller has already checked ownership. */
-	public void setStatusForCollection(Long collectionId, ItemStatus status) {
-		items.setStatusForCollection(collectionId, status);
+	/**
+	 * Marks every photo of a collection available or sold out. The caller has already checked ownership. Only
+	 * photos that really change count, so "mark all available" tells followers about exactly the ones restocked.
+	 */
+	@Transactional
+	public void setStatusForCollection(long sellerId, Long collectionId, ItemStatus status) {
+		int changed = items.setStatusForCollection(collectionId, status);
+		if (status == ItemStatus.AVAILABLE && changed > 0) {
+			events.publishEvent(new ItemsRestocked(sellerId, collectionId, changed));
+		}
 	}
 
 	private static ItemStatus parseStatus(String value) {

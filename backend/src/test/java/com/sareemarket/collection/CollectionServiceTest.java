@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,6 +25,7 @@ import com.sareemarket.collection.dto.CreateCollectionForm;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.item.ItemService;
 import com.sareemarket.item.ProcessedImage;
+import com.sareemarket.notification.event.CollectionPublished;
 import com.sareemarket.reference.Fabric;
 import com.sareemarket.reference.FabricRepository;
 import com.sareemarket.reference.SareeType;
@@ -41,7 +43,9 @@ class CollectionServiceTest {
 
 	TransactionTemplate tx = mock(TransactionTemplate.class);
 
-	CollectionService service = new CollectionService(collections, types, fabrics, items, tx);
+	ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+
+	CollectionService service = new CollectionService(collections, types, fabrics, items, tx, events);
 
 	CreateCollectionForm form = new CreateCollectionForm("Diwali silks", 1L, 2L, 2500, null, List.of());
 
@@ -85,6 +89,38 @@ class CollectionServiceTest {
 		assertThatThrownBy(() -> service.delete(1L, 5L)).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.status()).isEqualTo(HttpStatus.FORBIDDEN));
 		verify(collections, never()).delete(any());
+	}
+
+
+	@Test
+	void publishingACollectionRaisesOneEventWithThePhotoCount() {
+		when(collections.save(any())).thenAnswer(inv -> {
+			SareeCollection saved = inv.getArgument(0, SareeCollection.class);
+			org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", 42L);
+			return saved;
+		});
+		when(collections.findById(42L)).thenReturn(Optional.of(new SareeCollection(1L, "Diwali silks", 1L, 2L, 2500, null)));
+		when(types.findById(1L)).thenReturn(Optional.of(mock(SareeType.class, inv -> inv.getMethod().getName().equals("isActive") ? true : null)));
+
+		try {
+			service.create(1L, form);
+		}
+		catch (RuntimeException ignored) {
+			// building the response needs the reference rows; only the event matters here
+		}
+
+		verify(events).publishEvent(new CollectionPublished(1L, 42L, 1));
+	}
+
+	@Test
+	void noEventWhenSavingThePhotosFails() {
+		doAnswer(inv -> {
+			throw new IllegalStateException("database is down");
+		}).when(items).store(any(), anyLong(), anyList(), anyList());
+
+		assertThatThrownBy(() -> service.create(1L, form)).isInstanceOf(IllegalStateException.class);
+
+		verify(events, never()).publishEvent(any(Object.class));
 	}
 
 }

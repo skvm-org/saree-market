@@ -31,16 +31,17 @@ class CatalogController {
 
 	@GetMapping("/catalog")
 	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
-	PageDto<CatalogItemDto> search(@Valid @ModelAttribute CatalogFilter filter) {
-		return service.search(filter);
+	PageDto<CatalogItemDto> search(@AuthenticationPrincipal Jwt jwt, @Valid @ModelAttribute CatalogFilter filter) {
+		return service.search(filter, Long.parseLong(jwt.getSubject()));
 	}
 
 	/** Multipart: the "image" part plus the same optional filters as GET /catalog (as form fields or in the URL). */
 	@PostMapping(path = "/catalog/image-search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
-	PageDto<CatalogItemDto> imageSearch(@RequestParam(name = "image", required = false) MultipartFile image,
+	PageDto<CatalogItemDto> imageSearch(@AuthenticationPrincipal Jwt jwt,
+			@RequestParam(name = "image", required = false) MultipartFile image,
 			@Valid @ModelAttribute CatalogFilter filter) {
-		return service.imageSearch(image, filter);
+		return service.imageSearch(image, filter, Long.parseLong(jwt.getSubject()));
 	}
 
 	@GetMapping("/items/{id}")

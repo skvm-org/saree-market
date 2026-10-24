@@ -68,8 +68,8 @@ public class CatalogService {
 				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null);
 	}
 
-	public PageDto<CatalogItemDto> search(CatalogFilter filter) {
-		MapSqlParameterSource params = new MapSqlParameterSource();
+	public PageDto<CatalogItemDto> search(CatalogFilter filter, long viewerId) {
+		MapSqlParameterSource params = new MapSqlParameterSource("viewer", viewerId);
 		String where = where(filter, params);
 		Long total = jdbc.queryForObject("SELECT count(*) " + FROM + where, params, Long.class);
 
@@ -85,13 +85,14 @@ public class CatalogService {
 	 * gets the identical hash. shortcut: this compares the hash of every photo that passes the filters, which is
 	 * fine for thousands to a few hundred thousand rows; a bigger catalog needs a similarity index.
 	 */
-	public PageDto<CatalogItemDto> imageSearch(MultipartFile image, CatalogFilter filter) {
+	public PageDto<CatalogItemDto> imageSearch(MultipartFile image, CatalogFilter filter, long viewerId) {
 		if (image == null || image.isEmpty()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid",
 					Map.of("image", "Choose a photo to search with"));
 		}
 		MapSqlParameterSource params = new MapSqlParameterSource("hash", images.process(image).hash())
-			.addValue("maxDistance", MAX_DISTANCE);
+			.addValue("maxDistance", MAX_DISTANCE)
+			.addValue("viewer", viewerId);
 		String distance = "bit_count((i.image_hash # :hash)::bit(64))";
 		String where = where(filter, params) + " AND " + distance + " <= :maxDistance";
 		Long total = jdbc.queryForObject("SELECT count(*) " + FROM + where, params, Long.class);
@@ -134,6 +135,9 @@ public class CatalogService {
 			conditions.add("COALESCE(i.price_override, c.price) <= :maxPrice");
 			params.addValue("maxPrice", f.maxPrice());
 		}
+		if (Boolean.TRUE.equals(f.following())) {
+			conditions.add("c.seller_id IN (SELECT seller_id FROM seller_follow WHERE reseller_id = :viewer)");
+		}
 		if (f.sellerId() != null) {
 			conditions.add("c.seller_id = :sellerId");
 			params.addValue("sellerId", f.sellerId());
@@ -169,12 +173,13 @@ public class CatalogService {
 	/** Seller phone numbers go to resellers and admins only; the owning seller sees the photo without them. */
 	public ItemDetailDto itemDetail(long itemId, long userId, String role) {
 		boolean seller = "SELLER".equals(role);
+		MapSqlParameterSource byId = new MapSqlParameterSource("id", itemId);
 		List<ItemDetailDto> found = jdbc.query("""
 				SELECT i.id, i.collection_id, c.title, c.description, t.name AS saree_type, f.name AS fabric,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
 				       i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
 				       sp.whatsapp_number, u.enabled
-				""" + FROM + " WHERE i.id = :id", new MapSqlParameterSource("id", itemId), (rs, n) -> {
+				""" + FROM + " WHERE i.id = :id", byId, (rs, n) -> {
 			long sellerId = rs.getLong("seller_id");
 			boolean visible = rs.getBoolean("enabled") || "ADMIN".equals(role) || (seller && sellerId == userId);
 			if (!visible) {
@@ -191,12 +196,22 @@ public class CatalogService {
 					instant(rs, "created_at"),
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
-							contact ? rs.getString("whatsapp_number") : null));
+							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)));
 		});
 		return found.stream()
 			.filter(d -> d != null)
 			.findFirst()
 			.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Photo not found"));
+	}
+
+	/** How the viewing reseller follows this seller (INSTANT or MUTED), or null: not following, or not a reseller. */
+	private String followMode(String role, long userId, long sellerId) {
+		if (!"RESELLER".equals(role)) {
+			return null;
+		}
+		List<String> modes = jdbc.queryForList("SELECT notify_mode FROM seller_follow WHERE reseller_id = :r AND seller_id = :s",
+				new MapSqlParameterSource("r", userId).addValue("s", sellerId), String.class);
+		return modes.isEmpty() ? null : modes.get(0);
 	}
 
 	private static java.time.Instant instant(ResultSet rs, String column) throws SQLException {

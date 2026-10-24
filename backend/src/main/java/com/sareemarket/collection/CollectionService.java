@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -18,6 +19,8 @@ import com.sareemarket.common.ApiException;
 import com.sareemarket.item.ItemService;
 import com.sareemarket.item.ItemStatus;
 import com.sareemarket.item.ProcessedImage;
+import com.sareemarket.notification.event.CollectionPublished;
+import com.sareemarket.notification.event.ItemsAdded;
 import com.sareemarket.reference.FabricRepository;
 import com.sareemarket.reference.RefDto;
 import com.sareemarket.reference.SareeTypeRepository;
@@ -35,8 +38,11 @@ public class CollectionService {
 
 	private final TransactionTemplate tx;
 
+	private final ApplicationEventPublisher events;
+
 	CollectionService(SareeCollectionRepository collections, SareeTypeRepository types, FabricRepository fabrics,
-			ItemService items, TransactionTemplate tx) {
+			ItemService items, TransactionTemplate tx, ApplicationEventPublisher events) {
+		this.events = events;
 		this.collections = collections;
 		this.types = types;
 		this.fabrics = fabrics;
@@ -48,14 +54,16 @@ public class CollectionService {
 		checkReferences(form.sareeTypeId(), form.fabricId());
 		List<ProcessedImage> images = items.process(form.files());
 		Long id = saveWithPhotos(sellerId, images, () -> collections.save(new SareeCollection(sellerId,
-				form.title().strip(), form.sareeTypeId(), form.fabricId(), form.price(), blankToNull(form.description()))));
+				form.title().strip(), form.sareeTypeId(), form.fabricId(), form.price(), blankToNull(form.description()))),
+				collectionId -> new CollectionPublished(sellerId, collectionId, images.size()));
 		return detail(id);
 	}
 
 	public CollectionDetailDto addPhotos(long sellerId, long collectionId, List<MultipartFile> files) {
 		SareeCollection collection = owned(collectionId, sellerId);
 		List<ProcessedImage> images = items.process(files);
-		saveWithPhotos(sellerId, images, () -> collection);
+		saveWithPhotos(sellerId, images, () -> collection,
+				id -> new ItemsAdded(sellerId, id, images.size()));
 		return detail(collectionId);
 	}
 
@@ -82,7 +90,7 @@ public class CollectionService {
 
 	public CollectionDetailDto setAllStatus(long sellerId, long id, ItemStatus status) {
 		SareeCollection collection = owned(id, sellerId);
-		items.setStatusForCollection(id, status);
+		items.setStatusForCollection(sellerId, id, status);
 		return detail(collection);
 	}
 
@@ -98,12 +106,14 @@ public class CollectionService {
 	 * already written are removed, so a failed upload leaves nothing behind.
 	 */
 	private Long saveWithPhotos(long sellerId, List<ProcessedImage> images,
-			java.util.function.Supplier<SareeCollection> collection) {
+			java.util.function.Supplier<SareeCollection> collection, java.util.function.LongFunction<Object> event) {
 		List<String> storedKeys = new ArrayList<>();
 		try {
 			return tx.execute(status -> {
 				Long id = collection.get().getId();
 				items.store(id, sellerId, images, storedKeys);
+				// Delivered to followers only if this transaction commits.
+				events.publishEvent(event.apply(id));
 				return id;
 			});
 		}

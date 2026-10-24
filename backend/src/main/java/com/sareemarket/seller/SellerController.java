@@ -3,6 +3,8 @@ package com.sareemarket.seller;
 import java.util.List;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,8 +31,8 @@ class SellerController {
 	}
 
 	@GetMapping("/{id}")
-	SellerDetailDto get(@PathVariable long id) {
-		return service.get(id);
+	SellerDetailDto get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+		return service.get(id, Long.parseLong(jwt.getSubject()), "RESELLER".equals(jwt.getClaimAsString("role")));
 	}
 
 }
