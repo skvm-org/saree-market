@@ -92,4 +92,27 @@ class CollectionRepositoryTest {
 
     private fun String.toResponseBodyJson() =
         toResponseBody("application/json".toMediaType())
+
+    @Test
+    fun itemStatusChangeSendsOnlyTheStatus() = runTest {
+        var sent: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap()
+        api.onUpdateItem = { id, patch -> sent = patch; item(id, status = ItemStatus.SOLD_OUT) }
+
+        val result = repo.setItemStatus(10, ItemStatus.SOLD_OUT)
+
+        assertEquals(setOf("status"), sent.keys)
+        assertEquals("SOLD_OUT", sent.getValue("status").jsonPrimitive.content)
+        assertEquals(ItemStatus.SOLD_OUT, result.getOrNull()?.status)
+    }
+
+    @Test
+    fun markAllSendsTheChosenStatusAndReturnsTheCollection() = runTest {
+        var sent: ItemStatus? = null
+        api.onSetAllStatus = { sent = it; detail(items = listOf(item(10, status = it), item(11, status = it))) }
+
+        val result = repo.setAllStatus(5, ItemStatus.SOLD_OUT)
+
+        assertEquals(ItemStatus.SOLD_OUT, sent)
+        assertTrue(result.getOrNull()!!.items.all { it.status == ItemStatus.SOLD_OUT })
+    }
 }

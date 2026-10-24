@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.ApiFailure
 import com.sareemarket.app.data.CollectionDetail
 import com.sareemarket.app.data.CollectionRepository
+import com.sareemarket.app.data.Item
+import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.MAX_PHOTOS
 import com.sareemarket.app.data.ReferenceData
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class ItemFilter { ALL, AVAILABLE, SOLD_OUT }
 
 data class DetailState(
     val detail: CollectionDetail? = null,
@@ -28,7 +32,19 @@ data class DetailState(
     val progress: Float? = null,
     /** Set once the collection is deleted, so the screen can close. */
     val deleted: Boolean = false,
-)
+    val filter: ItemFilter = ItemFilter.ALL,
+) {
+    val visibleItems: List<Item>
+        get() = detail?.items.orEmpty().filter {
+            when (filter) {
+                ItemFilter.ALL -> true
+                ItemFilter.AVAILABLE -> it.status == ItemStatus.AVAILABLE
+                ItemFilter.SOLD_OUT -> it.status == ItemStatus.SOLD_OUT
+            }
+        }
+
+    fun count(status: ItemStatus) = detail?.items.orEmpty().count { it.status == status }
+}
 
 @HiltViewModel
 class CollectionDetailViewModel @Inject constructor(
@@ -53,6 +69,32 @@ class CollectionDetailViewModel @Inject constructor(
                 onFailure = { e -> _state.update { it.copy(loading = false, error = e.message) } },
             )
         }
+    }
+
+    fun setFilter(filter: ItemFilter) = _state.update { it.copy(filter = filter) }
+
+    /**
+     * One-tap switch: the card flips at once and goes back if the server says no. Two quick taps on the same
+     * card can race (shortcut: last response wins), which is fine for a seller flipping stock.
+     */
+    fun toggleStatus(itemId: Long) {
+        val current = _state.value.detail?.items?.firstOrNull { it.id == itemId } ?: return
+        val target = if (current.status == ItemStatus.AVAILABLE) ItemStatus.SOLD_OUT else ItemStatus.AVAILABLE
+        replaceItem(itemId) { it.copy(status = target) }
+        viewModelScope.launch {
+            repository.setItemStatus(itemId, target).onFailure { e ->
+                replaceItem(itemId) { it.copy(status = current.status) }
+                _state.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun markAll(status: ItemStatus) {
+        run({}, { repository.setAllStatus(id, status) }) { d -> _state.update { it.copy(detail = d) } }
+    }
+
+    private fun replaceItem(itemId: Long, change: (Item) -> Item) = _state.update { s ->
+        s.copy(detail = s.detail?.let { d -> d.copy(items = d.items.map { if (it.id == itemId) change(it) else it }) })
     }
 
     fun clearError() = _state.update { it.copy(error = null, fieldErrors = emptyMap()) }

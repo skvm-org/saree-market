@@ -63,4 +63,7 @@ data class UpdateCollectionBody(
     val description: String,
 )
 
+@Serializable
+data class StatusBody(val status: ItemStatus)
+
 const val MAX_PHOTOS = 30

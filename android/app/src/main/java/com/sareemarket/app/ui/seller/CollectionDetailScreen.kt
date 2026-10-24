@@ -31,6 +31,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -136,8 +140,27 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Text("No photos yet. Use the menu to add photos.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        StockControls(
+                            total = detail.items.size,
+                            available = state.count(ItemStatus.AVAILABLE),
+                            soldOut = state.count(ItemStatus.SOLD_OUT),
+                            filter = state.filter,
+                            busy = state.busy,
+                            onFilter = viewModel::setFilter,
+                            onMarkAll = viewModel::markAll,
+                        )
+                    }
+                    if (state.visibleItems.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text("No sarees match this filter.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
-                items(detail.items, key = { it.id }) { item -> ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }) }
+                items(state.visibleItems, key = { it.id }) { item ->
+                    ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
+                }
             }
         }
 
@@ -169,21 +192,71 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     }
 }
 
+/** Filter chips and the "mark all" button from the design. */
 @Composable
-private fun ItemCard(item: Item, onClick: () -> Unit) {
-    val soldOut = item.status == ItemStatus.SOLD_OUT
-    Column(Modifier.clickable(onClick = onClick).testTag("item-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Box {
-            SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-            StatusPill(
-                if (soldOut) "Sold out" else "Available",
-                if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                Modifier.padding(Spacing.sm).align(Alignment.TopStart),
-            )
+internal fun StockControls(
+    total: Int,
+    available: Int,
+    soldOut: Int,
+    filter: ItemFilter,
+    busy: Boolean,
+    onFilter: (ItemFilter) -> Unit,
+    onMarkAll: (ItemStatus) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            listOf(
+                Triple(ItemFilter.ALL, "All $total", "chip-all"),
+                Triple(ItemFilter.AVAILABLE, "Available $available", "chip-available"),
+                Triple(ItemFilter.SOLD_OUT, "Sold out $soldOut", "chip-sold-out"),
+            ).forEach { (value, label, tag) ->
+                FilterChip(
+                    selected = filter == value,
+                    onClick = { onFilter(value) },
+                    label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
+                )
+            }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(item.colour ?: "No colour", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(formatRupees(item.effectivePrice), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer)
+        // With nothing left in stock the useful action is the opposite one.
+        if (available == 0) {
+            SecondaryButton("Mark all available", onClick = { onMarkAll(ItemStatus.AVAILABLE) }, modifier = Modifier.testTag("mark-all").alpha(if (busy) 0.5f else 1f))
+        } else {
+            SecondaryButton("Mark all sold out", onClick = { onMarkAll(ItemStatus.SOLD_OUT) }, modifier = Modifier.testTag("mark-all").alpha(if (busy) 0.5f else 1f))
+        }
+    }
+}
+
+@Composable
+internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
+    val soldOut = item.status == ItemStatus.SOLD_OUT
+    Column(Modifier.testTag("item-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Column(Modifier.clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Box {
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                StatusPill(
+                    if (soldOut) "Sold out" else "Available",
+                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
+                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(item.colour ?: "No colour", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatRupees(item.effectivePrice), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
+            Switch(
+                checked = !soldOut,
+                onCheckedChange = { onToggle() },
+                colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available, checkedThumbColor = androidx.compose.ui.graphics.Color.White),
+                modifier = Modifier.testTag("stock-${item.id}"),
+            )
         }
     }
 }

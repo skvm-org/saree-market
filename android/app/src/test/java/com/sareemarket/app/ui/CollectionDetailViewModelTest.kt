@@ -6,10 +6,12 @@ import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.FakePhotoSource
 import com.sareemarket.app.data.detail
 import com.sareemarket.app.data.httpError
+import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.item
 import com.sareemarket.app.data.testJson
 import com.sareemarket.app.ui.seller.CollectionDetailViewModel
 import com.sareemarket.app.ui.seller.CollectionFields
+import com.sareemarket.app.ui.seller.ItemFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -131,5 +133,72 @@ class CollectionDetailViewModelTest {
         vm.deleteCollection()
 
         assertTrue(vm.state.value.deleted)
+    }
+
+    private fun status(id: Long) = vm.state.value.detail!!.items.first { it.id == id }.status
+
+    @Test
+    fun togglingFlipsTheCardAndTellsTheServer() {
+        var sent: ItemStatus? = null
+        api.onUpdateItem = { id, patch -> sent = ItemStatus.valueOf(patch.getValue("status").toString().trim('"')); item(id, status = sent!!) }
+
+        vm.toggleStatus(10)
+
+        assertEquals(ItemStatus.SOLD_OUT, status(10))
+        assertEquals(ItemStatus.SOLD_OUT, sent)
+        assertEquals(ItemStatus.AVAILABLE, status(11)) // other cards untouched
+        assertNull(vm.state.value.error)
+    }
+
+    @Test
+    fun togglingTwiceGoesBackToAvailable() {
+        vm.toggleStatus(10)
+        vm.toggleStatus(10)
+
+        assertEquals(ItemStatus.AVAILABLE, status(10))
+    }
+
+    @Test
+    fun cardSnapsBackAndShowsWhyWhenTheServerRefuses() {
+        api.onUpdateItem = { _, _ -> throw httpError(403, """{"code":"FORBIDDEN","message":"Not yours"}""") }
+
+        vm.toggleStatus(10)
+
+        assertEquals(ItemStatus.AVAILABLE, status(10))
+        assertEquals("Not yours", vm.state.value.error)
+    }
+
+    @Test
+    fun markAllSoldOutUpdatesEveryCard() {
+        api.onSetAllStatus = { s -> detail(items = listOf(item(10, status = s), item(11, status = s))) }
+
+        vm.markAll(ItemStatus.SOLD_OUT)
+
+        assertEquals(2, vm.state.value.count(ItemStatus.SOLD_OUT))
+        assertEquals(0, vm.state.value.count(ItemStatus.AVAILABLE))
+    }
+
+    @Test
+    fun failedMarkAllLeavesTheCardsAsTheyWere() {
+        api.onSetAllStatus = { throw httpError(500) }
+
+        vm.markAll(ItemStatus.SOLD_OUT)
+
+        assertEquals(2, vm.state.value.count(ItemStatus.AVAILABLE))
+        assertNotNull(vm.state.value.error)
+    }
+
+    @Test
+    fun filtersShowOnlyTheMatchingCardsAndCountsStayFull() {
+        api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.SOLD_OUT), item(12))) }
+
+        vm.setFilter(ItemFilter.SOLD_OUT)
+        assertEquals(listOf(11L), vm.state.value.visibleItems.map { it.id })
+        vm.setFilter(ItemFilter.AVAILABLE)
+        assertEquals(listOf(10L, 12L), vm.state.value.visibleItems.map { it.id })
+        vm.setFilter(ItemFilter.ALL)
+        assertEquals(3, vm.state.value.visibleItems.size)
+        assertEquals(2, vm.state.value.count(ItemStatus.AVAILABLE))
+        assertEquals(1, vm.state.value.count(ItemStatus.SOLD_OUT))
     }
 }

@@ -35,6 +35,7 @@ class FakeCollectionsApi : CollectionsApi {
     var onUpdate: (UpdateCollectionBody) -> CollectionDetail = { detail() }
     var onAddPhotos: (List<MultipartBody.Part>) -> CollectionDetail = { detail() }
     var onUpdateItem: (Long, JsonObject) -> Item = { id, _ -> item(id) }
+    var onSetAllStatus: (ItemStatus) -> CollectionDetail = { detail() }
     var onDelete: () -> Response<Unit> = { Response.success(Unit) }
     var onDeleteItem: () -> Response<Unit> = { Response.success(Unit) }
     val calls = mutableListOf<String>()
@@ -59,6 +60,11 @@ class FakeCollectionsApi : CollectionsApi {
     override suspend fun update(id: Long, body: UpdateCollectionBody): CollectionDetail {
         calls += "update"
         return onUpdate(body)
+    }
+
+    override suspend fun setAllStatus(id: Long, body: StatusBody): CollectionDetail {
+        calls += "setAllStatus"
+        return onSetAllStatus(body.status)
     }
 
     override suspend fun delete(id: Long): Response<Unit> {

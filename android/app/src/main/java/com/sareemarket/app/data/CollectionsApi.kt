@@ -51,6 +51,9 @@ interface CollectionsApi {
     @PATCH("api/v1/items/{id}")
     suspend fun updateItem(@Path("id") id: Long, @Body patch: JsonObject): Item
 
+    @PATCH("api/v1/collections/{id}/items/status")
+    suspend fun setAllStatus(@Path("id") id: Long, @Body body: StatusBody): CollectionDetail
+
     @DELETE("api/v1/items/{id}")
     suspend fun deleteItem(@Path("id") id: Long): Response<Unit>
 }

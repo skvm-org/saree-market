@@ -52,6 +52,14 @@ class CollectionRepository @Inject constructor(
         })
     }
 
+    /** Sends only the status, so the colour and price stay as they are. */
+    suspend fun setItemStatus(id: Long, status: ItemStatus): Result<Item> = apiCall(json) {
+        api.updateItem(id, buildJsonObject { put("status", JsonPrimitive(status.name)) })
+    }
+
+    suspend fun setAllStatus(collectionId: Long, status: ItemStatus): Result<CollectionDetail> =
+        apiCall(json) { api.setAllStatus(collectionId, StatusBody(status)) }
+
     suspend fun deleteItem(id: Long): Result<Unit> = apiCall(json) { api.deleteItem(id).requireSuccess() }
 
     private fun String.text(): RequestBody = toRequestBody("text/plain".toMediaType())
