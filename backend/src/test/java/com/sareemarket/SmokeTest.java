@@ -63,7 +63,9 @@ class SmokeTest {
 				INSERT INTO item (collection_id, seller_id, colour, image_path, thumb_path, image_hash)
 				VALUES (?, ?, 'maroon', 'a', 'b', 1)""", collectionId, sellerId);
 
-		String match = "SELECT count(*) FROM item WHERE search_vector @@ plainto_tsquery('simple', ?)";
+		// Other tests share this database, so only look at the item created here.
+		Long itemId = jdbc.queryForObject("SELECT max(id) FROM item", Long.class);
+		String match = "SELECT count(*) FROM item WHERE id = " + itemId + " AND search_vector @@ plainto_tsquery('simple', ?)";
 		assertThat(jdbc.queryForObject(match, Integer.class, "maroon")).isEqualTo(1);
 		assertThat(jdbc.queryForObject(match, Integer.class, "festive")).isEqualTo(1);
 

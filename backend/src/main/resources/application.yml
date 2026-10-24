@@ -5,11 +5,18 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 320MB # 30 photos of up to 10 MB, plus form fields
   flyway:
     placeholders:
       admin_password_hash: ${ADMIN_PASSWORD_HASH}
 
 app:
+  storage:
+    # Local disk for now (ImageStorage); repo-root data/uploads when run from backend/.
+    root: ../data/uploads
   jwt:
     secret: ${JWT_SECRET}
     expiry: 24h
