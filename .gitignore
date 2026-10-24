@@ -10,3 +10,4 @@ data/uploads/
 .gradle/
 local.properties
 *.apk
+target/

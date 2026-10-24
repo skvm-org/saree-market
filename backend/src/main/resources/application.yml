@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: backend
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    placeholders:
+      admin_password_hash: ${ADMIN_PASSWORD_HASH}
+
+app:
+  cors:
+    # Empty by default: the native Android app needs no CORS. Add the Angular origin here later.
+    allowed-origins: []

@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/saree
+    username: saree
+    password: saree
+  flyway:
+    placeholders:
+      # BCrypt of the dev password "admin123". Local profile only.
+      admin_password_hash: ${ADMIN_PASSWORD_HASH:$2a$10$ITlk.H9M6TpJyAkyBlzko.vPfpfZfSY8QQaGOPKE772dc6ZlNtGLS}
