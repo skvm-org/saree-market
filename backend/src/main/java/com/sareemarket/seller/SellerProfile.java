@@ -35,4 +35,20 @@ public class SellerProfile {
 		return userId;
 	}
 
+	public String getShopName() {
+		return shopName;
+	}
+
+	public String getMarketLocation() {
+		return marketLocation;
+	}
+
+	public String getContactPhone() {
+		return contactPhone;
+	}
+
+	public String getWhatsappNumber() {
+		return whatsappNumber;
+	}
+
 }

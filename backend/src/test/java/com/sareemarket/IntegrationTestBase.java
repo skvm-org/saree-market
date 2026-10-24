@@ -50,6 +50,16 @@ public abstract class IntegrationTestBase {
 				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(newPhone()));
 	}
 
+	protected String adminToken() throws Exception {
+		String body = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"phone\":\"9999999999\",\"password\":\"admin123\"}"))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		return JsonPath.read(body, "$.token");
+	}
+
 	private String token(String json) throws Exception {
 		String body = mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(json))
 			.andExpect(status().isCreated())
