@@ -133,7 +133,7 @@ fun SellerHomeContent(
 }
 
 @Composable
-private fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
+internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,

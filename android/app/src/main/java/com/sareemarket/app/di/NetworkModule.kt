@@ -4,6 +4,7 @@ import android.content.Context
 import com.sareemarket.app.BuildConfig
 import com.sareemarket.app.data.AuthApi
 import com.sareemarket.app.data.AuthInterceptor
+import com.sareemarket.app.data.CatalogApi
 import com.sareemarket.app.data.CollectionsApi
 import com.sareemarket.app.data.ContentResolverPhotoSource
 import com.sareemarket.app.data.PhotoSource
@@ -60,4 +61,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun photoSource(@ApplicationContext context: Context): PhotoSource = ContentResolverPhotoSource(context.contentResolver)
+
+    @Provides
+    @Singleton
+    fun catalogApi(retrofit: Retrofit): CatalogApi = retrofit.create(CatalogApi::class.java)
 }
