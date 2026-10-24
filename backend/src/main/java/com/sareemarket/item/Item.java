@@ -87,6 +87,10 @@ public class Item {
 		return status;
 	}
 
+	public void setStatus(ItemStatus status) {
+		this.status = status;
+	}
+
 	public String getImagePath() {
 		return imagePath;
 	}

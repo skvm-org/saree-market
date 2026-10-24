@@ -326,4 +326,94 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 		}
 	}
 
+
+	ResultActions patchJson(String path, String token, String json) throws Exception {
+		return mvc.perform(patch(path).header("Authorization", "Bearer " + token)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(json));
+	}
+
+	@Test
+	void sellerCanToggleOneItemAndTheDashboardFollows() throws Exception {
+		String seller = registerSeller();
+		long id = createdId(seller, "Toggles", 3);
+		List<Long> items = itemIds(seller, id);
+		patchJson("/api/v1/items/" + items.get(0), seller, "{\"colour\":\"maroon\"}").andExpect(status().isOk());
+
+		patchJson("/api/v1/items/" + items.get(0), seller, "{\"status\":\"SOLD_OUT\"}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("SOLD_OUT"))
+			.andExpect(jsonPath("$.colour").value("maroon")); // fields not in the patch stay as they were
+		getWith("/api/v1/sellers/me/collections", seller).andExpect(jsonPath("$[0].availableCount").value(2))
+			.andExpect(jsonPath("$[0].soldOutCount").value(1));
+
+		patchJson("/api/v1/items/" + items.get(0), seller, "{\"status\":\"AVAILABLE\"}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("AVAILABLE"));
+		getWith("/api/v1/sellers/me/collections", seller).andExpect(jsonPath("$[0].availableCount").value(3))
+			.andExpect(jsonPath("$[0].soldOutCount").value(0));
+	}
+
+	@Test
+	void unknownStatusValuesAreRejectedAndNothingChanges() throws Exception {
+		String seller = registerSeller();
+		long itemId = itemIds(seller, createdId(seller, "Strict", 1)).get(0);
+
+		for (String bad : new String[] { "\"GONE\"", "\"sold_out\"", "1", "null", "true" }) {
+			patchJson("/api/v1/items/" + itemId, seller, "{\"status\":" + bad + "}").andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.fields.status").exists());
+		}
+		assertThat(jdbc.queryForObject("SELECT status FROM item WHERE id = ?", String.class, itemId)).isEqualTo("AVAILABLE");
+	}
+
+	@Test
+	void onlyTheOwningSellerCanChangeAvailability() throws Exception {
+		String owner = registerSeller();
+		String intruder = registerSeller();
+		String reseller = registerReseller();
+		long id = createdId(owner, "Guarded", 2);
+		long itemId = itemIds(owner, id).get(0);
+
+		for (String other : new String[] { intruder, reseller }) {
+			patchJson("/api/v1/items/" + itemId, other, "{\"status\":\"SOLD_OUT\"}").andExpect(status().isForbidden());
+			patchJson("/api/v1/collections/" + id + "/items/status", other, "{\"status\":\"SOLD_OUT\"}")
+				.andExpect(status().isForbidden());
+		}
+		mvc.perform(patch("/api/v1/collections/" + id + "/items/status").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"status\":\"SOLD_OUT\"}")).andExpect(status().isUnauthorized());
+
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM item WHERE collection_id = ? AND status = 'SOLD_OUT'",
+				Integer.class, id)).isZero();
+	}
+
+	@Test
+	void markAllSoldOutAndBackAffectsOnlyThatCollection() throws Exception {
+		String seller = registerSeller();
+		long target = createdId(seller, "Clearance", 3);
+		long untouched = createdId(seller, "Fresh stock", 2);
+		String bulk = "/api/v1/collections/" + target + "/items/status";
+
+		patchJson(bulk, seller, "{\"status\":\"SOLD_OUT\"}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.status == 'SOLD_OUT')]", org.hamcrest.Matchers.hasSize(3)));
+		patchJson(bulk, seller, "{\"status\":\"SOLD_OUT\"}").andExpect(status().isOk()); // doing it twice is harmless
+		getWith("/api/v1/collections/" + untouched, seller)
+			.andExpect(jsonPath("$.items[?(@.status == 'AVAILABLE')]", org.hamcrest.Matchers.hasSize(2)));
+		getWith("/api/v1/sellers/me/collections", seller)
+			.andExpect(jsonPath("$[?(@.id == " + target + ")].soldOutCount").value(3))
+			.andExpect(jsonPath("$[?(@.id == " + untouched + ")].soldOutCount").value(0));
+
+		patchJson(bulk, seller, "{\"status\":\"AVAILABLE\"}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[?(@.status == 'AVAILABLE')]", org.hamcrest.Matchers.hasSize(3)));
+	}
+
+	@Test
+	void bulkStatusNeedsAValidStatusAndAnExistingCollection() throws Exception {
+		String seller = registerSeller();
+		long id = createdId(seller, "Checks", 1);
+
+		patchJson("/api/v1/collections/" + id + "/items/status", seller, "{\"status\":\"GONE\"}")
+			.andExpect(status().isBadRequest());
+		patchJson("/api/v1/collections/" + id + "/items/status", seller, "{}").andExpect(status().isBadRequest());
+		patchJson("/api/v1/collections/999999/items/status", seller, "{\"status\":\"SOLD_OUT\"}")
+			.andExpect(status().isNotFound());
+	}
+
 }

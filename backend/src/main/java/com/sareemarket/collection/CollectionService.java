@@ -16,6 +16,7 @@ import com.sareemarket.collection.dto.CreateCollectionForm;
 import com.sareemarket.collection.dto.UpdateCollectionRequest;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.item.ItemService;
+import com.sareemarket.item.ItemStatus;
 import com.sareemarket.item.ProcessedImage;
 import com.sareemarket.reference.FabricRepository;
 import com.sareemarket.reference.RefDto;
@@ -77,6 +78,12 @@ public class CollectionService {
 		collection.update(request.title().strip(), request.sareeTypeId(), request.fabricId(), request.price(),
 				blankToNull(request.description()));
 		return detail(collections.save(collection));
+	}
+
+	public CollectionDetailDto setAllStatus(long sellerId, long id, ItemStatus status) {
+		SareeCollection collection = owned(id, sellerId);
+		items.setStatusForCollection(id, status);
+		return detail(collection);
 	}
 
 	public void delete(long sellerId, long id) {

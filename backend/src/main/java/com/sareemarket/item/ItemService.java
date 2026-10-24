@@ -126,11 +126,35 @@ public class ItemService {
 				errors.put("priceOverride", "must be a whole number above 0");
 			}
 		}
+		if (patch.has("status")) {
+			JsonNode node = patch.get("status");
+			ItemStatus status = node.isString() ? parseStatus(node.asString()) : null;
+			if (status == null) {
+				errors.put("status", "must be AVAILABLE or SOLD_OUT");
+			}
+			else {
+				item.setStatus(status);
+			}
+		}
 		if (!errors.isEmpty()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid", errors);
 		}
 		int price = collections.findById(item.getCollectionId()).map(SareeCollection::getPrice).orElse(0);
 		return ItemDto.of(items.save(item), price);
+	}
+
+	/** Marks every photo of a collection available or sold out. The caller has already checked ownership. */
+	public void setStatusForCollection(Long collectionId, ItemStatus status) {
+		items.setStatusForCollection(collectionId, status);
+	}
+
+	private static ItemStatus parseStatus(String value) {
+		try {
+			return ItemStatus.valueOf(value);
+		}
+		catch (IllegalArgumentException e) {
+			return null;
+		}
 	}
 
 	public void delete(long sellerId, long itemId) {

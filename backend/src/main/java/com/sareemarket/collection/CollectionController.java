@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sareemarket.collection.dto.BulkStatusRequest;
 import com.sareemarket.collection.dto.CollectionDetailDto;
 import com.sareemarket.collection.dto.CollectionSummaryDto;
 import com.sareemarket.collection.dto.CreateCollectionForm;
@@ -62,6 +64,13 @@ class CollectionController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		service.delete(userId(jwt), id);
+	}
+
+	@PatchMapping("/collections/{id}/items/status")
+	@PreAuthorize("hasRole('SELLER')")
+	CollectionDetailDto setAllStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable long id,
+			@Valid @RequestBody BulkStatusRequest request) {
+		return service.setAllStatus(userId(jwt), id, request.status());
 	}
 
 	@GetMapping("/sellers/me/collections")
