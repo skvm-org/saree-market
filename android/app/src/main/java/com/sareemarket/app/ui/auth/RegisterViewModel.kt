@@ -2,7 +2,7 @@ package com.sareemarket.app.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sareemarket.app.data.AuthError
+import com.sareemarket.app.data.ApiFailure
 import com.sareemarket.app.data.AuthRepository
 import com.sareemarket.app.data.RegisterRequest
 import com.sareemarket.app.data.Role
@@ -78,8 +78,8 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
                 if (failure == null) {
                     it.copy(loading = false) // the saved session switches the app to the home screen
                 } else {
-                    val fields = (failure as? AuthError)?.fields.orEmpty().toMutableMap()
-                    if ((failure as? AuthError)?.code == "PHONE_TAKEN") fields["phone"] = failure.message.orEmpty()
+                    val fields = (failure as? ApiFailure)?.fields.orEmpty().toMutableMap()
+                    if ((failure as? ApiFailure)?.code == "PHONE_TAKEN") fields["phone"] = failure.message.orEmpty()
                     it.copy(loading = false, fieldErrors = fields, error = failure.message.takeIf { fields.isEmpty() })
                 }
             }

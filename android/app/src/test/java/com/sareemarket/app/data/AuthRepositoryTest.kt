@@ -13,7 +13,7 @@ class AuthRepositoryTest {
     private val store = FakeSessionStore()
     private val repo = AuthRepository(api, store, testJson)
 
-    private fun authError(result: Result<Unit>) = result.exceptionOrNull() as AuthError
+    private fun authError(result: Result<Unit>) = result.exceptionOrNull() as ApiFailure
 
     @Test
     fun loginSavesTheSession() = runTest {

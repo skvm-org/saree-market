@@ -32,6 +32,3 @@ data class ApiError(val code: String, val message: String, val fields: Map<Strin
 
 /** What the app keeps between launches. */
 data class Session(val token: String, val userId: Long, val name: String, val phone: String, val role: Role)
-
-/** An auth call failed; [message] is safe to show the user. */
-class AuthError(val code: String, message: String, val fields: Map<String, String> = emptyMap()) : Exception(message)

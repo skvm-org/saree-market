@@ -3,7 +3,6 @@ package com.sareemarket.app.data
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
@@ -35,26 +34,9 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    private suspend fun authenticate(call: suspend () -> AuthResponse): Result<Unit> = try {
-        val response = call()
-        val user = response.user
-        sessionStore.save(Session(response.token, user.id, user.name, user.phone, user.role))
-        Result.success(Unit)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: HttpException) {
-        Result.failure(toAuthError(e))
-    } catch (e: IOException) {
-        Result.failure(AuthError("NETWORK", "Can't reach the server. Check your connection and try again."))
-    }
-
-    private fun toAuthError(e: HttpException): AuthError {
-        val body = e.response()?.errorBody()?.string()
-        val error = body?.let { runCatching { json.decodeFromString<ApiError>(it) }.getOrNull() }
-        return if (error != null) {
-            AuthError(error.code, error.message, error.fields)
-        } else {
-            AuthError("SERVER", "Something went wrong (${e.code()}). Please try again.")
+    private suspend fun authenticate(call: suspend () -> AuthResponse): Result<Unit> =
+        apiCall(json, call).map { response ->
+            val user = response.user
+            sessionStore.save(Session(response.token, user.id, user.name, user.phone, user.role))
         }
-    }
 }

@@ -29,6 +29,13 @@ import androidx.compose.ui.unit.dp
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 
+@Composable
+fun sareeFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
+    unfocusedBorderColor = SareeColors.Hairline,
+    focusedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+)
+
 /** Input from DESIGN.md: rounded 16 dp, slate border, maroon focus border. */
 @Composable
 fun SareeTextField(
@@ -63,11 +70,7 @@ fun SareeTextField(
             singleLine = true,
             isError = error != null,
             shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
-                unfocusedBorderColor = SareeColors.Hairline,
-                focusedLabelColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
+            colors = sareeFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = MinTouchTarget)

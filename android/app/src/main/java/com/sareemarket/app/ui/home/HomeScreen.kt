@@ -15,13 +15,18 @@ import androidx.compose.ui.text.style.TextAlign
 import com.sareemarket.app.data.Role
 import com.sareemarket.app.data.Session
 import com.sareemarket.app.ui.components.SecondaryButton
+import com.sareemarket.app.ui.seller.SellerNavHost
 import com.sareemarket.app.ui.theme.Spacing
 
 /** Placeholder landing screen per role; the real seller and reseller screens arrive in later slices. */
 @Composable
 fun HomeScreen(session: Session, onLogout: () -> Unit) {
+    if (session.role == Role.SELLER) {
+        SellerNavHost(session, onLogout)
+        return
+    }
     val (title, note) = when (session.role) {
-        Role.SELLER -> "Seller home" to "Your collections will appear here."
+        Role.SELLER -> "" to ""
         Role.RESELLER -> "Reseller home" to "The catalog will appear here."
         Role.ADMIN -> "Admin" to "Admin screens come with the web app. Use the API for now."
     }
