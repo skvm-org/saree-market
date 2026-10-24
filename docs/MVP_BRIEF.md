@@ -192,7 +192,7 @@ On phones the filters panel is a bottom sheet.
 7. **Follow and notifications** — follows, events, fan-out with coalescing, bell, notifications screen, WorkManager local notifications, Following filter, tests
 8. **Admin (backend only)** — reference data and user enable/disable endpoints with integration tests
 
-Each slice: plan → build → unit + integration tests → backend `/ponytail-review` → summary and how to try it → stop for review.
+Each slice: plan → build → unit + integration tests → summary and how to try it → stop for review. The ponytail review (`/ponytail-review`) runs once on the whole backend after slice 8, not per slice.
 
 After the MVP: Angular web app (`frontend/`) with the admin screens.
 

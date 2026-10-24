@@ -91,7 +91,7 @@ Required skills must be installed before work starts. If one is missing when nee
 | Skill | Use for | When |
 | --- | --- | --- |
 | **Android design** (Material 3 + Android conventions) | Navigation, back behaviour, touch targets, system feedback | While writing any Android UI: Material 3 components, predictable back stack and system back, touch targets ≥ 48 dp, bottom sheets for filters, edge-to-edge with insets handled |
-| **Ponytail** (`/ponytail-review`, `/ponytail-audit`) | Remove boilerplate and over-engineering in backend code | `/ponytail-review` on the diff at the end of every backend slice; apply its delete-list unless it removes validation, security or a required test. `/ponytail-audit` on the whole backend after slices 4 and 8 |
+| **Ponytail** (`/ponytail-review`, `/ponytail-audit`) | Remove boilerplate and over-engineering in backend code | Once, on the whole backend, when the MVP is complete (after slice 8). Not after each slice. Apply its delete-list unless it removes validation, security or a required test |
 
 **Precedence when they disagree:** `DESIGN.md` wins on tokens, colours and type; Material 3 / Android conventions win on navigation, back behaviour and touch targets (48 dp, not DESIGN.md's 44 px); the Stitch screens decide layout and content.
 
@@ -121,7 +121,8 @@ Web precedence: `DESIGN.md` wins on tokens, colours and type; Apple HIG wins on 
 ## Working style
 
 - Build one slice at a time in the order in MVP_BRIEF.md
-- Per slice: plan → build → tests → (backend: `/ponytail-review`) → `./mvnw verify` and Android tests → summarise what was built and how to try it → stop for review
+- Per slice: plan → build → tests → `./mvnw verify` and Android tests → summarise what was built and how to try it → stop for review
+- The ponytail review is not part of a slice: run it once on the whole backend when the MVP is complete
 - Do not start the next slice until told to
 - Do not add features listed under "Out of scope" in the brief
 - Keep it simple: no microservices, no message queues, no caching layers
