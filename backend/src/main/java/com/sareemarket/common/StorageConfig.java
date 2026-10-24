@@ -10,8 +10,9 @@ import org.springframework.context.annotation.Configuration;
 class StorageConfig {
 
 	@Bean
-	ImageStorage imageStorage(@Value("${app.storage.root}") Path root) {
-		return new LocalDiskImageStorage(root);
+	// A String, not a Path: Spring converts a Path value as a servlet resource, which rejects "../data/uploads".
+	ImageStorage imageStorage(@Value("${app.storage.root}") String root) {
+		return new LocalDiskImageStorage(Path.of(root));
 	}
 
 }
