@@ -8,7 +8,7 @@ import org.junit.Test
 class CatalogRepositoryTest {
 
     private val api = FakeCatalogApi()
-    private val repo = CatalogRepository(api, FakeCollectionsApi(), testJson)
+    private val repo = CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson)
 
     @Test
     fun emptyQuerySendsOnlyTheDefaults() = runTest {
@@ -71,5 +71,46 @@ class CatalogRepositoryTest {
         assertEquals("Lakshmi Silks", repo.seller(1).getOrNull()?.shopName)
         assertEquals(1, repo.sellers().getOrNull()?.size)
         assertEquals(1, repo.referenceData().getOrNull()?.sareeTypes?.size)
+    }
+
+    @Test
+    fun photoSearchSendsThePictureAsTheImagePartAlongWithTheFilters() = runTest {
+        val query = CatalogQuery(q = "silk", typeIds = setOf(3), colour = "blue", minPrice = 1000, sellerId = 9, includeSoldOut = true, sinceDays = 7, sort = CatalogSort.PRICE_ASC)
+
+        val result = repo.imageSearch(query, "photo-1", page = 1)
+
+        val sent = api.imageCalls.single()
+        assertEquals("image", sent.partName)
+        assertEquals("photo-1.jpg", sent.fileName)
+        assertEquals(CatalogCall("silk", listOf(3), null, "blue", 1000, null, 9, "ALL", 7, "", 1), sent.call)
+        assertEquals(3, result.getOrNull()?.items?.first()?.distance)
+    }
+
+    @Test
+    fun photoSearchWithoutFiltersSendsOnlyTheDefaults() = runTest {
+        repo.imageSearch(CatalogQuery(), "photo-2", page = 0)
+
+        val call = api.imageCalls.single().call
+        assertNull(call.q)
+        assertNull(call.typeIds)
+        assertEquals("AVAILABLE", call.status)
+        assertEquals(0, call.page)
+    }
+
+    @Test
+    fun aPictureTheServerRefusesShowsItsMessage() = runTest {
+        api.onImageSearch = { throw httpError(400, """{"code":"INVALID_IMAGE","message":"\"query.jpg\" is not a valid JPG, PNG or WebP photo"}""") }
+
+        val failure = repo.imageSearch(CatalogQuery(), "photo-1", 0).exceptionOrNull() as ApiFailure
+
+        assertEquals("INVALID_IMAGE", failure.code)
+        assertEquals(0, api.calls.size) // the normal catalog was not touched
+    }
+
+    @Test
+    fun aTooBigPictureGetsTheServersSizeMessage() = runTest {
+        api.onImageSearch = { throw httpError(413, """{"code":"PAYLOAD_TOO_LARGE","message":"Each photo must be 10 MB or smaller"}""") }
+
+        assertEquals("Each photo must be 10 MB or smaller", repo.imageSearch(CatalogQuery(), "photo-1", 0).exceptionOrNull()?.message)
     }
 }

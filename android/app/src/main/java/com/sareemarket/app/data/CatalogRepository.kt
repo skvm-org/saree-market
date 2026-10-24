@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 class CatalogRepository @Inject constructor(
     private val api: CatalogApi,
     private val collectionsApi: CollectionsApi,
+    private val photos: PhotoSource,
     private val json: Json,
 ) {
     suspend fun catalog(query: CatalogQuery, page: Int): Result<CatalogPage> = apiCall(json) {
@@ -22,6 +23,23 @@ class CatalogRepository @Inject constructor(
             status = if (query.includeSoldOut) "ALL" else "AVAILABLE",
             since = query.sinceDays,
             sort = query.sort.param,
+            page = page,
+        )
+    }
+
+    /** Sorting does not apply: a photo search always lists the closest match first. */
+    suspend fun imageSearch(query: CatalogQuery, photo: String, page: Int): Result<CatalogPage> = apiCall(json) {
+        api.imageSearch(
+            image = imagePart(photos, photo),
+            q = query.q.trim().ifEmpty { null },
+            typeIds = query.typeIds.sorted().ifEmpty { null },
+            fabricIds = query.fabricIds.sorted().ifEmpty { null },
+            colour = query.colour.trim().ifEmpty { null },
+            minPrice = query.minPrice,
+            maxPrice = query.maxPrice,
+            sellerId = query.sellerId,
+            status = if (query.includeSoldOut) "ALL" else "AVAILABLE",
+            since = query.sinceDays,
             page = page,
         )
     }

@@ -1,6 +1,10 @@
 package com.sareemarket.app.data
 
+import okhttp3.MultipartBody
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -17,6 +21,23 @@ interface CatalogApi {
         @Query("status") status: String,
         @Query("since") since: Int?,
         @Query("sort") sort: String,
+        @Query("page") page: Int,
+    ): CatalogPage
+
+    /** Photo search: the picture plus the same optional filters. Results come back closest first. */
+    @Multipart
+    @POST("api/v1/catalog/image-search")
+    suspend fun imageSearch(
+        @Part image: MultipartBody.Part,
+        @Query("q") q: String?,
+        @Query("typeIds") typeIds: List<Long>?,
+        @Query("fabricIds") fabricIds: List<Long>?,
+        @Query("colour") colour: String?,
+        @Query("minPrice") minPrice: Int?,
+        @Query("maxPrice") maxPrice: Int?,
+        @Query("sellerId") sellerId: Long?,
+        @Query("status") status: String,
+        @Query("since") since: Int?,
         @Query("page") page: Int,
     ): CatalogPage
 

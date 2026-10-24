@@ -1,9 +1,15 @@
 package com.sareemarket.app.ui.reseller
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -21,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,11 +52,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.CatalogItem
@@ -63,6 +74,7 @@ import com.sareemarket.app.ui.formatRupees
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
+import java.io.File
 import kotlinx.coroutines.delay
 
 private const val SEARCH_DELAY_MS = 300L
@@ -76,6 +88,15 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: C
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf(state.query.q) }
     var showFilters by remember { mutableStateOf(false) }
+    var showPhotoChoice by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        if (saved) cameraUri?.let { viewModel.searchByImage(it.toString()) }
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { viewModel.searchByImage(it.toString()) }
+    }
     // Search as the reseller types, but wait for a short pause so each letter does not hit the server.
     LaunchedEffect(text) {
         delay(SEARCH_DELAY_MS)
@@ -91,8 +112,26 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: C
         onLoadMore = viewModel::loadNextPage,
         onRetry = viewModel::retry,
         onClearFilters = viewModel::clearFilters,
+        onPhotoSearch = { showPhotoChoice = true },
+        onClearPhoto = viewModel::clearImage,
         onLogout = onLogout,
     )
+    if (showPhotoChoice) {
+        PhotoSourceDialog(
+            onDismiss = { showPhotoChoice = false },
+            onCamera = {
+                showPhotoChoice = false
+                val file = File.createTempFile("search", ".jpg", File(context.cacheDir, "camera").apply { mkdirs() })
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                cameraUri = uri
+                camera.launch(uri)
+            },
+            onGallery = {
+                showPhotoChoice = false
+                gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+        )
+    }
     if (showFilters) {
         ModalBottomSheet(onDismissRequest = { showFilters = false }) {
             FilterSheetContent(
@@ -116,6 +155,8 @@ fun CatalogContent(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onClearFilters: () -> Unit,
+    onPhotoSearch: () -> Unit,
+    onClearPhoto: () -> Unit,
     onLogout: () -> Unit,
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -127,7 +168,8 @@ fun CatalogContent(
                 }
             }
             SearchField(searchText, onSearchText)
-            FilterBar(state, onOpenFilters, onSort)
+            FilterBar(state, onOpenFilters, onSort, onPhotoSearch)
+            if (state.imageUri != null) PhotoBanner(state.imageUri, onClearPhoto)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -136,7 +178,12 @@ fun CatalogContent(
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
                     }
                     state.items.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No sarees match.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (state.imageUri != null) "No similar sarees found.\nTry a clearer photo, or fewer filters." else "No sarees match.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                         if (state.query.activeFilterCount > 0) {
                             TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
                         }
@@ -169,12 +216,13 @@ private fun SearchField(text: String, onText: (String) -> Unit) {
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit) {
+private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit, onPhotoSearch: () -> Unit) {
     var sortOpen by remember { mutableStateOf(false) }
-    Row(
+    FlowRow(
         Modifier.fillMaxWidth().padding(vertical = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         val count = state.query.activeFilterCount
@@ -185,23 +233,33 @@ private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (C
         ) {
             Text(if (count > 0) "Filters ($count)" else "Filters", style = MaterialTheme.typography.labelLarge)
         }
-        Box {
-            OutlinedButton(
-                onClick = { sortOpen = true },
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.heightIn(min = MinTouchTarget).testTag("sort"),
-            ) {
-                Text(state.query.sort.label, style = MaterialTheme.typography.labelLarge)
-            }
-            DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                CatalogSort.entries.forEach { sort ->
-                    DropdownMenuItem(
-                        text = { Text(sort.label) },
-                        onClick = { sortOpen = false; onSort(sort) },
-                        modifier = Modifier.heightIn(min = MinTouchTarget),
-                    )
+        // A photo search lists the closest match first, so there is no sort order to choose.
+        if (state.imageUri == null) {
+            Box {
+                OutlinedButton(
+                    onClick = { sortOpen = true },
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag("sort"),
+                ) {
+                    Text(state.query.sort.label, style = MaterialTheme.typography.labelLarge)
+                }
+                DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                    CatalogSort.entries.forEach { sort ->
+                        DropdownMenuItem(
+                            text = { Text(sort.label) },
+                            onClick = { sortOpen = false; onSort(sort) },
+                            modifier = Modifier.heightIn(min = MinTouchTarget),
+                        )
+                    }
                 }
             }
+        }
+        OutlinedButton(
+            onClick = onPhotoSearch,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.heightIn(min = MinTouchTarget).testTag("photo-search"),
+        ) {
+            Text("Search by photo", style = MaterialTheme.typography.labelLarge)
         }
     }
     if (!state.loading && state.items.isNotEmpty()) {
@@ -212,6 +270,39 @@ private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (C
             modifier = Modifier.padding(bottom = Spacing.sm).testTag("count"),
         )
     }
+}
+
+/** Reminds the reseller that the list is a photo search, and lets them go back to the full catalog. */
+@Composable
+private fun PhotoBanner(imageUri: String, onClear: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = Spacing.sm).testTag("photo-banner"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        SareeImage(imageUri, contentDescription = "Your photo", modifier = Modifier.width(40.dp))
+        Text("Sarees that look like your photo", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextButton(onClick = onClear, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("clear-photo")) {
+            Text("Clear", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** Where the search picture comes from: a new photo from the camera, or one already on the phone (even a screenshot). */
+@Composable
+internal fun PhotoSourceDialog(onDismiss: () -> Unit, onCamera: () -> Unit, onGallery: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Search by photo") },
+        text = { Text("Find sarees that look like a picture. Take a photo, or pick one from your phone, such as a screenshot someone sent you.") },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onCamera, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("take-photo")) { Text("Take a photo") }
+                TextButton(onClick = onGallery, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("choose-photo")) { Text("Choose from phone") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Cancel") } },
+    )
 }
 
 @Composable

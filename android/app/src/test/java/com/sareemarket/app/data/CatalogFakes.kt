@@ -9,6 +9,12 @@ data class CatalogCall(
     val sort: String, val page: Int,
 )
 
+/** What the app sent in one photo search: the picture's file name plus the filters. */
+data class ImageCall(val fileName: String?, val partName: String?, val call: CatalogCall)
+
+/** Two pretend photos on the phone, named like the URIs the picker returns. */
+fun fakePhotos() = FakePhotoSource(mapOf("photo-1" to ByteArray(100), "photo-2" to ByteArray(100)))
+
 fun card(id: Long, status: ItemStatus = ItemStatus.AVAILABLE) = CatalogItem(
     id, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 2500, status, 1, "Lakshmi Silks",
 )
@@ -31,6 +37,9 @@ class FakeCatalogApi : CatalogApi {
     var onItem: (Long) -> ItemDetail = { itemDetail(it) }
     var onSeller: (Long) -> SellerPage = { SellerPage(it, "Lakshmi Silks", "Chinnalapatti", "9876543210", null, listOf(summary())) }
 
+    val imageCalls = mutableListOf<ImageCall>()
+    var onImageSearch: (ImageCall) -> CatalogPage = { page(it.call.page, totalPages = 2).let { p -> p.copy(items = p.items.map { c -> c.copy(distance = 3) }) } }
+
     /** When set, a search for q == "slow" waits for this before answering, to test late answers. */
     var gate: CompletableDeferred<Unit>? = null
 
@@ -42,6 +51,20 @@ class FakeCatalogApi : CatalogApi {
         calls += call
         if (q == "slow") gate?.await()
         return onCatalog(call)
+    }
+
+    override suspend fun imageSearch(
+        image: okhttp3.MultipartBody.Part, q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?,
+        minPrice: Int?, maxPrice: Int?, sellerId: Long?, status: String, since: Int?, page: Int,
+    ): CatalogPage {
+        val disposition = image.headers?.get("Content-Disposition").orEmpty()
+        val call = ImageCall(
+            fileName = Regex("filename=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
+            partName = Regex("name=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
+            call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, "", page),
+        )
+        imageCalls += call
+        return onImageSearch(call)
     }
 
     override suspend fun item(id: Long) = onItem(id)

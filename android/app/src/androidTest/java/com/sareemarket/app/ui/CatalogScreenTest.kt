@@ -17,6 +17,7 @@ import com.sareemarket.app.data.CatalogSort
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.ui.reseller.CatalogContent
 import com.sareemarket.app.ui.reseller.CatalogState
+import com.sareemarket.app.ui.reseller.PhotoSourceDialog
 import com.sareemarket.app.ui.theme.SareeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -39,8 +40,10 @@ class CatalogScreenTest {
         onOpen: (Long) -> Unit = {},
         onClear: () -> Unit = {},
         onRetry: () -> Unit = {},
+        onPhoto: () -> Unit = {},
+        onClearPhoto: () -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, {}) }
+        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onPhoto, onClearPhoto, {}) }
     }
 
     @Test
@@ -88,7 +91,7 @@ class CatalogScreenTest {
     fun typedSearchTextIsReported() {
         compose.setContent {
             var text by remember { mutableStateOf("") }
-            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}) }
+            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }
 
         compose.onNodeWithTag("search").performTextInput("peacock")
@@ -135,5 +138,63 @@ class CatalogScreenTest {
         compose.onNodeWithText("Retry").performClick()
 
         assertEquals(1, retries)
+    }
+
+    @Test
+    fun searchByPhotoButtonIsAlwaysThere() {
+        var taps = 0
+        show(CatalogState(items = listOf(available), loading = false), onPhoto = { taps++ })
+
+        compose.onNodeWithTag("photo-search").performClick()
+
+        assertEquals(1, taps)
+    }
+
+    @Test
+    fun aPhotoSearchShowsABannerAndHidesTheSortMenu() {
+        var cleared = 0
+        show(CatalogState(imageUri = "content://photo", items = listOf(available), totalItems = 1, loading = false), onClearPhoto = { cleared++ })
+
+        compose.onNodeWithTag("photo-banner").assertExists()
+        compose.onNodeWithText("Sarees that look like your photo").assertExists()
+        compose.onNodeWithTag("sort").assertDoesNotExist() // results are already closest first
+        compose.onNodeWithTag("clear-photo").performClick()
+
+        assertEquals(1, cleared)
+    }
+
+    @Test
+    fun normalSearchHasNoBannerAndKeepsTheSortMenu() {
+        show(CatalogState(items = listOf(available), loading = false))
+
+        compose.onNodeWithTag("photo-banner").assertDoesNotExist()
+        compose.onNodeWithTag("sort").assertExists()
+    }
+
+    @Test
+    fun noLookAlikesSaysSoAndOffersAWayBack() {
+        var cleared = 0
+        show(CatalogState(imageUri = "content://photo", loading = false), onClearPhoto = { cleared++ })
+
+        compose.onNodeWithText("No similar sarees found.", substring = true).assertExists()
+        compose.onNodeWithTag("clear-photo").performClick()
+
+        assertEquals(1, cleared)
+    }
+
+    @Test
+    fun photoDialogOffersCameraAndPhoneAndCancel() {
+        var camera = 0
+        var gallery = 0
+        var dismissed = 0
+        compose.setContent { SareeTheme { PhotoSourceDialog({ dismissed++ }, { camera++ }, { gallery++ }) } }
+
+        compose.onNodeWithTag("take-photo").performClick()
+        compose.onNodeWithTag("choose-photo").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+
+        assertEquals(1, camera)
+        assertEquals(1, gallery)
+        assertEquals(1, dismissed)
     }
 }

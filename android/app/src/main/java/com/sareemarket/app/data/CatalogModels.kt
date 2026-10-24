@@ -14,6 +14,8 @@ data class CatalogItem(
     val status: ItemStatus,
     val sellerId: Long,
     val shopName: String,
+    /** How far this photo is from the searched picture (0 is identical); only set by a photo search. */
+    val distance: Int? = null,
 )
 
 @Serializable

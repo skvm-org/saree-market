@@ -8,6 +8,8 @@ import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.httpError
 import com.sareemarket.app.data.networkError
 import com.sareemarket.app.data.page
+import com.sareemarket.app.data.card
+import com.sareemarket.app.data.fakePhotos
 import com.sareemarket.app.data.testJson
 import com.sareemarket.app.ui.reseller.CatalogViewModel
 import kotlinx.coroutines.CompletableDeferred
@@ -29,7 +31,7 @@ import org.junit.Test
 class CatalogViewModelTest {
 
     private val api = FakeCatalogApi()
-    private val vm by lazy { CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), testJson)) }
+    private val vm by lazy { CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson)) }
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -130,7 +132,7 @@ class CatalogViewModelTest {
         var fail = true
         api.onCatalog = { if (fail) throw networkError() else page(it.page, 1) }
 
-        val failing = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), testJson))
+        val failing = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson))
         assertTrue(failing.state.value.items.isEmpty())
         assertNotNull(failing.state.value.error)
         assertFalse(failing.state.value.loading)
@@ -168,4 +170,111 @@ class CatalogViewModelTest {
         assertFalse(vm.state.value.hasMore)
         assertEquals(1, vm.state.value.query.activeFilterCount)
     }
+
+    @Test
+    fun searchingByPhotoUsesThePhotoSearchAndShowsClosestFirst() {
+        vm.state.value // first catalog load
+        val catalogCalls = api.calls.size
+
+        vm.searchByImage("photo-1")
+
+        assertEquals("photo-1", vm.state.value.imageUri)
+        assertEquals(1, api.imageCalls.size)
+        assertEquals(catalogCalls, api.calls.size) // the normal catalog was not asked again
+        assertEquals(listOf(0L, 1L), ids())
+        assertEquals(3, vm.state.value.items.first().distance)
+    }
+
+    @Test
+    fun filtersAndKeywordStillApplyDuringAPhotoSearch() {
+        vm.searchByImage("photo-1")
+
+        vm.apply(vm.state.value.query.copy(typeIds = setOf(2), includeSoldOut = true))
+        vm.setKeyword("silk")
+
+        val last = api.imageCalls.last().call
+        assertEquals(listOf(2L), last.typeIds)
+        assertEquals("ALL", last.status)
+        assertEquals("silk", last.q)
+        assertEquals("photo-1", vm.state.value.imageUri) // still searching with the same picture
+    }
+
+    @Test
+    fun scrollingLoadsMoreMatchesOfThePhotoSearch() {
+        vm.searchByImage("photo-1")
+
+        vm.loadNextPage()
+
+        assertEquals(listOf(0, 1), api.imageCalls.map { it.call.page })
+        assertEquals(4, ids().size)
+        assertFalse(vm.state.value.hasMore)
+    }
+
+    @Test
+    fun clearingThePhotoGoesBackToTheNormalCatalog() {
+        vm.searchByImage("photo-1")
+        val catalogCalls = api.calls.size
+
+        vm.clearImage()
+
+        assertNull(vm.state.value.imageUri)
+        assertEquals(catalogCalls + 1, api.calls.size)
+        assertEquals(0, api.calls.last().page)
+        assertNull(vm.state.value.items.first().distance)
+    }
+
+    @Test
+    fun clearingFiltersKeepsThePhoto() {
+        vm.searchByImage("photo-1")
+        vm.apply(vm.state.value.query.copy(colour = "red"))
+
+        vm.clearFilters()
+
+        assertEquals("photo-1", vm.state.value.imageUri)
+        assertNull(api.imageCalls.last().call.colour)
+    }
+
+    @Test
+    fun noLookAlikesIsAnEmptyListNotAnError() {
+        api.onImageSearch = { ImageCallResult.empty() }
+
+        vm.searchByImage("photo-1")
+
+        assertTrue(vm.state.value.items.isEmpty())
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.loading)
+        assertEquals("photo-1", vm.state.value.imageUri)
+    }
+
+    @Test
+    fun failedPhotoSearchShowsTheErrorAndRetryTriesTheSamePicture() {
+        var fail = true
+        api.onImageSearch = { if (fail) throw networkError() else page(it.call.page, 1) }
+
+        vm.searchByImage("photo-1")
+        assertNotNull(vm.state.value.error)
+        assertTrue(vm.state.value.items.isEmpty())
+
+        fail = false
+        vm.retry()
+        assertEquals(2, vm.state.value.items.size)
+        assertNull(vm.state.value.error)
+        assertEquals(2, api.imageCalls.size)
+        assertEquals(listOf("photo-1.jpg", "photo-1.jpg"), api.imageCalls.map { it.fileName })
+    }
+
+    @Test
+    fun aPhotoShiftedByNewUploadsIsNotListedTwice() {
+        // A seller uploaded while the reseller scrolled, so page 2 repeats the last photo of page 1.
+        api.onCatalog = { if (it.page == 0) page(0, 3) else page(1, 3).copy(items = listOf(card(1), card(100))) }
+        val fresh = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson))
+
+        fresh.loadNextPage()
+
+        assertEquals(listOf(0L, 1L, 100L), fresh.state.value.items.map { it.id })
+    }
+}
+
+private object ImageCallResult {
+    fun empty() = page(0, totalPages = 0, perPage = 0, total = 0)
 }

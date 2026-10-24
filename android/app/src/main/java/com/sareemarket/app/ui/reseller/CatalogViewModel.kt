@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 
 data class CatalogState(
     val query: CatalogQuery = CatalogQuery(),
+    /** The picture being searched with (a URI string), or null for a normal catalog search. */
+    val imageUri: String? = null,
     val items: List<CatalogItem> = emptyList(),
     val totalItems: Long = 0,
     val nextPage: Int = 0,
@@ -49,6 +51,17 @@ class CatalogViewModel @Inject constructor(private val repository: CatalogReposi
             repository.referenceData().onSuccess { ref -> _state.update { it.copy(reference = ref) } }
             repository.sellers().onSuccess { list -> _state.update { it.copy(sellers = list) } }
         }
+    }
+
+    /** Finds sarees that look like this picture. The filters on screen still apply. */
+    fun searchByImage(uri: String) {
+        _state.update { it.copy(imageUri = uri) }
+        reload()
+    }
+
+    fun clearImage() {
+        _state.update { it.copy(imageUri = null) }
+        reload()
     }
 
     fun setKeyword(text: String) {
@@ -85,11 +98,14 @@ class CatalogViewModel @Inject constructor(private val repository: CatalogReposi
     }
 
     private suspend fun fetch(page: Int) {
-        repository.catalog(_state.value.query, page).fold(
+        val photo = _state.value.imageUri
+        val result = if (photo != null) repository.imageSearch(_state.value.query, photo, page) else repository.catalog(_state.value.query, page)
+        result.fold(
             onSuccess = { result ->
                 _state.update {
                     it.copy(
-                        items = if (page == 0) result.items else it.items + result.items,
+                        // distinctBy: photos uploaded while scrolling shift the pages, so one can show up twice.
+                        items = if (page == 0) result.items else (it.items + result.items).distinctBy { c -> c.id },
                         totalItems = result.totalItems,
                         nextPage = page + 1,
                         hasMore = page + 1 < result.totalPages,

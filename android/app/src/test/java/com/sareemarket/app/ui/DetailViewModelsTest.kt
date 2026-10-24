@@ -5,6 +5,7 @@ import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.FakeCatalogApi
 import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.httpError
+import com.sareemarket.app.data.fakePhotos
 import com.sareemarket.app.data.testJson
 import com.sareemarket.app.ui.reseller.ItemDetailViewModel
 import com.sareemarket.app.ui.reseller.ResellerCollectionViewModel
@@ -26,7 +27,7 @@ class DetailViewModelsTest {
 
     private val catalogApi = FakeCatalogApi()
     private val collectionsApi = FakeCollectionsApi()
-    private val repo by lazy { CatalogRepository(catalogApi, collectionsApi, testJson) }
+    private val repo by lazy { CatalogRepository(catalogApi, collectionsApi, fakePhotos(), testJson) }
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())

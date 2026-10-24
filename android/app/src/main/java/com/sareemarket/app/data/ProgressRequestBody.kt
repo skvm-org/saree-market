@@ -48,3 +48,9 @@ fun photoParts(source: PhotoSource, photos: List<String>, onProgress: (Float) ->
         MultipartBody.Part.createFormData("files", infos[i].name, body)
     }
 }
+
+/** The picture a reseller searches with, as the multipart part named "image". */
+fun imagePart(source: PhotoSource, photo: String): MultipartBody.Part {
+    val info = source.info(photo)
+    return MultipartBody.Part.createFormData("image", info.name, PhotoRequestBody(source, photo, info) {})
+}
