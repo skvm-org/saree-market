@@ -4,7 +4,11 @@ import java.time.Instant;
 
 import com.sareemarket.item.ItemStatus;
 
-/** One card in the catalog grid. price is what the saree costs: its own price if set, else the collection's. */
+/**
+ * One card in the catalog grid. price is what the saree costs: its own price if set, else the collection's.
+ * distance is how far the photo is from the searched picture (0 is identical); null outside an image search.
+ */
 public record CatalogItemDto(Long id, Long collectionId, String collectionTitle, String sareeType, String fabric,
-		String colour, int price, ItemStatus status, Long sellerId, String shopName, Instant createdAt) {
+		String colour, int price, ItemStatus status, Long sellerId, String shopName, Instant createdAt,
+		Integer distance) {
 }

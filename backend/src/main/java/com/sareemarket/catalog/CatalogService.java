@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,12 +14,14 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.catalog.dto.ItemDetailDto;
 import com.sareemarket.catalog.dto.ItemDetailDto.SellerContactDto;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.PageDto;
+import com.sareemarket.item.ImageProcessor;
 import com.sareemarket.item.ItemStatus;
 
 /** Read side of the app: what resellers search and look at. Plain SQL, because the filters are built on the fly. */
@@ -41,15 +44,28 @@ public class CatalogService {
 			JOIN app_user u ON u.id = c.seller_id
 			""";
 
-	private static final RowMapper<CatalogItemDto> CARD = (rs, n) -> new CatalogItemDto(rs.getLong("id"),
-			rs.getLong("collection_id"), rs.getString("title"), rs.getString("saree_type"), rs.getString("fabric"),
-			rs.getString("colour"), rs.getInt("price"), ItemStatus.valueOf(rs.getString("status")),
-			rs.getLong("seller_id"), rs.getString("shop_name"), instant(rs, "created_at"));
+	/** Photos this many bits apart or fewer count as "the same picture" (see ImageHasher). */
+	static final int MAX_DISTANCE = 12;
+
+	private static final String CARD_COLUMNS = """
+			SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
+			       COALESCE(i.price_override, c.price) AS price, i.status, c.seller_id, sp.shop_name, i.created_at
+			""";
 
 	private final NamedParameterJdbcTemplate jdbc;
 
-	CatalogService(NamedParameterJdbcTemplate jdbc) {
+	private final ImageProcessor images;
+
+	CatalogService(NamedParameterJdbcTemplate jdbc, ImageProcessor images) {
 		this.jdbc = jdbc;
+		this.images = images;
+	}
+
+	private static RowMapper<CatalogItemDto> card(boolean withDistance) {
+		return (rs, n) -> new CatalogItemDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
+				rs.getString("saree_type"), rs.getString("fabric"), rs.getString("colour"), rs.getInt("price"),
+				ItemStatus.valueOf(rs.getString("status")), rs.getLong("seller_id"), rs.getString("shop_name"),
+				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null);
 	}
 
 	public PageDto<CatalogItemDto> search(CatalogFilter filter) {
@@ -58,11 +74,31 @@ public class CatalogService {
 		Long total = jdbc.queryForObject("SELECT count(*) " + FROM + where, params, Long.class);
 
 		params.addValue("limit", PAGE_SIZE).addValue("offset", (long) filter.page() * PAGE_SIZE);
-		List<CatalogItemDto> items = jdbc.query("""
-				SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
-				       COALESCE(i.price_override, c.price) AS price, i.status, c.seller_id, sp.shop_name, i.created_at
-				""" + FROM + where + " ORDER BY " + filter.sort().orderBy() + ", i.id DESC LIMIT :limit OFFSET :offset",
-				params, CARD);
+		List<CatalogItemDto> items = jdbc.query(CARD_COLUMNS + FROM + where + " ORDER BY " + filter.sort().orderBy()
+				+ ", i.id DESC LIMIT :limit OFFSET :offset", params, card(false));
+		return PageDto.of(items, filter.page(), PAGE_SIZE, total == null ? 0 : total);
+	}
+
+	/**
+	 * Finds photos that look like the uploaded picture, closest first, then narrows them with the same filters as
+	 * the normal catalog. The picture goes through the same steps as every stored photo, so an identical picture
+	 * gets the identical hash. shortcut: this compares the hash of every photo that passes the filters, which is
+	 * fine for thousands to a few hundred thousand rows; a bigger catalog needs a similarity index.
+	 */
+	public PageDto<CatalogItemDto> imageSearch(MultipartFile image, CatalogFilter filter) {
+		if (image == null || image.isEmpty()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid",
+					Map.of("image", "Choose a photo to search with"));
+		}
+		MapSqlParameterSource params = new MapSqlParameterSource("hash", images.process(image).hash())
+			.addValue("maxDistance", MAX_DISTANCE);
+		String distance = "bit_count((i.image_hash # :hash)::bit(64))";
+		String where = where(filter, params) + " AND " + distance + " <= :maxDistance";
+		Long total = jdbc.queryForObject("SELECT count(*) " + FROM + where, params, Long.class);
+
+		params.addValue("limit", PAGE_SIZE).addValue("offset", (long) filter.page() * PAGE_SIZE);
+		List<CatalogItemDto> items = jdbc.query(CARD_COLUMNS.stripTrailing() + ", " + distance + " AS distance\n" + FROM
+				+ where + " ORDER BY distance, i.id DESC LIMIT :limit OFFSET :offset", params, card(true));
 		return PageDto.of(items, filter.page(), PAGE_SIZE, total == null ? 0 : total);
 	}
 

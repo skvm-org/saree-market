@@ -21,7 +21,7 @@ import net.coobird.thumbnailator.Thumbnails;
 
 /** Checks an uploaded photo is a real JPG/PNG/WebP, then makes the stored copy, the thumbnail and the hash. */
 @Component
-class ImageProcessor {
+public class ImageProcessor {
 
 	static final int MAX_FULL = 1600;
 
@@ -29,7 +29,7 @@ class ImageProcessor {
 
 	private static final float QUALITY = 0.85f;
 
-	ProcessedImage process(MultipartFile file) {
+	public ProcessedImage process(MultipartFile file) {
 		String name = file.getOriginalFilename() == null ? "photo" : file.getOriginalFilename();
 		byte[] original;
 		try {
