@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import com.sareemarket.app.ui.health.HealthScreen
+import com.sareemarket.app.ui.AppRoot
 import com.sareemarket.app.ui.theme.SareeTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             SareeTheme {
-                HealthScreen()
+                AppRoot()
             }
         }
     }

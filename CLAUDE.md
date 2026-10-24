@@ -41,6 +41,8 @@ cd backend && ./mvnw spring-boot:run      # API on 8080
 cd android && ./gradlew installDebug      # or run from Android Studio on an emulator
 ```
 
+Seeded admin for local testing: phone `9999999999`, password `admin123` (local profile only; other profiles must set `ADMIN_PASSWORD_HASH` and `JWT_SECRET`, 32+ characters).
+
 Containers run on OrbStack (it provides the `docker` CLI and `docker compose`; Testcontainers uses it too).
 
 The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical device on the LAN, override the base URL (see Android conventions).
@@ -64,7 +66,8 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 
 - Kotlin, Jetpack Compose, Material 3, single activity, Navigation Compose; min SDK 26, target the latest stable SDK
 - MVVM: one `ViewModel` per screen exposing `StateFlow` UI state, a repository layer over Retrofit, Hilt for DI
-- Retrofit + OkHttp + kotlinx.serialization; an OkHttp interceptor adds the JWT
+- Retrofit + OkHttp + kotlinx.serialization; an OkHttp interceptor adds the JWT and logs out on a 401
+- Debug builds request the Android 17 `ACCESS_LOCAL_NETWORK` permission at startup (needed to reach `10.0.2.2` and LAN IPs); release builds do not declare it
 - JWT stored in DataStore; logout clears it. Seller and Reseller flows are chosen at login by role
 - Base URL from `BuildConfig`: `http://10.0.2.2:8080` by default (emulator), overridable for a physical device on the LAN. Cleartext HTTP is allowed in the debug build only
 - Coil for images; Android Photo Picker for multi-select upload (up to 30); camera capture for image search
