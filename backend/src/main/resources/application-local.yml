@@ -7,3 +7,8 @@ spring:
     placeholders:
       # BCrypt of the dev password "admin123". Local profile only.
       admin_password_hash: ${ADMIN_PASSWORD_HASH:$2a$10$ITlk.H9M6TpJyAkyBlzko.vPfpfZfSY8QQaGOPKE772dc6ZlNtGLS}
+
+app:
+  jwt:
+    # Dev-only default; other profiles must set JWT_SECRET (32+ characters).
+    secret: ${JWT_SECRET:local-dev-only-jwt-secret-change-me-0123456789}
