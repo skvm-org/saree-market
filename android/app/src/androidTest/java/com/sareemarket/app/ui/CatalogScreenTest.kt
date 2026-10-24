@@ -42,8 +42,9 @@ class CatalogScreenTest {
         onRetry: () -> Unit = {},
         onPhoto: () -> Unit = {},
         onClearPhoto: () -> Unit = {},
+        onTab: (Boolean) -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onPhoto, onClearPhoto, {}) }
+        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto, {}) }
     }
 
     @Test
@@ -91,7 +92,7 @@ class CatalogScreenTest {
     fun typedSearchTextIsReported() {
         compose.setContent {
             var text by remember { mutableStateOf("") }
-            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }
 
         compose.onNodeWithTag("search").performTextInput("peacock")
@@ -196,5 +197,39 @@ class CatalogScreenTest {
         assertEquals(1, camera)
         assertEquals(1, gallery)
         assertEquals(1, dismissed)
+    }
+
+    @Test
+    fun tabsShowHowManySellersAreFollowedAndHowManyExist() {
+        show(CatalogState(
+            items = listOf(available), loading = false, followedCount = 3,
+            sellers = List(42) { com.sareemarket.app.data.SellerListItem(it.toLong(), "Shop $it", "Erode") },
+            query = CatalogQuery(followingOnly = true),
+        ))
+
+        compose.onNodeWithText("Following (3)").assertExists()
+        compose.onNodeWithText("All sellers (42)").assertExists()
+    }
+
+    @Test
+    fun tappingATabReportsWhichOne() {
+        val chosen = mutableListOf<Boolean>()
+        show(CatalogState(items = listOf(available), loading = false, followedCount = 1), onTab = { chosen += it })
+
+        compose.onNodeWithTag("tab-following").performClick()
+        compose.onNodeWithTag("tab-all").performClick()
+
+        assertEquals(listOf(true, false), chosen)
+    }
+
+    @Test
+    fun nothingNewFromFollowedSellersOffersToShowAll() {
+        var tab: Boolean? = null
+        show(CatalogState(query = CatalogQuery(followingOnly = true), loading = false, followedCount = 2), onTab = { tab = it })
+
+        compose.onNodeWithText("Nothing new from sellers you follow.").assertExists()
+        compose.onNodeWithTag("show-all").performClick()
+
+        assertEquals(false, tab)
     }
 }

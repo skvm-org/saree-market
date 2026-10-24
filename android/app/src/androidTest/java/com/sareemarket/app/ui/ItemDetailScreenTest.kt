@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.sareemarket.app.data.ItemDetail
 import com.sareemarket.app.data.ItemStatus
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.SellerContact
 import com.sareemarket.app.ui.reseller.ItemDetailContent
 import com.sareemarket.app.ui.theme.SareeTheme
@@ -30,9 +31,11 @@ class ItemDetailScreenTest {
     private var collection = 0L
     private var sellerOpened = 0L
 
-    private fun show(d: ItemDetail = detail) = compose.setContent {
+    private var toggled = 0
+
+    private fun show(d: ItemDetail = detail, mode: NotifyMode? = null, error: String? = null) = compose.setContent {
         SareeTheme {
-            ItemDetailContent(d, {}, { collection = it }, { sellerOpened = it }, { called = it }, { chatted = it })
+            ItemDetailContent(d, {}, { collection = it }, { sellerOpened = it }, { called = it }, { chatted = it }, mode, error) { toggled++ }
         }
     }
 
@@ -93,5 +96,37 @@ class ItemDetailScreenTest {
 
         assertEquals(7L, sellerOpened)
         assertEquals(5L, collection)
+    }
+
+    @Test
+    fun offersFollowWhenNotFollowing() {
+        show()
+
+        compose.onNodeWithText("Follow").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("follow").performScrollTo().performClick()
+
+        assertEquals(1, toggled)
+    }
+
+    @Test
+    fun showsFollowingWhenFollowing() {
+        show(mode = NotifyMode.INSTANT)
+
+        compose.onNodeWithText("Following").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Notifications are muted for this seller").assertDoesNotExist()
+    }
+
+    @Test
+    fun mentionsMutedFollows() {
+        show(mode = NotifyMode.MUTED)
+
+        compose.onNodeWithText("Notifications are muted for this seller").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun showsWhyFollowingFailed() {
+        show(error = "Seller not found")
+
+        compose.onNodeWithTag("follow-error").performScrollTo().assertIsDisplayed()
     }
 }

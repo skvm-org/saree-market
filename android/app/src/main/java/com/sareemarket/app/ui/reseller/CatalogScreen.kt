@@ -38,6 +38,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogSort
@@ -97,6 +101,11 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: C
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { viewModel.searchByImage(it.toString()) }
     }
+    // Follows may have changed on another screen while the catalog was out of sight.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshFollowCount()
+        onPauseOrDispose {}
+    }
     // Search as the reseller types, but wait for a short pause so each letter does not hit the server.
     LaunchedEffect(text) {
         delay(SEARCH_DELAY_MS)
@@ -112,6 +121,7 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: C
         onLoadMore = viewModel::loadNextPage,
         onRetry = viewModel::retry,
         onClearFilters = viewModel::clearFilters,
+        onFollowingTab = viewModel::setFollowingOnly,
         onPhotoSearch = { showPhotoChoice = true },
         onClearPhoto = viewModel::clearImage,
         onLogout = onLogout,
@@ -155,6 +165,7 @@ fun CatalogContent(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onClearFilters: () -> Unit,
+    onFollowingTab: (Boolean) -> Unit,
     onPhotoSearch: () -> Unit,
     onClearPhoto: () -> Unit,
     onLogout: () -> Unit,
@@ -168,6 +179,7 @@ fun CatalogContent(
                 }
             }
             SearchField(searchText, onSearchText)
+            FollowTabs(state, onFollowingTab)
             FilterBar(state, onOpenFilters, onSort, onPhotoSearch)
             if (state.imageUri != null) PhotoBanner(state.imageUri, onClearPhoto)
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -179,11 +191,20 @@ fun CatalogContent(
                     }
                     state.items.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            if (state.imageUri != null) "No similar sarees found.\nTry a clearer photo, or fewer filters." else "No sarees match.",
+                            when {
+                                state.imageUri != null -> "No similar sarees found.\nTry a clearer photo, or fewer filters."
+                                state.query.followingOnly -> "Nothing new from sellers you follow."
+                                else -> "No sarees match."
+                            },
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
+                        if (state.query.followingOnly && state.imageUri == null && state.query.activeFilterCount == 0) {
+                            TextButton(onClick = { onFollowingTab(false) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("show-all")) {
+                                Text("Show all sellers")
+                            }
+                        }
                         if (state.query.activeFilterCount > 0) {
                             TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
                         }
@@ -214,6 +235,27 @@ private fun SearchField(text: String, onText: (String) -> Unit) {
         keyboardActions = KeyboardActions(onSearch = {}),
         modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("search"),
     )
+}
+
+/** "Following (3)" shows what followed sellers posted; "All sellers" is the whole market. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FollowTabs(state: CatalogState, onSelect: (Boolean) -> Unit) {
+    val tabs = listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
+        tabs.forEachIndexed { index, (following, label) ->
+            SegmentedButton(
+                selected = state.query.followingOnly == following,
+                onClick = { onSelect(following) },
+                shape = SegmentedButtonDefaults.itemShape(index, tabs.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier.testTag(if (following) "tab-following" else "tab-all"),
+            ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

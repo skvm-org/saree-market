@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogRepository
+import com.sareemarket.app.data.FollowRepository
 import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,10 +32,15 @@ data class CatalogState(
     /** Choices for the filter sheet; empty until they have loaded. */
     val reference: ReferenceData? = null,
     val sellers: List<SellerListItem> = emptyList(),
+    /** How many sellers the reseller follows: the number on the Following tab. */
+    val followedCount: Int = 0,
 )
 
 @HiltViewModel
-class CatalogViewModel @Inject constructor(private val repository: CatalogRepository) : ViewModel() {
+class CatalogViewModel @Inject constructor(
+    private val repository: CatalogRepository,
+    private val follows: FollowRepository,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(CatalogState())
     val state: StateFlow<CatalogState> = _state.asStateFlow()
@@ -43,7 +49,30 @@ class CatalogViewModel @Inject constructor(private val repository: CatalogReposi
 
     init {
         loadOptions()
-        reload()
+        startOnTheRightTab()
+    }
+
+    /** A reseller who follows anyone lands on "New from sellers you follow"; everyone else sees all sellers. */
+    private fun startOnTheRightTab() {
+        viewModelScope.launch {
+            val count = follows.follows().getOrNull()?.size ?: 0
+            _state.update { it.copy(followedCount = count, query = it.query.copy(followingOnly = count > 0)) }
+            reload()
+        }
+    }
+
+    /** Called when the catalog comes back into view, since follows may have changed on another screen. */
+    fun refreshFollowCount() {
+        viewModelScope.launch {
+            val count = follows.follows().getOrNull()?.size ?: return@launch
+            if (count == _state.value.followedCount) return@launch
+            _state.update { it.copy(followedCount = count) }
+            if (count == 0 && _state.value.query.followingOnly) setFollowingOnly(false)
+        }
+    }
+
+    fun setFollowingOnly(on: Boolean) {
+        if (on != _state.value.query.followingOnly) apply(_state.value.query.copy(followingOnly = on))
     }
 
     private fun loadOptions() {
@@ -76,7 +105,7 @@ class CatalogViewModel @Inject constructor(private val repository: CatalogReposi
     /** Clears every filter but keeps what is typed in the search box and the sort order. */
     fun clearFilters() {
         val q = _state.value.query
-        apply(CatalogQuery(q = q.q, sort = q.sort))
+        apply(CatalogQuery(q = q.q, sort = q.sort, followingOnly = q.followingOnly))
     }
 
     fun retry() = if (_state.value.items.isEmpty()) reload() else loadNextPage()

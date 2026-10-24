@@ -5,6 +5,8 @@ import com.sareemarket.app.BuildConfig
 import com.sareemarket.app.data.AuthApi
 import com.sareemarket.app.data.AuthInterceptor
 import com.sareemarket.app.data.CatalogApi
+import com.sareemarket.app.data.FollowsApi
+import com.sareemarket.app.data.NotificationsApi
 import com.sareemarket.app.data.CollectionsApi
 import com.sareemarket.app.data.ContentResolverPhotoSource
 import com.sareemarket.app.data.PhotoSource
@@ -65,4 +67,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun catalogApi(retrofit: Retrofit): CatalogApi = retrofit.create(CatalogApi::class.java)
+
+    @Provides
+    @Singleton
+    fun followsApi(retrofit: Retrofit): FollowsApi = retrofit.create(FollowsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun notificationsApi(retrofit: Retrofit): NotificationsApi = retrofit.create(NotificationsApi::class.java)
 }

@@ -34,6 +34,8 @@ data class SellerContact(
     val marketLocation: String,
     val contactPhone: String? = null,
     val whatsappNumber: String? = null,
+    /** INSTANT or MUTED when the reseller follows this shop, otherwise null. */
+    val followMode: String? = null,
 )
 
 @Serializable
@@ -61,6 +63,8 @@ data class SellerPage(
     val marketLocation: String,
     val contactPhone: String? = null,
     val whatsappNumber: String? = null,
+    /** INSTANT or MUTED when the reseller follows this shop, otherwise null. */
+    val followMode: String? = null,
     val collections: List<CollectionSummary> = emptyList(),
 )
 
@@ -91,6 +95,8 @@ data class CatalogQuery(
     val includeSoldOut: Boolean = false,
     val sinceDays: Int? = null,
     val sort: CatalogSort = CatalogSort.NEWEST,
+    /** The "Following" tab: only sellers the reseller follows. It is a tab, not one of the filters. */
+    val followingOnly: Boolean = false,
 ) {
     /** How many filters are on, for the badge on the Filters button. The keyword and the sort do not count. */
     val activeFilterCount: Int

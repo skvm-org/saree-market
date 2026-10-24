@@ -7,3 +7,17 @@ fun formatRupees(amount: Int): String {
     val lakhs = digits.dropLast(3).reversed().chunked(2).joinToString(",").reversed()
     return "₹$lakhs,${digits.takeLast(3)}"
 }
+
+/** "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", then the date. [iso] is an ISO-8601 instant. */
+fun timeAgo(iso: String, now: java.time.Instant = java.time.Instant.now()): String {
+    val then = java.time.Instant.parse(iso)
+    val minutes = java.time.Duration.between(then, now).toMinutes()
+    return when {
+        minutes < 1 -> "just now"
+        minutes < 60 -> "$minutes min ago"
+        minutes < 24 * 60 -> "${minutes / 60} h ago"
+        minutes < 48 * 60 -> "yesterday"
+        minutes < 7 * 24 * 60 -> "${minutes / (24 * 60)} days ago"
+        else -> java.time.LocalDate.ofInstant(then, java.time.ZoneId.systemDefault()).toString()
+    }
+}

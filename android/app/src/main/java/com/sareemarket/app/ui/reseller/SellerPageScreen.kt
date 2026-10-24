@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.SellerPage
 import com.sareemarket.app.ui.seller.CollectionCard
 import com.sareemarket.app.ui.theme.Spacing
@@ -23,13 +24,25 @@ import com.sareemarket.app.ui.theme.Spacing
 fun SellerPageScreen(onBack: () -> Unit, onOpenCollection: (Long) -> Unit, viewModel: SellerPageViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val (call, whatsapp) = rememberContactActions()
+    val follow: FollowViewModel = hiltViewModel()
+    val followState by follow.state.collectAsStateWithLifecycle()
     LoadedContent(state, onRetry = viewModel::reload, onBack = onBack) { page ->
-        SellerPageContent(page, onBack, onOpenCollection, call, whatsapp)
+        val mode = followState.modeOf(page.id, page.followMode)
+        SellerPageContent(page, onBack, onOpenCollection, call, whatsapp, mode, followState.error) { follow.toggle(page.id, mode) }
     }
 }
 
 @Composable
-fun SellerPageContent(page: SellerPage, onBack: () -> Unit, onOpenCollection: (Long) -> Unit, onCall: (String) -> Unit, onWhatsApp: (String) -> Unit) {
+fun SellerPageContent(
+    page: SellerPage,
+    onBack: () -> Unit,
+    onOpenCollection: (Long) -> Unit,
+    onCall: (String) -> Unit,
+    onWhatsApp: (String) -> Unit,
+    followMode: NotifyMode?,
+    followError: String?,
+    onToggleFollow: () -> Unit,
+) {
     LazyColumn(
         Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
@@ -40,6 +53,7 @@ fun SellerPageContent(page: SellerPage, onBack: () -> Unit, onOpenCollection: (L
                 BackHeader(page.shopName, onBack)
                 Text(page.marketLocation, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ContactButtons(page.contactPhone, page.whatsappNumber, onCall, onWhatsApp)
+                FollowButton(followMode, followError, onToggleFollow)
                 Text("Collections (${page.collections.size})", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = Spacing.sm))
                 if (page.collections.isEmpty()) {
                     Text("No collections yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

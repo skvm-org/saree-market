@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.ContactLinks
 import com.sareemarket.app.data.ItemDetail
 import com.sareemarket.app.data.ItemStatus
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
@@ -123,8 +124,13 @@ fun ItemDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val (call, whatsapp) = rememberContactActions()
+    val follow: FollowViewModel = hiltViewModel()
+    val followState by follow.state.collectAsStateWithLifecycle()
     LoadedContent(state, onRetry = viewModel::reload, onBack = onBack) { detail ->
-        ItemDetailContent(detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp)
+        val mode = followState.modeOf(detail.seller.id, detail.seller.followMode)
+        ItemDetailContent(detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error) {
+            follow.toggle(detail.seller.id, mode)
+        }
     }
 }
 
@@ -136,6 +142,9 @@ fun ItemDetailContent(
     onOpenSeller: (Long) -> Unit,
     onCall: (String) -> Unit,
     onWhatsApp: (String) -> Unit,
+    followMode: NotifyMode?,
+    followError: String?,
+    onToggleFollow: () -> Unit,
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
     Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -166,6 +175,7 @@ fun ItemDetailContent(
             }
         }
         ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
+        FollowButton(followMode, followError, onToggleFollow)
         SecondaryButton("More from this collection", onClick = { onOpenCollection(detail.collectionId) }, modifier = Modifier.testTag("collection-link"))
         Box(Modifier.padding(bottom = Spacing.lg))
     }

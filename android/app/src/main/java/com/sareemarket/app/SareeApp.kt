@@ -1,6 +1,8 @@
 package com.sareemarket.app
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -10,7 +12,14 @@ import javax.inject.Inject
 import okhttp3.OkHttpClient
 
 @HiltAndroidApp
-class SareeApp : Application(), SingletonImageLoader.Factory {
+class SareeApp : Application(), SingletonImageLoader.Factory, Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+
 
     @Inject
     lateinit var okHttpClient: OkHttpClient

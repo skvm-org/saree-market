@@ -3,6 +3,9 @@ package com.sareemarket.app.ui
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CatalogSort
+import com.sareemarket.app.data.FakeFollowsApi
+import com.sareemarket.app.data.FollowRepository
+import com.sareemarket.app.data.followItem
 import com.sareemarket.app.data.FakeCatalogApi
 import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.httpError
@@ -31,7 +34,9 @@ import org.junit.Test
 class CatalogViewModelTest {
 
     private val api = FakeCatalogApi()
-    private val vm by lazy { CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson)) }
+    private val followsApi = FakeFollowsApi()
+    private val follows = FollowRepository(followsApi, testJson)
+    private val vm by lazy { CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson), follows) }
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -132,7 +137,7 @@ class CatalogViewModelTest {
         var fail = true
         api.onCatalog = { if (fail) throw networkError() else page(it.page, 1) }
 
-        val failing = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson))
+        val failing = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson), follows)
         assertTrue(failing.state.value.items.isEmpty())
         assertNotNull(failing.state.value.error)
         assertFalse(failing.state.value.loading)
@@ -267,11 +272,105 @@ class CatalogViewModelTest {
     fun aPhotoShiftedByNewUploadsIsNotListedTwice() {
         // A seller uploaded while the reseller scrolled, so page 2 repeats the last photo of page 1.
         api.onCatalog = { if (it.page == 0) page(0, 3) else page(1, 3).copy(items = listOf(card(1), card(100))) }
-        val fresh = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson))
+        val fresh = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson), follows)
 
         fresh.loadNextPage()
 
         assertEquals(listOf(0L, 1L, 100L), fresh.state.value.items.map { it.id })
+    }
+
+    @Test
+    fun aResellerWhoFollowsSomeoneStartsOnTheFollowingTab() {
+        followsApi.list = { listOf(followItem(1), followItem(2)) }
+
+        assertTrue(vm.state.value.query.followingOnly)
+        assertEquals(2, vm.state.value.followedCount)
+        assertEquals(true, api.calls.first().following)
+        assertEquals(1, api.calls.size) // one search, not one for "all" and then another for "following"
+    }
+
+    @Test
+    fun aResellerWhoFollowsNobodyStartsOnAllSellers() {
+        assertFalse(vm.state.value.query.followingOnly)
+        assertEquals(0, vm.state.value.followedCount)
+        assertNull(api.calls.first().following)
+    }
+
+    @Test
+    fun ifFollowsCannotBeLoadedTheCatalogStillOpensOnAllSellers() {
+        followsApi.list = { throw networkError() }
+
+        assertFalse(vm.state.value.query.followingOnly)
+        assertEquals(listOf(0L, 1L), ids())
+    }
+
+    @Test
+    fun switchingTabsSearchesAgain() {
+        followsApi.list = { listOf(followItem(1)) }
+        vm.state.value
+
+        vm.setFollowingOnly(false)
+        assertNull(api.calls.last().following)
+        vm.setFollowingOnly(true)
+        assertEquals(true, api.calls.last().following)
+        val calls = api.calls.size
+        vm.setFollowingOnly(true) // already there
+        assertEquals(calls, api.calls.size)
+    }
+
+    @Test
+    fun clearingFiltersStaysOnTheSameTab() {
+        followsApi.list = { listOf(followItem(1)) }
+        vm.apply(vm.state.value.query.copy(colour = "red"))
+
+        vm.clearFilters()
+
+        assertTrue(vm.state.value.query.followingOnly)
+        assertEquals(true, api.calls.last().following)
+        assertEquals(0, vm.state.value.query.activeFilterCount)
+    }
+
+    @Test
+    fun followingTabDoesNotCountAsAFilter() {
+        followsApi.list = { listOf(followItem(1)) }
+
+        assertEquals(0, vm.state.value.query.activeFilterCount)
+    }
+
+    @Test
+    fun theFollowingTabAlsoAppliesToAPhotoSearch() {
+        followsApi.list = { listOf(followItem(1)) }
+        vm.state.value
+
+        vm.searchByImage("photo-1")
+
+        assertEquals(true, api.imageCalls.last().call.following)
+    }
+
+    @Test
+    fun unfollowingEveryoneElsewhereMovesTheCatalogToAllSellers() {
+        followsApi.list = { listOf(followItem(1)) }
+        vm.state.value
+        assertTrue(vm.state.value.query.followingOnly)
+
+        followsApi.list = { emptyList() }
+        vm.refreshFollowCount()
+
+        assertFalse(vm.state.value.query.followingOnly)
+        assertEquals(0, vm.state.value.followedCount)
+        assertNull(api.calls.last().following)
+    }
+
+    @Test
+    fun followCountUpdatesWhenAFollowIsAdded() {
+        vm.state.value
+        val calls = api.calls.size
+
+        followsApi.list = { listOf(followItem(1), followItem(2), followItem(3)) }
+        vm.refreshFollowCount()
+
+        assertEquals(3, vm.state.value.followedCount)
+        assertEquals(calls, api.calls.size) // the list on screen is not reloaded
     }
 }
 

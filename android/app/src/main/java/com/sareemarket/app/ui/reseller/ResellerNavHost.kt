@@ -1,32 +1,105 @@
 package com.sareemarket.app.ui.reseller
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.delay
+
+/** How often the unread number on the Alerts tab is refreshed while the app is open. */
+private const val UNREAD_POLL_MS = 60_000L
 
 @Composable
 fun ResellerNavHost(onLogout: () -> Unit) {
     val nav = rememberNavController()
+    val shell: ResellerShellViewModel = hiltViewModel()
+    val unread by shell.unread.collectAsStateWithLifecycle()
+    val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val id = listOf(navArgument("id") { type = NavType.LongType })
-    NavHost(navController = nav, startDestination = "catalog") {
-        composable("catalog") {
-            CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onLogout = onLogout)
+
+    // The bell: refresh the unread number every minute, but only while the app is on screen.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                shell.refreshUnread()
+                delay(UNREAD_POLL_MS)
+            }
         }
-        composable("item/{id}", arguments = id) {
-            ItemDetailScreen(
-                onBack = { nav.popBackStack() },
-                onOpenCollection = { nav.navigate("collection/$it") },
-                onOpenSeller = { nav.navigate("seller/$it") },
-            )
+    }
+    // Background check for new collections, and the permission Android 13+ needs to show its notification.
+    val context = LocalContext.current
+    val askForPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(Unit) {
+        shell.startAlerts()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            askForPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        composable("seller/{id}", arguments = id) {
-            SellerPageScreen(onBack = { nav.popBackStack() }, onOpenCollection = { nav.navigate("collection/$it") })
+    }
+
+    val showBar = route in TABS
+    Column(Modifier.fillMaxSize()) {
+        // The bar already pads for the system buttons, so the screen above must not pad for them twice.
+        Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
+            NavHost(navController = nav, startDestination = TAB_CATALOG) {
+                composable(TAB_CATALOG) {
+                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onLogout = onLogout)
+                }
+                composable(TAB_SELLERS) {
+                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") })
+                }
+                composable(TAB_ALERTS) {
+                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
+                }
+                composable("item/{id}", arguments = id) {
+                    ItemDetailScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenCollection = { nav.navigate("collection/$it") },
+                        onOpenSeller = { nav.navigate("seller/$it") },
+                    )
+                }
+                composable("seller/{id}", arguments = id) {
+                    SellerPageScreen(onBack = { nav.popBackStack() }, onOpenCollection = { nav.navigate("collection/$it") })
+                }
+                composable("collection/{id}", arguments = id) {
+                    ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
+                }
+            }
         }
-        composable("collection/{id}", arguments = id) {
-            ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
+        if (showBar) {
+            ResellerBottomBar(current = route, unread = unread) { tab ->
+                nav.navigate(tab) {
+                    popUpTo(TAB_CATALOG) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ import kotlinx.coroutines.CompletableDeferred
 data class CatalogCall(
     val q: String?, val typeIds: List<Long>?, val fabricIds: List<Long>?, val colour: String?,
     val minPrice: Int?, val maxPrice: Int?, val sellerId: Long?, val status: String, val since: Int?,
-    val sort: String, val page: Int,
+    val sort: String, val page: Int, val following: Boolean? = null,
 )
 
 /** What the app sent in one photo search: the picture's file name plus the filters. */
@@ -35,7 +35,7 @@ class FakeCatalogApi : CatalogApi {
     var onCatalog: (CatalogCall) -> CatalogPage = { page(it.page, totalPages = 3) }
     var sellers = listOf(SellerListItem(1, "Lakshmi Silks", "Chinnalapatti"))
     var onItem: (Long) -> ItemDetail = { itemDetail(it) }
-    var onSeller: (Long) -> SellerPage = { SellerPage(it, "Lakshmi Silks", "Chinnalapatti", "9876543210", null, listOf(summary())) }
+    var onSeller: (Long) -> SellerPage = { SellerPage(it, "Lakshmi Silks", "Chinnalapatti", "9876543210", null, collections = listOf(summary())) }
 
     val imageCalls = mutableListOf<ImageCall>()
     var onImageSearch: (ImageCall) -> CatalogPage = { page(it.call.page, totalPages = 2).let { p -> p.copy(items = p.items.map { c -> c.copy(distance = 3) }) } }
@@ -45,9 +45,9 @@ class FakeCatalogApi : CatalogApi {
 
     override suspend fun catalog(
         q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?, minPrice: Int?, maxPrice: Int?,
-        sellerId: Long?, status: String, since: Int?, sort: String, page: Int,
+        sellerId: Long?, status: String, since: Int?, sort: String, page: Int, following: Boolean?,
     ): CatalogPage {
-        val call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, sort, page)
+        val call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, sort, page, following)
         calls += call
         if (q == "slow") gate?.await()
         return onCatalog(call)
@@ -55,13 +55,13 @@ class FakeCatalogApi : CatalogApi {
 
     override suspend fun imageSearch(
         image: okhttp3.MultipartBody.Part, q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?,
-        minPrice: Int?, maxPrice: Int?, sellerId: Long?, status: String, since: Int?, page: Int,
+        minPrice: Int?, maxPrice: Int?, sellerId: Long?, status: String, since: Int?, page: Int, following: Boolean?,
     ): CatalogPage {
         val disposition = image.headers?.get("Content-Disposition").orEmpty()
         val call = ImageCall(
             fileName = Regex("filename=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
             partName = Regex("name=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
-            call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, "", page),
+            call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, "", page, following),
         )
         imageCalls += call
         return onImageSearch(call)

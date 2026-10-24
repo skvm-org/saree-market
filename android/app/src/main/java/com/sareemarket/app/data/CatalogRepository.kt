@@ -24,6 +24,7 @@ class CatalogRepository @Inject constructor(
             since = query.sinceDays,
             sort = query.sort.param,
             page = page,
+            following = true.takeIf { query.followingOnly },
         )
     }
 
@@ -41,6 +42,7 @@ class CatalogRepository @Inject constructor(
             status = if (query.includeSoldOut) "ALL" else "AVAILABLE",
             since = query.sinceDays,
             page = page,
+            following = true.takeIf { query.followingOnly },
         )
     }
 

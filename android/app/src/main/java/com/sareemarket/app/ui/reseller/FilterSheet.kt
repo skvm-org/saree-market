@@ -111,7 +111,7 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
             )
         }
         PrimaryButton("Show results", onClick = { onApply(draft) }, modifier = Modifier.testTag("apply"))
-        SecondaryButton("Clear all", onClick = { draft = CatalogQuery(q = draft.q, sort = draft.sort) }, modifier = Modifier.testTag("clear"))
+        SecondaryButton("Clear all", onClick = { draft = CatalogQuery(q = draft.q, sort = draft.sort, followingOnly = draft.followingOnly) }, modifier = Modifier.testTag("clear"))
     }
 }
 

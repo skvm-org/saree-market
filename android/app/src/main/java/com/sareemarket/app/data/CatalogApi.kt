@@ -22,6 +22,7 @@ interface CatalogApi {
         @Query("since") since: Int?,
         @Query("sort") sort: String,
         @Query("page") page: Int,
+        @Query("following") following: Boolean? = null,
     ): CatalogPage
 
     /** Photo search: the picture plus the same optional filters. Results come back closest first. */
@@ -39,6 +40,7 @@ interface CatalogApi {
         @Query("status") status: String,
         @Query("since") since: Int?,
         @Query("page") page: Int,
+        @Query("following") following: Boolean? = null,
     ): CatalogPage
 
     @GET("api/v1/items/{id}")

@@ -2,7 +2,9 @@ package com.sareemarket.app.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sareemarket.app.alerts.NewCollectionAlerts
 import com.sareemarket.app.data.AuthRepository
+import com.sareemarket.app.data.NotificationRepository
 import com.sareemarket.app.data.Session
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,7 +22,11 @@ sealed interface AppState {
 }
 
 @HiltViewModel
-class AppViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class AppViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val alerts: NewCollectionAlerts,
+    private val notifications: NotificationRepository,
+) : ViewModel() {
 
     val state: StateFlow<AppState> = repository.session
         .map<Session?, AppState> { session -> session?.let(AppState::LoggedIn) ?: AppState.LoggedOut }
@@ -34,6 +40,10 @@ class AppViewModel @Inject constructor(private val repository: AuthRepository) :
     }
 
     fun logout() {
-        viewModelScope.launch { repository.logout() }
+        viewModelScope.launch {
+            alerts.cancel()
+            notifications.reset()
+            repository.logout()
+        }
     }
 }
