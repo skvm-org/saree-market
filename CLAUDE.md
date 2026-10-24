@@ -36,10 +36,12 @@ data/uploads/   local image storage (git-ignored)
 ## Running locally
 
 ```
-docker compose up -d                      # PostgreSQL on 5432
+docker compose up -d                      # PostgreSQL on host port 5433
 cd backend && ./mvnw spring-boot:run      # API on 8080
 cd android && ./gradlew installDebug      # or run from Android Studio on an emulator
 ```
+
+Containers run on OrbStack (it provides the `docker` CLI and `docker compose`; Testcontainers uses it too).
 
 The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical device on the LAN, override the base URL (see Android conventions).
 
