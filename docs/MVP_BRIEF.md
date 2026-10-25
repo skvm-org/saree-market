@@ -159,6 +159,7 @@ With ~100 sellers posting daily and ~15 resellers, notifying everyone of everyth
 | GET | /notifications?page=, /notifications/unread-count | Reseller |
 | POST | /notifications/{id}/read, /notifications/read-all | Reseller |
 | POST/PUT | /admin/saree-types, /admin/fabrics | Admin |
+| GET | /admin/users?q=&role=&page=, /admin/saree-types, /admin/fabrics (all, including deactivated) | Admin |
 | PATCH | /admin/users/{id}/enabled | Admin |
 | PATCH | /auth/me (name) | Logged-in users |
 | PUT | /auth/me/password | Logged-in users |
