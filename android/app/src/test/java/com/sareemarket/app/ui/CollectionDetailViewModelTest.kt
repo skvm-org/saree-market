@@ -201,4 +201,48 @@ class CollectionDetailViewModelTest {
         assertEquals(2, vm.state.value.count(ItemStatus.AVAILABLE))
         assertEquals(1, vm.state.value.count(ItemStatus.SOLD_OUT))
     }
+
+    @Test
+    fun markAllOffersUndoNamingHowManyChanged() {
+        api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.SOLD_OUT), item(12))) }
+        api.onSetAllStatus = { st -> detail(items = listOf(item(10, status = st), item(11, status = st), item(12, status = st))) }
+
+        vm.markAll(ItemStatus.SOLD_OUT)
+
+        assertEquals("Marked 2 sold out", vm.state.value.undo?.message)
+    }
+
+    @Test
+    fun undoAfterMarkAllOfMixedStockPutsEachSareeBack() {
+        api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.SOLD_OUT))) }
+        api.onSetAllStatus = { st -> detail(items = listOf(item(10, status = st), item(11, status = st))) }
+        vm.markAll(ItemStatus.SOLD_OUT)
+        api.calls.clear()
+
+        vm.undoMarkAll()
+
+        assertEquals(1, api.calls.count { it == "updateItem" }) // only the one that changed
+        assertNull(vm.state.value.undo)
+    }
+
+    @Test
+    fun undoWhenEverythingWasTheSameIsOneBulkCall() {
+        api.get = { detail(items = listOf(item(10), item(11))) }
+        vm.markAll(ItemStatus.SOLD_OUT)
+        api.calls.clear()
+
+        vm.undoMarkAll()
+
+        assertEquals(listOf("setAllStatus"), api.calls)
+    }
+
+    @Test
+    fun markAllWhenNothingWouldChangeDoesNothing() {
+        api.get = { detail(items = listOf(item(10, status = ItemStatus.SOLD_OUT))) }
+
+        vm.markAll(ItemStatus.SOLD_OUT)
+
+        assertTrue(api.calls.none { it == "setAllStatus" })
+        assertNull(vm.state.value.undo)
+    }
 }

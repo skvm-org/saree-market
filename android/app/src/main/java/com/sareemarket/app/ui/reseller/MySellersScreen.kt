@@ -173,7 +173,7 @@ private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral)
+                if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateText)
             }
             IconButton(
                 onClick = {

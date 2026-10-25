@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.profile
 
+import com.sareemarket.app.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
@@ -55,7 +56,7 @@ import com.sareemarket.app.ui.components.SareeTextField
 import com.sareemarket.app.ui.theme.Spacing
 
 @Composable
-private fun ProfilePage(title: String, onBack: () -> Unit, message: String?, onMessageShown: () -> Unit, content: @Composable () -> Unit) {
+private fun ProfilePage(title: String, onBack: (() -> Unit)?, message: String?, onMessageShown: () -> Unit, content: @Composable () -> Unit) {
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(message) {
         if (message != null) {
@@ -73,11 +74,14 @@ private fun ProfilePage(title: String, onBack: () -> Unit, message: String?, onM
                     .padding(horizontal = Spacing.margin),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Row(Modifier.heightIn(min = MinTouchTarget), verticalAlignment = Alignment.CenterVertically) {
+                    // A tab is a top-level place, so it has no back arrow; pages opened from it do.
+                    if (onBack != null) {
+                        IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
-                    Text(title, style = MaterialTheme.typography.headlineSmall)
+                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = if (onBack == null) Spacing.xs else 0.dp))
                 }
                 content()
                 androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
@@ -96,28 +100,25 @@ private fun ErrorText(error: String?) {
 
 @Composable
 fun ProfileScreen(
-    onBack: () -> Unit,
     onLogout: () -> Unit,
     onChangePassword: () -> Unit,
-    onShopDetails: (() -> Unit)? = null,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onShopDetails)
+    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword)
 }
 
 /** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
 @Composable
 fun ProfileContent(
     state: ProfileUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onNameChange: (String) -> Unit,
     onSave: () -> Unit,
     onBlur: () -> Unit = {},
     onSavedShown: () -> Unit = {},
     onLogout: () -> Unit = {},
     onChangePassword: () -> Unit = {},
-    onShopDetails: (() -> Unit)? = null,
 ) {
     var confirmingLogout by remember { mutableStateOf(false) }
     ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
@@ -141,15 +142,18 @@ fun ProfileContent(
         PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
         Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
             Column {
-                if (onShopDetails != null) {
-                    ProfileRow(Icons.Filled.Storefront, "Shop details", "shop-details", onShopDetails)
-                    HorizontalDivider(color = SareeColors.Hairline)
-                }
                 ProfileRow(Icons.Filled.Lock, "Change password", "change-password", onChangePassword)
                 HorizontalDivider(color = SareeColors.Hairline)
                 ProfileRow(Icons.AutoMirrored.Filled.ExitToApp, "Log out", "logout", { confirmingLogout = true }, destructive = true)
             }
         }
+        Text(
+            "Saree Market ${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
     if (confirmingLogout) LogoutDialog(onDismiss = { confirmingLogout = false }, onConfirm = { confirmingLogout = false; onLogout() })
 }

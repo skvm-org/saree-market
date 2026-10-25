@@ -1,5 +1,9 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.background
@@ -103,6 +107,13 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     LaunchedEffect(state.deleted) { if (state.deleted) onBack() }
 
     var menuOpen by remember { mutableStateOf(false) }
+    // "Mark all" flips the whole collection in one tap, so it is followed by an Undo rather than preceded by a dialog.
+    val snackbars = remember { SnackbarHostState() }
+    LaunchedEffect(state.undo) {
+        val undo = state.undo ?: return@LaunchedEffect
+        val result = snackbars.showSnackbar(undo.message, actionLabel = "Undo", duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) viewModel.undoMarkAll() else viewModel.dismissUndo()
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     var editingCollection by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<Item?>(null) }
@@ -112,6 +123,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Box(Modifier.fillMaxSize()) {
         val detail = state.detail
         when {
             detail == null && state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -240,6 +252,8 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
             )
         }
+        SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom = 64.dp, start = Spacing.margin, end = Spacing.margin))
+    }
     }
 }
 
@@ -300,7 +314,7 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
+                Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateText else SareeColors.AvailableText)
                 Checkbox(
                     checked = !soldOut,
                     onCheckedChange = {

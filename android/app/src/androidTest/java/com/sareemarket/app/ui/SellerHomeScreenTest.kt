@@ -27,10 +27,9 @@ class SellerHomeScreenTest {
         state: SellerHomeState,
         onNew: () -> Unit = {},
         onOpen: (Long) -> Unit = {},
-        onMenu: () -> Unit = {},
         onRetry: () -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { SellerHomeContent(state, "Lakshmi", onNew, onOpen, onMenu, onRetry) }
+        SareeTheme { SellerHomeContent(state, "Lakshmi", onNew, onOpen, onRetry) }
     }
 
     @Test
@@ -62,16 +61,14 @@ class SellerHomeScreenTest {
     }
 
     @Test
-    fun newCollectionAndMenuButtonsWork() {
+    fun newCollectionButtonWorksAndThereIsNoSideMenu() {
         var newClicks = 0
-        var menus = 0
-        show(SellerHomeState.Loaded(emptyList()), onNew = { newClicks++ }, onMenu = { menus++ })
+        show(SellerHomeState.Loaded(emptyList()), onNew = { newClicks++ })
 
         compose.onNodeWithTag("new-collection").performClick()
-        compose.onNodeWithTag("menu").performClick()
+        compose.onNodeWithTag("menu").assertDoesNotExist()
 
         assertEquals(1, newClicks)
-        assertEquals(1, menus)
     }
 
     @Test
@@ -88,7 +85,7 @@ class SellerHomeScreenTest {
     @Test
     fun headerShowsTheShopAndTheStockTotals() {
         compose.setContent {
-            SareeTheme { SellerHomeContent(SellerHomeState.Loaded(listOf(diwali)), "Lakshmi Silks", {}, {}, {}, {}, location = "Dindigul") }
+            SareeTheme { SellerHomeContent(SellerHomeState.Loaded(listOf(diwali)), "Lakshmi Silks", {}, {}, {}, location = "Dindigul") }
         }
 
         compose.onNodeWithTag("shop-name").assertTextEquals("Lakshmi Silks")

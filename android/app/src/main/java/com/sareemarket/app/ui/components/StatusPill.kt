@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sareemarket.app.ui.theme.PillShape
+import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 
 /** Pill badge from DESIGN.md: tinted background, solid dot, label. */
@@ -24,6 +25,8 @@ import com.sareemarket.app.ui.theme.Spacing
 fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
     // The pill eases between its colours when an item flips between available and sold out.
     val color by animateColorAsState(target, label = "pill")
+    // The dot and tint use the status colour; the words use a darker version so they pass contrast on the tint.
+    val textColor by animateColorAsState(readableOn(target), label = "pill-text")
     Surface(
         shape = PillShape,
         color = color.copy(alpha = 0.10f),
@@ -36,7 +39,13 @@ fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xs),
         ) {
             Surface(modifier = Modifier.size(6.dp), shape = CircleShape, color = color) {}
-            Text(text = text, style = MaterialTheme.typography.labelMedium, color = color)
+            Text(text = text, style = MaterialTheme.typography.labelMedium, color = textColor)
         }
     }
+}
+
+private fun readableOn(status: Color) = when (status) {
+    SareeColors.Available -> SareeColors.AvailableText
+    SareeColors.SlateNeutral -> SareeColors.SlateText
+    else -> status
 }

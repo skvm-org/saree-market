@@ -3,79 +3,25 @@ package com.sareemarket.app.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.Role
-import com.sareemarket.app.data.Session
-import com.sareemarket.app.ui.profile.AppDrawer
 import com.sareemarket.app.ui.profile.ChangePasswordContent
 import com.sareemarket.app.ui.profile.ChangePasswordUiState
-import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.profile.ProfileContent
 import com.sareemarket.app.ui.profile.ProfileUiState
-import com.sareemarket.app.ui.profile.accountItems
 import com.sareemarket.app.ui.theme.SareeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
-class DrawerAndProfileScreensTest {
+class ProfileScreensTest {
 
     @get:Rule
     val compose = createComposeRule()
-
-    private fun showDrawer(selected: MutableList<String>, logouts: MutableList<Unit>) = compose.setContent {
-        SareeTheme {
-            AppDrawer(
-                session = Session("t", 2, "Lakshmi", "9876500001", Role.SELLER),
-                items = accountItems,
-                currentRoute = null,
-                gesturesEnabled = true,
-                onSelect = { selected += it },
-                onLogout = { logouts += Unit },
-            ) { openMenu -> MenuButton(openMenu) }
-        }
-    }
-
-    @Test
-    fun menuButtonOpensTheDrawerWithNameRoleAndEntries() {
-        showDrawer(mutableListOf(), mutableListOf())
-
-        compose.onNodeWithTag("menu").performClick()
-
-        compose.onNodeWithText("Lakshmi").assertIsDisplayed()
-        compose.onNodeWithText("Seller · +91 9876500001").assertIsDisplayed()
-        compose.onNodeWithText("My profile").assertIsDisplayed()
-        compose.onNodeWithText("Change password").assertIsDisplayed()
-    }
-
-    @Test
-    fun choosingAnEntryReportsItsRoute() {
-        val selected = mutableListOf<String>()
-        showDrawer(selected, mutableListOf())
-
-        compose.onNodeWithTag("menu").performClick()
-        compose.onNodeWithTag("drawer-profile").performClick()
-
-        assertEquals(listOf("profile"), selected)
-    }
-
-    @Test
-    fun logOutAsksForConfirmationAndCancelKeepsTheSession() {
-        val logouts = mutableListOf<Unit>()
-        showDrawer(mutableListOf(), logouts)
-
-        compose.onNodeWithTag("menu").performClick()
-        compose.onNodeWithTag("drawer-logout").performClick()
-        compose.onNodeWithText("Cancel").performClick()
-        assertEquals(0, logouts.size)
-
-        compose.onNodeWithTag("drawer-logout").performClick()
-        compose.onNodeWithTag("confirm-logout").performClick()
-        assertEquals(1, logouts.size)
-    }
 
     @Test
     fun profileShowsPhoneAsReadOnlyAndSavesTheName() {
@@ -135,16 +81,6 @@ class DrawerAndProfileScreensTest {
     }
 
     @Test
-    fun drawerShowsTheBrandAndThePersonsInitial() {
-        showDrawer(mutableListOf(), mutableListOf())
-
-        compose.onNodeWithTag("menu").performClick()
-
-        compose.onNodeWithText("Saree Market").assertIsDisplayed()
-        compose.onNodeWithText("L").assertIsDisplayed() // Lakshmi's initial
-    }
-
-    @Test
     fun profileHasALogOutThatAsksFirst() {
         var logouts = 0
         compose.setContent {
@@ -163,29 +99,27 @@ class DrawerAndProfileScreensTest {
     }
 
     @Test
-    fun profileIsAHubWithChangePasswordAndTheShopForSellersOnly() {
+    fun profileIsAHubWithWhoYouAreAndChangePassword() {
         var password = 0
-        var shop = 0
         compose.setContent {
             SareeTheme {
                 ProfileContent(
                     ProfileUiState(name = "Lakshmi", original = "Lakshmi", phone = "9876500001", role = Role.SELLER),
-                    {}, {}, {}, onChangePassword = { password++ }, onShopDetails = { shop++ },
+                    null, {}, {}, onChangePassword = { password++ },
                 )
             }
         }
 
         compose.onNodeWithTag("avatar").assertIsDisplayed()
         compose.onNodeWithTag("role").assertIsDisplayed()
-        compose.onNodeWithTag("shop-details").performClick()
+        compose.onNodeWithContentDescription("Back").assertDoesNotExist() // a tab has no back arrow
         compose.onNodeWithTag("change-password").performClick()
 
-        assertEquals(1, shop)
         assertEquals(1, password)
     }
 
     @Test
-    fun aResellerProfileHasNoShopRow() {
+    fun theShopIsItsOwnTabSoProfileHasNoShopRow() {
         compose.setContent {
             SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, {}) }
         }

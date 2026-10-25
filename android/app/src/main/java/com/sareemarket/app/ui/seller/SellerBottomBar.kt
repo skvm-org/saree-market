@@ -1,6 +1,7 @@
 package com.sareemarket.app.ui.seller
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Storefront
@@ -14,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import com.sareemarket.app.ui.profile.ROUTE_PROFILE
 
 internal const val SELLER_HOME = "home"
 internal const val SELLER_NEW = "new"
@@ -24,10 +26,11 @@ private data class SellerTab(val route: String, val label: String, val icon: Ima
 private val sellerTabs = listOf(
     SellerTab(SELLER_HOME, "Collections", Icons.Filled.PhotoLibrary),
     SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
-    SellerTab(SELLER_SHOP, "Shop profile", Icons.Filled.Storefront),
+    SellerTab(SELLER_SHOP, "Shop", Icons.Filled.Storefront),
+    SellerTab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
 )
 
-/** The three places a seller works from: their collections, a new upload, and the shop's own details. */
+/** Where a seller works from: their collections, a new upload, the shop's details, and their own profile. */
 @Composable
 fun SellerBottomBar(current: String?, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {

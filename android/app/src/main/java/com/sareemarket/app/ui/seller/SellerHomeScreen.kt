@@ -48,7 +48,6 @@ import com.sareemarket.app.ui.components.InitialAvatar
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
-import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.theme.PhotoShape
 import com.sareemarket.app.ui.theme.SareeColors
@@ -63,7 +62,6 @@ fun SellerHomeScreen(
     location: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
-    onMenu: () -> Unit,
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -72,7 +70,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onMenu, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location)
 }
 
 @Composable
@@ -81,7 +79,6 @@ fun SellerHomeContent(
     sellerName: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
-    onMenu: () -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit = {},
     location: String = "",
@@ -105,7 +102,7 @@ fun SellerHomeContent(
                 .padding(padding)
                 .safeDrawingPadding(),
         ) {
-            ShopHeader(sellerName, location, state, onMenu)
+            ShopHeader(sellerName, location, state)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -149,7 +146,7 @@ fun SellerHomeContent(
 
 /** Shop name and place on a warm panel, with the two stock totals as tiles underneath. */
 @Composable
-private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, onMenu: () -> Unit) {
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
@@ -161,7 +158,6 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            MenuButton(onMenu)
             InitialAvatar(shopName, 44.dp)
             Column(Modifier.weight(1f)) {
                 Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
@@ -171,7 +167,7 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs), modifier = Modifier.padding(bottom = Spacing.sm)) {
-            StatTile("Available", available, SareeColors.Available, Modifier.weight(1f).testTag("stat-available"))
+            StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
             StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
         }
     }
@@ -259,7 +255,7 @@ private fun SellerHomePreview() {
     SareeTheme {
         SellerHomeContent(
             SellerHomeState.Loaded(listOf(CollectionSummary(1, "Diwali soft silks", "Soft silk", "Pure silk", 4500, 18, 15, 3, 1))),
-            "Lakshmi Silks", {}, {}, {}, {}, location = "Chinnalapatti",
+            "Lakshmi Silks", {}, {}, {}, location = "Chinnalapatti",
         )
     }
 }

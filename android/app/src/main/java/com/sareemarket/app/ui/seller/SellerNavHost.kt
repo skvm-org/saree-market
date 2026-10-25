@@ -1,8 +1,5 @@
 package com.sareemarket.app.ui.seller
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,19 +19,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sareemarket.app.data.Session
-import com.sareemarket.app.ui.profile.AppDrawer
-import com.sareemarket.app.ui.profile.DrawerItem
 import com.sareemarket.app.ui.profile.ShopDetailsScreen
-import com.sareemarket.app.ui.profile.accountItems
+import com.sareemarket.app.ui.profile.ROUTE_PROFILE
 import com.sareemarket.app.ui.profile.accountRoutes
 
 private const val HOME = SELLER_HOME
 private const val SHOP = SELLER_SHOP
-
-private val sellerItems = listOf(
-    DrawerItem(HOME, "My collections", Icons.Filled.Home),
-    DrawerItem(SHOP, "Shop details", Icons.Filled.Settings),
-) + accountItems
 
 @Composable
 fun SellerNavHost(session: Session, onLogout: () -> Unit) {
@@ -43,17 +33,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
     val shell: SellerShellViewModel = hiltViewModel()
     val shop by shell.shop.collectAsStateWithLifecycle()
     LaunchedEffect(route) { if (route == HOME) shell.reload() }
-    val showBar = route == HOME || route == SHOP
-    AppDrawer(
-        session = session,
-        items = sellerItems,
-        currentRoute = route,
-        gesturesEnabled = route == HOME,
-        onSelect = { target ->
-            if (target == HOME) nav.popBackStack(HOME, inclusive = false) else nav.navigate(target) { launchSingleTop = true }
-        },
-        onLogout = onLogout,
-    ) { openMenu ->
+    val showBar = route == HOME || route == SHOP || route == ROUTE_PROFILE
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
@@ -64,7 +44,6 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                     location = shop?.marketLocation.orEmpty(),
                     onNewCollection = { nav.navigate(SELLER_NEW) },
                     onOpen = { id -> nav.navigate("collection/$id") },
-                    onMenu = openMenu,
                 )
             }
             composable(SELLER_NEW) {
@@ -77,14 +56,18 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                 CollectionDetailScreen(onBack = { nav.popBackStack() })
             }
             composable(SHOP) { ShopDetailsScreen(onBack = { nav.popBackStack() }) }
-            accountRoutes(nav, onLogout, onShopDetails = { nav.navigate(SHOP) { launchSingleTop = true } })
+            accountRoutes(nav, onLogout)
         }
         }
         if (showBar) {
             SellerBottomBar(current = route) { tab ->
-                if (tab == HOME) nav.popBackStack(HOME, inclusive = false) else nav.navigate(tab) { launchSingleTop = true }
+                when (tab) {
+                    HOME -> nav.popBackStack(HOME, inclusive = false)
+                    // "Add" opens a page with its own back arrow; the other tabs replace each other.
+                    SELLER_NEW -> nav.navigate(SELLER_NEW)
+                    else -> nav.navigate(tab) { popUpTo(HOME); launchSingleTop = true }
+                }
             }
         }
-    }
     }
 }

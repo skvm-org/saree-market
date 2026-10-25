@@ -48,6 +48,10 @@ val SareeColorScheme: ColorScheme = lightColorScheme(
 object SareeColors {
     val WhatsApp = Color(0xFF25D366)
     val Available = Color(0xFF16A34A)
+
+    /** Text versions of the status colours, dark enough to read on their own pale tint (6.4:1 and 6.7:1). */
+    val AvailableText = Color(0xFF166534)
+    val SlateText = Color(0xFF475569)
     val SlateNeutral = Color(0xFF64748B)
     val SurfaceSubtle = Color(0xFFFAF8F5)
     val SurfaceMuted = Color(0xFFF5EFE6)

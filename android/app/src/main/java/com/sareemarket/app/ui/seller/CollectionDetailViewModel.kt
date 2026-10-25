@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 
 enum class ItemFilter { ALL, AVAILABLE, SOLD_OUT }
 
+/** "Marked 18 sold out" and the statuses to put back if the seller taps Undo. */
+data class BulkUndo(val message: String, val previous: Map<Long, ItemStatus>)
+
 data class DetailState(
     val detail: CollectionDetail? = null,
     val reference: ReferenceData? = null,
@@ -33,6 +36,8 @@ data class DetailState(
     /** Set once the collection is deleted, so the screen can close. */
     val deleted: Boolean = false,
     val filter: ItemFilter = ItemFilter.ALL,
+    /** After "Mark all", what each saree was before, so the screen can offer Undo. */
+    val undo: BulkUndo? = null,
 ) {
     val visibleItems: List<Item>
         get() = detail?.items.orEmpty().filter {
@@ -90,8 +95,33 @@ class CollectionDetailViewModel @Inject constructor(
     }
 
     fun markAll(status: ItemStatus) {
-        run({}, { repository.setAllStatus(id, status) }) { d -> _state.update { it.copy(detail = d) } }
+        val previous = _state.value.detail?.items.orEmpty().associate { it.id to it.status }
+        val changed = previous.values.count { it != status }
+        if (changed == 0) return
+        val word = if (status == ItemStatus.SOLD_OUT) "sold out" else "available"
+        run({}, { repository.setAllStatus(id, status) }) { d ->
+            _state.update { it.copy(detail = d, undo = BulkUndo("Marked $changed $word", previous)) }
+        }
     }
+
+    /** Puts every saree back as it was before "Mark all": one call when they were all the same, else one per saree that changed. */
+    fun undoMarkAll() {
+        val undo = _state.value.undo ?: return
+        _state.update { it.copy(undo = null) }
+        val current = _state.value.detail?.items.orEmpty().associate { it.id to it.status }
+        val before = undo.previous.values.toSet()
+        run({}, {
+            if (before.size == 1) {
+                repository.setAllStatus(id, before.single())
+            } else {
+                undo.previous.filter { (itemId, status) -> current[itemId] != null && current[itemId] != status }
+                    .forEach { (itemId, status) -> repository.setItemStatus(itemId, status).getOrElse { return@run Result.failure(it) } }
+                repository.collection(id)
+            }
+        }) { d -> _state.update { it.copy(detail = d) } }
+    }
+
+    fun dismissUndo() = _state.update { it.copy(undo = null) }
 
     private fun replaceItem(itemId: Long, change: (Item) -> Item) = _state.update { s ->
         s.copy(detail = s.detail?.let { d -> d.copy(items = d.items.map { if (it.id == itemId) change(it) else it }) })
