@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.components.sharedPhoto
+import com.sareemarket.app.ui.components.SkeletonGrid
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
@@ -219,7 +221,7 @@ fun CatalogContent(
             }
             val results: @Composable BoxScope.() -> Unit = {
         when {
-            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+            state.loading -> SkeletonGrid()
             state.items.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                 PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
@@ -483,7 +485,7 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
     ) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Box {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
                 // The catalog lists what is available by default, so only the exception gets a badge.
                 if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
             }
@@ -540,7 +542,7 @@ private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
     ) {
         Row(Modifier.padding(Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Box(Modifier.width(96.dp)) {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
                 Text(
                     if (exact) "Exact match" else "Close match",
                     style = MaterialTheme.typography.labelSmall,

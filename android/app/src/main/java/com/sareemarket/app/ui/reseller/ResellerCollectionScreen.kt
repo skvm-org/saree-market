@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.components.sharedPhoto
 import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.Surface
 import com.sareemarket.app.ui.components.CardBorder
@@ -80,7 +81,7 @@ private fun PhotoTile(item: Item, onClick: () -> Unit) {
     ) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Box {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
                 if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
             }
             Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.padding(horizontal = Spacing.xs))

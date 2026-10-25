@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import com.sareemarket.app.ui.components.ProvideSharedScopes
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -34,6 +37,7 @@ import kotlinx.coroutines.delay
 /** How often the unread number on the Alerts tab is refreshed while the app is open. */
 private const val UNREAD_POLL_MS = 60_000L
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ResellerNavHost(onLogout: () -> Unit) {
     val nav = rememberNavController()
@@ -75,9 +79,11 @@ fun ResellerNavHost(onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
+            SharedTransitionLayout {
+            val transition = this
             NavHost(navController = nav, startDestination = TAB_CATALOG) {
                 composable(TAB_CATALOG) {
-                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") })
+                    ProvideSharedScopes(transition, this) { CatalogScreen(onOpenItem = { nav.navigate("item/$it") }) }
                 }
                 composable(TAB_SELLERS) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
@@ -86,19 +92,24 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
                 }
                 composable("item/{id}", arguments = id) {
-                    ItemDetailScreen(
-                        onBack = { nav.popBackStack() },
-                        onOpenCollection = { nav.navigate("collection/$it") },
-                        onOpenSeller = { nav.navigate("seller/$it") },
-                    )
+                    ProvideSharedScopes(transition, this) {
+                        ItemDetailScreen(
+                            onBack = { nav.popBackStack() },
+                            onOpenCollection = { nav.navigate("collection/$it") },
+                            onOpenSeller = { nav.navigate("seller/$it") },
+                        )
+                    }
                 }
                 composable("seller/{id}", arguments = id) {
                     SellerPageScreen(onBack = { nav.popBackStack() }, onOpenCollection = { nav.navigate("collection/$it") })
                 }
                 composable("collection/{id}", arguments = id) {
-                    ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
+                    ProvideSharedScopes(transition, this) {
+                        ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
+                    }
                 }
                 accountRoutes(nav, onLogout)
+            }
             }
         }
         if (showBar) {

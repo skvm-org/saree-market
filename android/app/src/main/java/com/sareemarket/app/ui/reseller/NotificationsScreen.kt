@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.components.SkeletonRows
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.draw.clip
@@ -96,7 +97,7 @@ fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) ->
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
-                    state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    state.loading -> SkeletonRows()
                     state.items.isEmpty() -> Text(
                         "No notifications yet.\nFollow sellers to hear when they add new sarees.",
                         style = MaterialTheme.typography.bodyLarge,

@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.components.SkeletonCollections
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
@@ -111,7 +112,7 @@ fun SellerHomeContent(
             ShopHeader(sellerName, location, state, wide)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
-                    SellerHomeState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    SellerHomeState.Loading -> SkeletonCollections()
                     is SellerHomeState.Failed -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))

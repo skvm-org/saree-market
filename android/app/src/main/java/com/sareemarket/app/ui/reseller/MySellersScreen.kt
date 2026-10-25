@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.components.SkeletonRows
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -116,7 +117,7 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
-                    state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    state.loading -> SkeletonRows()
                     state.sellers.isEmpty() -> Text(
                         "You are not following anyone yet.\nOpen a seller's page and tap Follow.",
                         style = MaterialTheme.typography.bodyLarge,

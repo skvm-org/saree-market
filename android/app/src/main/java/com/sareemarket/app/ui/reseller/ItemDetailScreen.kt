@@ -1,5 +1,11 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Color
+import com.sareemarket.app.ui.components.SkeletonBlock
+import com.sareemarket.app.ui.components.sharedPhoto
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -153,21 +159,60 @@ internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCa
     }
 }
 
+/** The saree page: swipe sideways to move through the other photos of the same collection. */
 @Composable
 fun ItemDetailScreen(
     onBack: () -> Unit,
     onOpenCollection: (Long) -> Unit,
     onOpenSeller: (Long) -> Unit,
-    viewModel: ItemDetailViewModel = hiltViewModel(),
+    viewModel: ItemPagerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val (call, whatsapp) = rememberContactActions()
     val follow: FollowViewModel = hiltViewModel()
     val followState by follow.state.collectAsStateWithLifecycle()
-    LoadedContent(state, onRetry = viewModel::reload, onBack = onBack) { detail ->
-        val mode = followState.modeOf(detail.seller.id, detail.seller.followMode)
-        ItemDetailContent(detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error) {
-            follow.toggle(detail.seller.id, mode)
+    val pager = rememberPagerState(initialPage = state.startIndex) { state.ids.size }
+    // The collection arrives after the opened photo, which can move it from first place to its real position.
+    LaunchedEffect(state.ids, state.startIndex) {
+        if (state.ids.size > 1 && pager.currentPage != state.startIndex && pager.currentPageOffsetFraction == 0f) pager.scrollToPage(state.startIndex)
+    }
+    // Load the photo on screen and the two next to it, so a swipe never lands on a blank page.
+    LaunchedEffect(pager.currentPage, state.ids) {
+        listOf(pager.currentPage - 1, pager.currentPage, pager.currentPage + 1).mapNotNull { state.ids.getOrNull(it) }.forEach(viewModel::ensure)
+    }
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        HorizontalPager(pager, Modifier.fillMaxSize(), key = { state.ids.getOrElse(it) { -1L } }) { page ->
+            val id = state.ids[page]
+            val load = state.details[id]
+            val detail = load?.value
+            if (detail != null) {
+                val mode = followState.modeOf(detail.seller.id, detail.seller.followMode)
+                ItemDetailContent(
+                    detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error,
+                    pageLabel = if (state.ids.size > 1) "${page + 1} / ${state.ids.size}" else null,
+                ) { follow.toggle(detail.seller.id, mode) }
+            } else if (load?.error != null) {
+                Column(Modifier.fillMaxSize().padding(Spacing.margin), Arrangement.Center, Alignment.CenterHorizontally) {
+                    Text(load.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    PrimaryButton("Retry", onClick = { viewModel.retry(id) }, modifier = Modifier.padding(top = Spacing.md))
+                    SecondaryButton("Back", onClick = onBack, modifier = Modifier.padding(top = Spacing.sm))
+                }
+            } else {
+                SaresPlaceholder()
+            }
+        }
+    }
+}
+
+/** A photo-shaped block with a few lines under it while a saree page loads. */
+@Composable
+private fun SaresPlaceholder() {
+    Column(Modifier.fillMaxSize().testTag("skeleton"), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SkeletonBlock(Modifier.fillMaxWidth().aspectRatio(4f / 5f), RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+        Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            SkeletonBlock(Modifier.fillMaxWidth(0.35f).height(30.dp))
+            SkeletonBlock(Modifier.fillMaxWidth(0.6f).height(20.dp))
+            SkeletonBlock(Modifier.fillMaxWidth(0.45f).height(14.dp))
         }
     }
 }
@@ -182,6 +227,7 @@ fun ItemDetailContent(
     onWhatsApp: (String) -> Unit,
     followMode: NotifyMode?,
     followError: String?,
+    pageLabel: String? = null,
     onToggleFollow: () -> Unit,
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
@@ -198,6 +244,7 @@ fun ItemDetailContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .sharedPhoto(detail.id)
                         .aspectRatio(4f / 5f)
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(SareeColors.SurfaceMuted)
@@ -217,6 +264,19 @@ fun ItemDetailContent(
                     if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
                     Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"),
                 )
+                pageLabel?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(Spacing.md)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .padding(horizontal = Spacing.sm + Spacing.xs, vertical = 4.dp)
+                            .testTag("page-label"),
+                    )
+                }
             }
             Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

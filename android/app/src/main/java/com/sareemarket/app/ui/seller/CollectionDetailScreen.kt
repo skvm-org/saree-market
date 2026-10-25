@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.components.SkeletonGrid
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
@@ -133,7 +134,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     Box(Modifier.fillMaxSize()) {
         val detail = state.detail
         when {
-            detail == null && state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+            detail == null && state.loading -> SkeletonGrid(Modifier.safeDrawingPadding().padding(Spacing.margin))
             detail == null -> Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) {
                 Text(state.error.orEmpty(), color = MaterialTheme.colorScheme.error)
                 PrimaryButton("Retry", onClick = viewModel::load, modifier = Modifier.padding(Spacing.md))

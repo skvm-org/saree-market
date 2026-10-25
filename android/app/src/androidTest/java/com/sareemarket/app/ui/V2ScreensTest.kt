@@ -100,4 +100,37 @@ class V2ScreensTest {
         assertEquals("", applied?.colour)
         assertEquals(setOf(1L), applied?.typeIds)
     }
+
+    @Test
+    fun firstLoadShowsPlaceholderCardsNotASpinner() {
+        compose.setContent { SareeTheme { CatalogContent(CatalogState(loading = true), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
+
+        compose.onNodeWithTag("skeleton").assertIsDisplayed()
+    }
+
+    @Test
+    fun sellerHomeAndMySellersAlsoShowPlaceholdersWhileLoading() {
+        compose.setContent {
+            SareeTheme {
+                com.sareemarket.app.ui.seller.SellerHomeContent(com.sareemarket.app.ui.seller.SellerHomeState.Loading, "Lakshmi", {}, {}, {})
+            }
+        }
+        compose.onNodeWithTag("skeleton").assertIsDisplayed()
+    }
+
+    @Test
+    fun sareePageSaysWhichPhotoOfTheCollectionItIs() {
+        val detail = com.sareemarket.app.data.ItemDetail(
+            10, 5, "Diwali silks", null, "Soft silk", "Pure silk", "maroon", null, 2500, ItemStatus.AVAILABLE,
+            com.sareemarket.app.data.SellerContact(7, "Lakshmi Silks", "Erode", "9876543210", null),
+        )
+        compose.setContent {
+            SareeTheme {
+                com.sareemarket.app.ui.reseller.ItemDetailContent(detail, {}, {}, {}, {}, {}, null, null, pageLabel = "3 / 12") {}
+            }
+        }
+
+        compose.onNodeWithTag("page-label").assertIsDisplayed()
+        compose.onNodeWithText("3 / 12").assertIsDisplayed()
+    }
 }

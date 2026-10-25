@@ -38,9 +38,59 @@ abstract class LoadViewModel<T>(private val load: suspend () -> Result<T>) : Vie
     }
 }
 
+/**
+ * The saree page and its neighbours: the item that was opened, then the other photos of the same collection so the
+ * reseller can swipe between them. Each photo's details load when its page comes near the screen.
+ */
+data class PagerState(
+    /** The photos of the collection in order, or just the opened one until (or unless) the collection loads. */
+    val ids: List<Long> = emptyList(),
+    val startIndex: Int = 0,
+    val details: Map<Long, LoadState<ItemDetail>> = emptyMap(),
+)
+
 @HiltViewModel
-class ItemDetailViewModel @Inject constructor(handle: SavedStateHandle, repository: CatalogRepository) :
-    LoadViewModel<ItemDetail>({ repository.item(checkNotNull(handle["id"])) })
+class ItemPagerViewModel @Inject constructor(handle: SavedStateHandle, private val repository: CatalogRepository) : ViewModel() {
+
+    private val openedId: Long = checkNotNull(handle["id"])
+
+    private val _state = MutableStateFlow(PagerState(ids = listOf(openedId)))
+    val state: StateFlow<PagerState> = _state.asStateFlow()
+
+    init {
+        _state.update { it.copy(details = it.details + (openedId to LoadState(loading = true))) }
+        viewModelScope.launch {
+            val opened = fetch(openedId) ?: return@launch
+            repository.collection(opened.collectionId).onSuccess { c ->
+                val ids = c.items.map { it.id }
+                if (openedId in ids) _state.update { it.copy(ids = ids, startIndex = ids.indexOf(openedId)) }
+            }
+        }
+    }
+
+    /** Loads one photo's details unless they are already loaded or loading. */
+    fun ensure(id: Long) {
+        if (_state.value.details[id]?.let { it.value != null || it.loading } == true) return
+        _state.update { it.copy(details = it.details + (id to LoadState(loading = true))) }
+        viewModelScope.launch { fetch(id) }
+    }
+
+    private suspend fun fetch(id: Long): ItemDetail? = repository.item(id).fold(
+        onSuccess = { d ->
+            _state.update { it.copy(details = it.details + (id to LoadState(d, loading = false))) }
+            d
+        },
+        onFailure = { e ->
+            _state.update { it.copy(details = it.details + (id to LoadState(loading = false, error = e.message))) }
+            null
+        },
+    )
+
+    fun retry(id: Long) {
+        _state.update { it.copy(details = it.details - id) }
+        ensure(id)
+    }
+}
 
 @HiltViewModel
 class SellerPageViewModel @Inject constructor(handle: SavedStateHandle, repository: CatalogRepository) :
