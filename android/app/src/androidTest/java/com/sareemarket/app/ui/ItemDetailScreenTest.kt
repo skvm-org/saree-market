@@ -129,4 +129,11 @@ class ItemDetailScreenTest {
 
         compose.onNodeWithTag("follow-error").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun hasAShareButton() {
+        show()
+
+        compose.onNodeWithTag("share").assertExists()
+    }
 }

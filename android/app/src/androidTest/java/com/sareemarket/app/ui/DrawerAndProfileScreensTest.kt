@@ -1,6 +1,7 @@
 package com.sareemarket.app.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -95,7 +96,7 @@ class DrawerAndProfileScreensTest {
         var submits = 0
         compose.setContent {
             SareeTheme {
-                ChangePasswordContent(ChangePasswordUiState(error = "Current password is wrong"), {}, {}, {}, {}, { submits++ })
+                ChangePasswordContent(ChangePasswordUiState(current = "a", new = "b", confirm = "b", error = "Current password is wrong"), {}, {}, {}, {}, { submits++ })
             }
         }
 
@@ -115,5 +116,31 @@ class DrawerAndProfileScreensTest {
         compose.onNodeWithTag("current").performTextInput("password1")
 
         assertEquals("password1", typed)
+    }
+
+    @Test
+    fun saveStaysOffUntilTheNameChanges() {
+        compose.setContent {
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, {}) }
+        }
+
+        compose.onNodeWithTag("save").assertIsNotEnabled()
+    }
+
+    @Test
+    fun changePasswordStaysOffUntilAllThreeFieldsAreFilled() {
+        compose.setContent { SareeTheme { ChangePasswordContent(ChangePasswordUiState(current = "a"), {}, {}, {}, {}, {}) } }
+
+        compose.onNodeWithTag("submit").assertIsNotEnabled()
+    }
+
+    @Test
+    fun drawerShowsTheBrandAndThePersonsInitial() {
+        showDrawer(mutableListOf(), mutableListOf())
+
+        compose.onNodeWithTag("menu").performClick()
+
+        compose.onNodeWithText("Saree Market").assertIsDisplayed()
+        compose.onNodeWithText("L").assertIsDisplayed() // Lakshmi's initial
     }
 }

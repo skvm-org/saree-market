@@ -1,5 +1,14 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.sareemarket.app.ui.typeAndFabric
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.semantics.Role
 import android.net.Uri
@@ -177,13 +186,9 @@ fun CatalogContent(
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                MenuButton(onMenu)
-                Text("Catalog", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            }
-            SearchField(searchText, onSearchText)
-            FollowTabs(state, onFollowingTab)
-            FilterBar(state, onOpenFilters, onSort, onPhotoSearch)
+            Spacer(Modifier.height(Spacing.sm))
+            SearchField(searchText, onSearchText, onMenu, onPhotoSearch)
+            FilterChips(state, onFollowingTab, onOpenFilters, onSort)
             if (state.imageUri != null) PhotoBanner(state.imageUri, onClearPhoto)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
@@ -221,16 +226,23 @@ fun CatalogContent(
     }
 }
 
+/** The one search bar: menu button in front, photo search at the end, so the sarees start high on the screen. */
 @Composable
-private fun SearchField(text: String, onText: (String) -> Unit) {
+private fun SearchField(text: String, onText: (String) -> Unit, onMenu: () -> Unit, onPhotoSearch: () -> Unit) {
     OutlinedTextField(
         value = text,
         onValueChange = onText,
-        placeholder = { Text("Search sarees, colours, collections") },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        placeholder = { Text("Search sarees") },
+        leadingIcon = { MenuButton(onMenu) },
         trailingIcon = {
-            if (text.isNotEmpty()) {
-                IconButton(onClick = { onText("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (text.isNotEmpty()) {
+                    IconButton(onClick = { onText("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                }
+                TextButton(
+                    onClick = onPhotoSearch,
+                    modifier = Modifier.heightIn(min = MinTouchTarget).semantics { contentDescription = "Search by photo" }.testTag("photo-search"),
+                ) { Text("Photo", style = MaterialTheme.typography.labelLarge) }
             }
         },
         singleLine = true,
@@ -242,54 +254,26 @@ private fun SearchField(text: String, onText: (String) -> Unit) {
     )
 }
 
-/** "Following (3)" shows what followed sellers posted; "All sellers" is the whole market. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * One scrolling row of chips: "Following (3)" shows what followed sellers posted, "All sellers" is the whole market,
+ * then Filters and the sort order. The chips are neutral; only the chosen tab and active filters take the brand colour.
+ */
 @Composable
-private fun FollowTabs(state: CatalogState, onSelect: (Boolean) -> Unit) {
-    val tabs = listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})")
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
-        tabs.forEachIndexed { index, (following, label) ->
-            SegmentedButton(
-                selected = state.query.followingOnly == following,
-                onClick = { onSelect(following) },
-                shape = SegmentedButtonDefaults.itemShape(index, tabs.size),
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    activeContentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.testTag(if (following) "tab-following" else "tab-all"),
-            ) { Text(label, style = MaterialTheme.typography.labelLarge) }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit, onPhotoSearch: () -> Unit) {
+private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit) {
     var sortOpen by remember { mutableStateOf(false) }
-    FlowRow(
-        Modifier.fillMaxWidth().padding(vertical = Spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    val count = state.query.activeFilterCount
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val count = state.query.activeFilterCount
-        OutlinedButton(
-            onClick = onOpenFilters,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.heightIn(min = MinTouchTarget).testTag("filters"),
-        ) {
-            Text(if (count > 0) "Filters ($count)" else "Filters", style = MaterialTheme.typography.labelLarge)
-        }
+        BrandChip("Following (${state.followedCount})", state.query.followingOnly, "tab-following") { onFollowing(true) }
+        BrandChip("All sellers (${state.sellers.size})", !state.query.followingOnly, "tab-all") { onFollowing(false) }
+        BrandChip(if (count > 0) "Filters ($count)" else "Filters", count > 0, "filters", onOpenFilters)
         // A photo search lists the closest match first, so there is no sort order to choose.
         if (state.imageUri == null) {
             Box {
-                OutlinedButton(
-                    onClick = { sortOpen = true },
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag("sort"),
-                ) {
-                    Text(state.query.sort.label, style = MaterialTheme.typography.labelLarge)
-                }
+                BrandChip(state.query.sort.label, false, "sort") { sortOpen = true }
                 DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
                     CatalogSort.entries.forEach { sort ->
                         DropdownMenuItem(
@@ -301,13 +285,6 @@ private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (C
                 }
             }
         }
-        OutlinedButton(
-            onClick = onPhotoSearch,
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.heightIn(min = MinTouchTarget).testTag("photo-search"),
-        ) {
-            Text("Search by photo", style = MaterialTheme.typography.labelLarge)
-        }
     }
     if (!state.loading && state.items.isNotEmpty()) {
         Text(
@@ -317,6 +294,27 @@ private fun FilterBar(state: CatalogState, onOpenFilters: () -> Unit, onSort: (C
             modifier = Modifier.padding(bottom = Spacing.sm).testTag("count"),
         )
     }
+}
+
+@Composable
+private fun BrandChip(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        shape = MaterialTheme.shapes.medium,
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = selected,
+            borderColor = SareeColors.Hairline,
+            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+        modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
+    )
 }
 
 /** Reminds the reseller that the list is a photo search, and lets them go back to the full catalog. */
@@ -403,7 +401,7 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.primaryContainer,
             textDecoration = if (soldOut) TextDecoration.LineThrough else null,
         )
-        Text("${item.sareeType} · ${item.fabric}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(item.shopName, style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

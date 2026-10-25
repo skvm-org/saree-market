@@ -1,5 +1,10 @@
 package com.sareemarket.app.ui.profile
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,46 +36,54 @@ import com.sareemarket.app.ui.components.SareeTextField
 import com.sareemarket.app.ui.theme.Spacing
 
 @Composable
-private fun ProfilePage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun ProfilePage(title: String, onBack: () -> Unit, message: String?, onMessageShown: () -> Unit, content: @Composable () -> Unit) {
+    val snackbars = remember { SnackbarHostState() }
+    LaunchedEffect(message) {
+        if (message != null) {
+            snackbars.showSnackbar(message)
+            onMessageShown()
+        }
+    }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            Modifier
-                .safeDrawingPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.margin),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        Box {
+            Column(
+                Modifier
+                    .safeDrawingPadding()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.margin),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
                 }
-                Text(title, style = MaterialTheme.typography.headlineSmall)
+                content()
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
             }
-            content()
-            androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
+            SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(Spacing.margin))
         }
     }
 }
 
 @Composable
-private fun Feedback(error: String?, success: String?, showSuccess: Boolean) {
+private fun ErrorText(error: String?) {
     if (error != null) {
         Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error"))
-    } else if (showSuccess && success != null) {
-        Text(success, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.testTag("success"))
     }
 }
 
 @Composable
 fun ProfileScreen(onBack: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur)
+    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown)
 }
 
 @Composable
-fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (String) -> Unit, onSave: () -> Unit, onBlur: () -> Unit = {}) {
-    ProfilePage("My profile", onBack) {
+fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (String) -> Unit, onSave: () -> Unit, onBlur: () -> Unit = {}, onSavedShown: () -> Unit = {}) {
+    ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
         SareeTextField(state.name, onNameChange, "Full name", tag = "name", imeAction = ImeAction.Done, onDone = onSave, onBlur = onBlur)
         Column {
             Text("Mobile number", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -85,15 +98,15 @@ fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (Str
             Text("Account type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(state.role?.label().orEmpty(), style = MaterialTheme.typography.bodyLarge)
         }
-        Feedback(state.error, "Name saved", state.saved)
-        PrimaryButton("Save", onSave, loading = state.saving, modifier = Modifier.testTag("save"))
+        ErrorText(state.error)
+        PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
     }
 }
 
 @Composable
 fun ChangePasswordScreen(onBack: () -> Unit, viewModel: ChangePasswordViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ChangePasswordContent(state, onBack, viewModel::onCurrent, viewModel::onNew, viewModel::onConfirm, viewModel::submit, viewModel::onBlur)
+    ChangePasswordContent(state, onBack, viewModel::onCurrent, viewModel::onNew, viewModel::onConfirm, viewModel::submit, viewModel::onBlur, viewModel::onDoneShown)
 }
 
 @Composable
@@ -105,8 +118,9 @@ fun ChangePasswordContent(
     onConfirm: (String) -> Unit,
     onSubmit: () -> Unit,
     onBlur: (String) -> Unit = {},
+    onDoneShown: () -> Unit = {},
 ) {
-    ProfilePage("Change password", onBack) {
+    ProfilePage("Change password", onBack, if (state.done) "Password changed" else null, onDoneShown) {
         SareeTextField(
             state.current, onCurrent, "Current password", tag = "current", isPassword = true,
             error = state.fieldErrors[FIELD_CURRENT], onBlur = { onBlur(FIELD_CURRENT) },
@@ -120,8 +134,8 @@ fun ChangePasswordContent(
             error = state.fieldErrors[FIELD_CONFIRM], onBlur = { onBlur(FIELD_CONFIRM) },
             imeAction = ImeAction.Done, onDone = onSubmit,
         )
-        Feedback(state.error, "Password changed", state.done)
-        PrimaryButton("Change password", onSubmit, loading = state.saving, modifier = Modifier.testTag("submit"))
+        ErrorText(state.error)
+        PrimaryButton("Change password", onSubmit, loading = state.saving, enabled = state.canSubmit, modifier = Modifier.testTag("submit"))
     }
 }
 
@@ -130,7 +144,7 @@ fun ShopDetailsScreen(onBack: () -> Unit, viewModel: ShopDetailsViewModel = hilt
     val state by viewModel.state.collectAsStateWithLifecycle()
     ShopDetailsContent(
         state, onBack, viewModel::onShopName, viewModel::onMarketLocation, viewModel::onContactPhone, viewModel::onWhatsapp,
-        viewModel::save, viewModel::load, viewModel::onBlur,
+        viewModel::save, viewModel::load, viewModel::onBlur, viewModel::onSavedShown,
     )
 }
 
@@ -145,13 +159,14 @@ fun ShopDetailsContent(
     onSave: () -> Unit,
     onRetry: () -> Unit,
     onBlur: (String) -> Unit = {},
+    onSavedShown: () -> Unit = {},
 ) {
-    ProfilePage("Shop details", onBack) {
+    ProfilePage("Shop details", onBack, if (state.saved) "Shop details saved" else null, onSavedShown) {
         if (state.loading) {
             CircularProgressIndicator()
         } else if (state.shopName.isEmpty() && state.error != null) {
             // The details never loaded, so there is nothing to edit yet.
-            Feedback(state.error, null, false)
+            ErrorText(state.error)
             PrimaryButton("Retry", onRetry, modifier = Modifier.testTag("retry"))
         } else {
             SareeTextField(
@@ -171,8 +186,8 @@ fun ShopDetailsContent(
                 error = state.fieldErrors[FIELD_WHATSAPP], onBlur = { onBlur(FIELD_WHATSAPP) },
                 imeAction = ImeAction.Done, onDone = onSave,
             )
-            Feedback(state.error, "Shop details saved", state.saved)
-            PrimaryButton("Save", onSave, loading = state.saving, modifier = Modifier.testTag("save"))
+            ErrorText(state.error)
+            PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.ApiFailure
@@ -28,9 +29,24 @@ data class NewCollectionState(
 )
 
 @HiltViewModel
-class NewCollectionViewModel @Inject constructor(private val repository: CollectionRepository) : ViewModel() {
+class NewCollectionViewModel @Inject constructor(
+    private val repository: CollectionRepository,
+    // Survives Android closing the app in the background, so a half-filled form is not lost. Photos are not kept:
+    // the picker's access to them ends with the app's process.
+    private val draft: SavedStateHandle = SavedStateHandle(),
+) : ViewModel() {
 
-    private val _state = MutableStateFlow(NewCollectionState())
+    private val _state = MutableStateFlow(
+        NewCollectionState(
+            fields = CollectionFields(
+                title = draft[KEY_TITLE] ?: "",
+                sareeTypeId = draft[KEY_TYPE],
+                fabricId = draft[KEY_FABRIC],
+                price = draft[KEY_PRICE] ?: "",
+                description = draft[KEY_DESCRIPTION] ?: "",
+            ),
+        ),
+    )
     val state: StateFlow<NewCollectionState> = _state.asStateFlow()
 
     init {
@@ -46,8 +62,16 @@ class NewCollectionViewModel @Inject constructor(private val repository: Collect
         }
     }
 
-    private fun edit(key: String? = null, change: (CollectionFields) -> CollectionFields) =
+    private fun edit(key: String? = null, change: (CollectionFields) -> CollectionFields) {
         _state.update { it.copy(fields = change(it.fields), fieldErrors = it.fieldErrors - key.orEmpty(), error = null) }
+        _state.value.fields.let {
+            draft[KEY_TITLE] = it.title
+            draft[KEY_TYPE] = it.sareeTypeId
+            draft[KEY_FABRIC] = it.fabricId
+            draft[KEY_PRICE] = it.price
+            draft[KEY_DESCRIPTION] = it.description
+        }
+    }
 
     fun onTitle(v: String) = edit("title") { it.copy(title = v) }
     fun onType(id: Long) = edit("sareeTypeId") { it.copy(sareeTypeId = id) }
@@ -89,5 +113,13 @@ class NewCollectionViewModel @Inject constructor(private val repository: Collect
                 )
             }
         }
+    }
+
+    private companion object {
+        const val KEY_TITLE = "title"
+        const val KEY_TYPE = "sareeTypeId"
+        const val KEY_FABRIC = "fabricId"
+        const val KEY_PRICE = "price"
+        const val KEY_DESCRIPTION = "description"
     }
 }

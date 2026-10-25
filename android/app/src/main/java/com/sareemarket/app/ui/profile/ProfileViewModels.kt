@@ -22,12 +22,16 @@ const val PASSWORD_MIN = 8
 
 data class ProfileUiState(
     val name: String = "",
+    /** The name as last saved, so Save only turns on once something differs. */
+    val original: String = "",
     val phone: String = "",
     val role: Role? = null,
     val saving: Boolean = false,
     val saved: Boolean = false,
     val error: String? = null,
-)
+) {
+    val dirty get() = name.trim() != original
+}
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
@@ -37,7 +41,7 @@ class ProfileViewModel @Inject constructor(private val repository: AuthRepositor
 
     init {
         viewModelScope.launch {
-            repository.session.first()?.let { s -> _state.update { it.copy(name = s.name, phone = s.phone, role = s.role) } }
+            repository.session.first()?.let { s -> _state.update { it.copy(name = s.name, original = s.name, phone = s.phone, role = s.role) } }
         }
     }
 
@@ -57,9 +61,19 @@ class ProfileViewModel @Inject constructor(private val repository: AuthRepositor
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             val result = repository.updateName(s.name.trim())
-            _state.update { it.copy(saving = false, saved = result.isSuccess, error = result.exceptionOrNull()?.message) }
+            _state.update {
+                it.copy(
+                    saving = false,
+                    saved = result.isSuccess,
+                    original = if (result.isSuccess) s.name.trim() else it.original,
+                    error = result.exceptionOrNull()?.message,
+                )
+            }
         }
     }
+
+    /** The screen has told the user it saved; forget it so it is not announced again. */
+    fun onSavedShown() = _state.update { it.copy(saved = false) }
 }
 
 data class ChangePasswordUiState(
@@ -70,7 +84,9 @@ data class ChangePasswordUiState(
     val done: Boolean = false,
     val fieldErrors: Map<String, String> = emptyMap(),
     val error: String? = null,
-)
+) {
+    val canSubmit get() = current.isNotEmpty() && new.isNotEmpty() && confirm.isNotEmpty()
+}
 
 const val FIELD_CURRENT = "current"
 const val FIELD_NEW = "new"
@@ -102,6 +118,8 @@ class ChangePasswordViewModel @Inject constructor(private val repository: AuthRe
         val message = problems(s)[field]
         _state.update { it.copy(fieldErrors = if (message == null) it.fieldErrors - field else it.fieldErrors + (field to message)) }
     }
+
+    fun onDoneShown() = _state.update { it.copy(done = false) }
 
     fun submit() {
         val s = _state.value
@@ -136,7 +154,12 @@ data class ShopDetailsUiState(
     val saved: Boolean = false,
     val fieldErrors: Map<String, String> = emptyMap(),
     val error: String? = null,
-)
+    /** The details as last loaded or saved, so Save only turns on once something differs. */
+    val initial: List<String> = emptyList(),
+) {
+    val current get() = listOf(shopName.trim(), marketLocation.trim(), contactPhone, whatsapp)
+    val dirty get() = current != initial
+}
 
 const val FIELD_SHOP = "shopName"
 const val FIELD_MARKET = "marketLocation"
@@ -165,6 +188,7 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
                             marketLocation = d.marketLocation,
                             contactPhone = d.contactPhone,
                             whatsapp = d.whatsappNumber.orEmpty(),
+                            initial = listOf(d.shopName.trim(), d.marketLocation.trim(), d.contactPhone, d.whatsappNumber.orEmpty()),
                         )
                     }
                 }
@@ -206,7 +230,16 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
         viewModelScope.launch {
             val details = ShopDetails(s.shopName.trim(), s.marketLocation.trim(), s.contactPhone, s.whatsapp.ifEmpty { null })
             val result = repository.updateShopDetails(details)
-            _state.update { it.copy(saving = false, saved = result.isSuccess, error = result.exceptionOrNull()?.message) }
+            _state.update {
+                it.copy(
+                    saving = false,
+                    saved = result.isSuccess,
+                    initial = if (result.isSuccess) it.current else it.initial,
+                    error = result.exceptionOrNull()?.message,
+                )
+            }
         }
     }
+
+    fun onSavedShown() = _state.update { it.copy(saved = false) }
 }

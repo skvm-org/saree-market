@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.ShareText
+import com.sareemarket.app.ui.share
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -83,6 +85,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     LaunchedEffect(state.deleted) { if (state.deleted) onBack() }
 
     var menuOpen by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
     var editingCollection by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<Item?>(null) }
     var confirmingDelete by remember { mutableStateOf(false) }
@@ -119,6 +122,13 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                                 DropdownMenuItem(
                                     text = { Text("Add photos") }, modifier = Modifier.heightIn(min = MinTouchTarget),
                                     onClick = { menuOpen = false; picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Share") }, modifier = Modifier.heightIn(min = MinTouchTarget),
+                                    onClick = {
+                                        menuOpen = false
+                                        share(context, ShareText.collection(detail.title, detail.sareeType.name, detail.fabric.name, detail.price, detail.items.count { it.status == ItemStatus.AVAILABLE }))
+                                    },
                                 )
                                 DropdownMenuItem(text = { Text("Delete collection") }, modifier = Modifier.heightIn(min = MinTouchTarget), onClick = { menuOpen = false; confirmingDelete = true })
                             }

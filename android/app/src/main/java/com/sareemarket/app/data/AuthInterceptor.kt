@@ -6,7 +6,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 
 /** Adds the JWT to every request, and logs out when the server says the token is no longer valid. */
-class AuthInterceptor(private val sessionStore: SessionStore) : Interceptor {
+class AuthInterceptor(private val sessionStore: SessionStore, private val onExpired: () -> Unit = {}) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         // OkHttp calls this on its own thread, so blocking here does not touch the UI.
@@ -18,6 +18,7 @@ class AuthInterceptor(private val sessionStore: SessionStore) : Interceptor {
         }
         val response = chain.proceed(request)
         if (token != null && response.code == 401) {
+            onExpired()
             runBlocking { sessionStore.clear() }
         }
         return response

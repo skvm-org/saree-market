@@ -56,4 +56,26 @@ class AuthInterceptorTest {
 
         assertNotNull(store.saved)
     }
+
+    @Test
+    fun anExpiredSessionIsReportedSoTheLoginScreenCanSayWhy() {
+        var reported = 0
+        server.enqueue(MockResponse.Builder().code(401).build())
+        val client = OkHttpClient.Builder().addInterceptor(AuthInterceptor(FakeSessionStore(session()), { reported++ })).build()
+
+        client.newCall(Request.Builder().url(server.url("/api/v1/anything")).build()).execute().close()
+
+        assertEquals(1, reported)
+    }
+
+    @Test
+    fun aWrongPasswordWhileLoggedOutIsNotAnExpiredSession() {
+        var reported = 0
+        server.enqueue(MockResponse.Builder().code(401).build())
+        val client = OkHttpClient.Builder().addInterceptor(AuthInterceptor(FakeSessionStore(), { reported++ })).build()
+
+        client.newCall(Request.Builder().url(server.url("/api/v1/auth/login")).build()).execute().close()
+
+        assertEquals(0, reported)
+    }
 }

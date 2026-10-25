@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.typeAndFabric
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -100,7 +101,12 @@ fun SellerHomeContent(
                 MenuButton(onMenu)
                 Column(Modifier.weight(1f)) {
                     Text("Your collections", style = MaterialTheme.typography.headlineMedium)
-                    Text(sellerName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        sellerSummary(sellerName, state),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("summary"),
+                    )
                 }
             }
             Box(Modifier.fillMaxSize()) {
@@ -138,6 +144,14 @@ fun SellerHomeContent(
     }
 }
 
+/** "Lakshmi · 18 sarees · 15 available", or just the name until there is something to count. */
+internal fun sellerSummary(name: String, state: SellerHomeState): String {
+    val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
+    val sarees = collections.sumOf { it.availableCount + it.soldOutCount }
+    if (sarees == 0L) return name
+    return "$name · ${if (sarees == 1L) "1 saree" else "$sarees sarees"} · ${collections.sumOf { it.availableCount }} available"
+}
+
 @Composable
 internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
     Surface(
@@ -156,7 +170,7 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${collection.sareeType} · ${collection.fabric}",
+                    typeAndFabric(collection.sareeType, collection.fabric),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

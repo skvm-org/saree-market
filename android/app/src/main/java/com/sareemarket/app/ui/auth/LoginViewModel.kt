@@ -3,6 +3,7 @@ package com.sareemarket.app.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.AuthRepository
+import com.sareemarket.app.data.SessionNotice
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +20,15 @@ data class LoginUiState(
 )
 
 @HiltViewModel
-class LoginViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class LoginViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    notice: SessionNotice = SessionNotice(),
+) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginUiState())
+    // If the server just ended the session, say so instead of dropping the user on a bare login form.
+    private val _state = MutableStateFlow(
+        LoginUiState(error = if (notice.takeExpired()) "Your session ended. Please log in again." else null),
+    )
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
     fun onPhoneChange(value: String) = _state.update { it.copy(phone = digitsOnly(value, PHONE_LENGTH), error = null) }

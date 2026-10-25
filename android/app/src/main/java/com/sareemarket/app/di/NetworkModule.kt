@@ -11,12 +11,14 @@ import com.sareemarket.app.data.CollectionsApi
 import com.sareemarket.app.data.ContentResolverPhotoSource
 import com.sareemarket.app.data.PhotoSource
 import com.sareemarket.app.data.DataStoreSessionStore
+import com.sareemarket.app.data.SessionNotice
 import com.sareemarket.app.data.SessionStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -41,8 +43,14 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun okHttpClient(sessionStore: SessionStore): OkHttpClient =
-        OkHttpClient.Builder().addInterceptor(AuthInterceptor(sessionStore)).build()
+    fun okHttpClient(sessionStore: SessionStore, notice: SessionNotice): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(sessionStore, notice::markExpired))
+            // Uploading 30 photos is slow, and the server resizes them all before it answers, so the defaults (10 s) are too short.
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.MINUTES)
+            .writeTimeout(2, TimeUnit.MINUTES)
+            .build()
 
     @Provides
     @Singleton

@@ -1,5 +1,13 @@
 package com.sareemarket.app.ui.profile
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -86,13 +94,29 @@ fun AppDrawer(
         gesturesEnabled = gesturesEnabled || drawerState.isOpen,
         drawerContent = {
             ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-                Column(Modifier.padding(horizontal = Spacing.margin, vertical = Spacing.md)) {
-                    Text(session.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("drawer-name"))
-                    Text(
-                        "${session.role.label()} · +91 ${session.phone}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Column(Modifier.padding(horizontal = Spacing.margin, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Text("Saree Market", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primaryContainer)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        // The person's initial in the brand colour, so the menu is clearly "your" account.
+                        Box(
+                            Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                session.name.trim().take(1).uppercase(),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        }
+                        Column {
+                            Text(session.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("drawer-name"))
+                            Text(
+                                "${session.role.label()} · +91 ${session.phone}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
                 HorizontalDivider()
                 val colors = NavigationDrawerItemDefaults.colors(

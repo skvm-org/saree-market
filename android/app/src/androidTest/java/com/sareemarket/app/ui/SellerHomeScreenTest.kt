@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui
 
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -80,5 +81,12 @@ class SellerHomeScreenTest {
         compose.onNodeWithText("Retry").performClick()
 
         assertEquals(1, retries)
+    }
+
+    @Test
+    fun summaryLineCountsSareesAcrossCollections() {
+        show(SellerHomeState.Loaded(listOf(diwali)))
+
+        compose.onNodeWithTag("summary").assertTextEquals("Lakshmi · 18 sarees · 15 available")
     }
 }

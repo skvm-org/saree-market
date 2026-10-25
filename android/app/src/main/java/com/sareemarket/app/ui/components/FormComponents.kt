@@ -65,7 +65,7 @@ fun SareeTextField(
             value = value,
             onValueChange = onValueChange,
             label = { Text(label) },
-            prefix = prefix?.let { { Text(it) } },
+            prefix = prefix?.let { { Text("$it ") } },
             trailingIcon = if (isPassword) {
                 {
                     TextButton(onClick = { revealed = !revealed }, modifier = Modifier.heightIn(min = MinTouchTarget)) {
@@ -108,10 +108,10 @@ fun SareeTextField(
 
 /** Primary action from DESIGN.md: solid maroon, white text, 48 dp tall, 16 dp corners. */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, loading: Boolean = false) {
+fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, loading: Boolean = false, enabled: Boolean = true) {
     Button(
         onClick = onClick,
-        enabled = !loading,
+        enabled = enabled && !loading,
         shape = MaterialTheme.shapes.medium,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,

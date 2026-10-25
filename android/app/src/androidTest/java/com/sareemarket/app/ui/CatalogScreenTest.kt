@@ -19,7 +19,10 @@ import com.sareemarket.app.ui.reseller.CatalogContent
 import com.sareemarket.app.ui.reseller.CatalogState
 import com.sareemarket.app.ui.reseller.PhotoSourceDialog
 import com.sareemarket.app.ui.theme.SareeTheme
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -231,5 +234,30 @@ class CatalogScreenTest {
         compose.onNodeWithTag("show-all").performClick()
 
         assertEquals(false, tab)
+    }
+
+    @Test
+    fun theFirstSareeStartsHighBecauseTheControlsShareOneSearchBarAndOneChipRow() {
+        compose.setContent {
+            SareeTheme { CatalogContent(CatalogState(items = listOf(available), totalItems = 1, loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+        }
+
+        compose.onNodeWithTag("menu").assertExists()
+        compose.onNodeWithTag("photo-search").assertExists()
+        compose.onNodeWithTag("tab-following").assertExists()
+        compose.onNodeWithTag("filters").assertExists()
+        assertTrue(compose.onNodeWithTag("card-1").getUnclippedBoundsInRoot().top < 300.dp)
+    }
+
+    @Test
+    fun menuButtonInTheSearchBarOpensTheMenu() {
+        var opened = 0
+        compose.setContent {
+            SareeTheme { CatalogContent(CatalogState(loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { opened++ }) }
+        }
+
+        compose.onNodeWithTag("menu").performClick()
+
+        assertEquals(1, opened)
     }
 }

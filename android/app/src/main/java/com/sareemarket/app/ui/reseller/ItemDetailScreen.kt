@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.ShareText
+import com.sareemarket.app.ui.share
+import com.sareemarket.app.ui.typeAndFabric
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -157,7 +160,7 @@ fun ItemDetailContent(
         )
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(detail.collectionTitle, style = MaterialTheme.typography.headlineMedium)
-            Text("${detail.sareeType} · ${detail.fabric}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             detail.colour?.let { Text("Colour: $it", style = MaterialTheme.typography.bodyMedium) }
             Text(formatRupees(detail.price), style = PriceHero, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.testTag("price"))
             detail.collectionDescription?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -177,6 +180,8 @@ fun ItemDetailContent(
         ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
         FollowButton(followMode, followError, onToggleFollow)
         SecondaryButton("More from this collection", onClick = { onOpenCollection(detail.collectionId) }, modifier = Modifier.testTag("collection-link"))
+        val context = LocalContext.current
+        SecondaryButton("Share", onClick = { share(context, ShareText.item(detail)) }, modifier = Modifier.testTag("share"))
         Box(Modifier.padding(bottom = Spacing.lg))
     }
 }
