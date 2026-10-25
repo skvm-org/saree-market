@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -134,7 +135,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
             }
             else -> Column(Modifier.safeDrawingPadding()) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
                 modifier = Modifier.weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),

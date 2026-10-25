@@ -1,5 +1,11 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import com.sareemarket.app.ui.components.PhotoViewer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -180,6 +186,8 @@ fun ItemDetailContent(
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
     val context = LocalContext.current
+    var viewing by remember { mutableStateOf(false) }
+    if (viewing) PhotoViewer(imageUrl(detail.id, thumb = false), detail.colour ?: detail.collectionTitle) { viewing = false }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             // The photo runs edge to edge; back and status float over it.
@@ -192,7 +200,9 @@ fun ItemDetailContent(
                         .fillMaxWidth()
                         .aspectRatio(4f / 5f)
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                        .background(SareeColors.SurfaceMuted),
+                        .background(SareeColors.SurfaceMuted)
+                        .clickable(onClickLabel = "Zoom photo", role = Role.Image) { viewing = true }
+                        .testTag("photo"),
                 )
                 Surface(
                     onClick = onBack,

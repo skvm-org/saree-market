@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.Surface
 import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.theme.CardShape
@@ -50,7 +51,7 @@ fun ResellerCollectionScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit, vie
 @Composable
 fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
         modifier = Modifier.safeDrawingPadding(),
         contentPadding = PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),

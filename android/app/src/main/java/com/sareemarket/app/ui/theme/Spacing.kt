@@ -16,3 +16,6 @@ object Spacing {
 
 // Material 3 minimum touch target; DESIGN.md's 44 px is smaller, so Android uses 48 dp.
 val MinTouchTarget = 48.dp
+
+/** Photo grids fit as many columns of at least this width as there is room for: two on a phone, more in landscape or on a tablet. */
+val GRID_MIN_CELL = 156.dp

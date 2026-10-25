@@ -1,5 +1,10 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import com.sareemarket.app.data.CatalogQuery
@@ -20,6 +25,7 @@ import com.sareemarket.app.ui.components.PillSegmented
 import com.sareemarket.app.ui.theme.CardShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.FilterChip
@@ -202,47 +208,69 @@ fun CatalogContent(
     onQueryChange: (CatalogQuery) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Spacer(Modifier.height(Spacing.sm))
-            SearchField(searchText, onSearchText, onPhotoSearch)
-            FilterChips(state, onFollowingTab, onOpenFilters, onSort)
-            ActiveFilterRow(state, onQueryChange)
-            if (state.imageUri != null) PhotoBanner(state.imageUri, state.totalItems.toInt(), onPhotoSearch, onClearPhoto)
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    state.items.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-                        PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            // On a wide screen (landscape, tablet) the controls move to a side panel, so the sarees get the height.
+            val wide = maxWidth >= WIDE_LAYOUT
+            val controls: @Composable ColumnScope.() -> Unit = {
+                SearchField(searchText, onSearchText, onPhotoSearch)
+                FilterChips(state, onFollowingTab, onOpenFilters, onSort)
+                ActiveFilterRow(state, onQueryChange)
+                if (state.imageUri != null) PhotoBanner(state.imageUri, state.totalItems.toInt(), onPhotoSearch, onClearPhoto)
+            }
+            val results: @Composable BoxScope.() -> Unit = {
+        when {
+            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+            state.items.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
+            }
+            state.items.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    when {
+                        state.imageUri != null -> "No similar sarees found.\nTry a clearer photo, or fewer filters."
+                        state.query.followingOnly -> "Nothing new from sellers you follow."
+                        else -> "No sarees match."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                if (state.query.followingOnly && state.imageUri == null && state.query.activeFilterCount == 0) {
+                    TextButton(onClick = { onFollowingTab(false) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("show-all")) {
+                        Text("Show all sellers")
                     }
-                    state.items.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            when {
-                                state.imageUri != null -> "No similar sarees found.\nTry a clearer photo, or fewer filters."
-                                state.query.followingOnly -> "Nothing new from sellers you follow."
-                                else -> "No sarees match."
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        if (state.query.followingOnly && state.imageUri == null && state.query.activeFilterCount == 0) {
-                            TextButton(onClick = { onFollowingTab(false) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("show-all")) {
-                                Text("Show all sellers")
-                            }
-                        }
-                        if (state.query.activeFilterCount > 0) {
-                            TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
-                        }
+                }
+                if (state.query.activeFilterCount > 0) {
+                    TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
+                }
+            }
+            else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
+                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
+            }
+        }
+            }
+            if (wide) {
+                Row(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
+                    Column(Modifier.width(CONTROLS_PANEL).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = Spacing.md)) {
+                        Spacer(Modifier.height(Spacing.sm))
+                        controls()
                     }
-                    else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                        if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
-                    }
+                    Box(Modifier.weight(1f).fillMaxHeight().padding(top = Spacing.sm)) { results() }
+                }
+            } else {
+                Column(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    controls()
+                    Box(Modifier.weight(1f).fillMaxWidth()) { results() }
                 }
             }
         }
     }
 }
+
+/** Screens at least this wide get the controls in a side panel. */
+private val WIDE_LAYOUT = 600.dp
+private val CONTROLS_PANEL = 320.dp
 
 /** The one search bar, with the camera at the end, so the sarees start high on the screen. */
 @Composable
@@ -420,7 +448,7 @@ private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadM
         }
     }
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
         state = grid,
         contentPadding = PaddingValues(bottom = Spacing.lg),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),

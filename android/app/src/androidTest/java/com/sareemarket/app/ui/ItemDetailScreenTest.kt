@@ -136,4 +136,15 @@ class ItemDetailScreenTest {
 
         compose.onNodeWithTag("share").assertExists()
     }
+
+    @Test
+    fun tappingThePhotoOpensAZoomViewThatCloses() {
+        show()
+
+        compose.onNodeWithTag("photo").performClick()
+        compose.onNodeWithTag("photo-viewer").assertExists()
+        compose.onNodeWithTag("close-photo").performClick()
+
+        compose.onNodeWithTag("photo-viewer").assertDoesNotExist()
+    }
 }
