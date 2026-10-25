@@ -80,11 +80,7 @@ private fun PhotoTile(item: Item, onClick: () -> Unit) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Box {
                 SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-                StatusPill(
-                    if (soldOut) "Sold out" else "Available",
-                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
-                )
+                if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
             }
             Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.padding(horizontal = Spacing.xs))
             Text(

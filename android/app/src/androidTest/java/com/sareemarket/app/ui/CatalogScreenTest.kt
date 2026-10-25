@@ -58,8 +58,8 @@ class CatalogScreenTest {
         compose.onAllNodesWithText("Soft silk · Pure silk").assertCountEquals(2) // one per card
         compose.onNodeWithText("Lakshmi Silks").assertExists()
         compose.onNodeWithText("Kanchi Weaves").assertExists()
-        compose.onNodeWithText("Available").assertExists()
         compose.onNodeWithText("Sold out").assertExists()
+        compose.onAllNodesWithText("Available").assertCountEquals(0) // the default view is all available, so only the exception is badged
         compose.onNodeWithTag("count").assertExists()
         compose.onNodeWithText("2 of 148 sarees").assertExists()
     }

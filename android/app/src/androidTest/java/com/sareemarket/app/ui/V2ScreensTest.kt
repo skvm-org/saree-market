@@ -77,4 +77,27 @@ class V2ScreensTest {
 
         assertEquals(1, discovered)
     }
+
+    @Test
+    fun appliedFiltersShowAsChipsThatRemoveThemselves() {
+        var applied: com.sareemarket.app.data.CatalogQuery? = null
+        val reference = com.sareemarket.app.data.ReferenceData(listOf(com.sareemarket.app.data.RefItem(1, "Soft silk")), emptyList())
+        compose.setContent {
+            SareeTheme {
+                CatalogContent(
+                    CatalogState(
+                        items = listOf(item), totalItems = 1, loading = false, reference = reference,
+                        query = com.sareemarket.app.data.CatalogQuery(typeIds = setOf(1), colour = "maroon"),
+                    ),
+                    "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onQueryChange = { applied = it },
+                )
+            }
+        }
+
+        compose.onNodeWithText("Type: Soft silk").assertIsDisplayed()
+        compose.onNodeWithTag("active-colour").performClick()
+
+        assertEquals("", applied?.colour)
+        assertEquals(setOf(1L), applied?.typeIds)
+    }
 }

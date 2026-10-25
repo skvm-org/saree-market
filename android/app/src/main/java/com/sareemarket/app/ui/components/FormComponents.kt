@@ -144,6 +144,9 @@ fun PrimaryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimary,
+            // Waiting, not broken: a pale tint of the brand colour instead of the system's cold grey.
+            disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.16f),
+            disabledContentColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
         ),
         modifier = modifier
             .fillMaxWidth()

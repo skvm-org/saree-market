@@ -171,25 +171,19 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs), modifier = Modifier.padding(bottom = Spacing.sm)) {
-            StatTile("Available", available, SareeColors.Available, Modifier.weight(1f).testTag("stat-available")) {
-                Box(Modifier.size(10.dp).background(SareeColors.Gold, CircleShape))
-            }
-            StatTile("Sold out", soldOut, SareeColors.SlateNeutral, Modifier.weight(1f).testTag("stat-sold-out")) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = SareeColors.SlateNeutral, modifier = Modifier.size(16.dp))
-            }
+            StatTile("Available", available, SareeColors.Available, Modifier.weight(1f).testTag("stat-available"))
+            StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
         }
     }
 }
 
+/** A stock total as plain type: the label, then the number, in the colour that means what it counts. */
 @Composable
-private fun StatTile(label: String, value: Long, tint: androidx.compose.ui.graphics.Color, modifier: Modifier, icon: @Composable () -> Unit) {
+private fun StatTile(label: String, value: Long, numberColor: androidx.compose.ui.graphics.Color, modifier: Modifier) {
     Surface(modifier, shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Row(Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value.toString(), style = MaterialTheme.typography.headlineMedium)
-            }
-            Box(Modifier.size(32.dp).background(tint.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) { icon() }
+        Column(Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value.toString(), style = MaterialTheme.typography.headlineMedium, color = numberColor)
         }
     }
 }

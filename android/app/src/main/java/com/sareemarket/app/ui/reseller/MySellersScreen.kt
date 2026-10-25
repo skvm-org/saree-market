@@ -103,9 +103,9 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
                 Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                 Text(
                     "Followed (${state.sellers.size})",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape).padding(horizontal = Spacing.sm + Spacing.xs, vertical = 6.dp).testTag("followed-count"),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = Spacing.sm).testTag("followed-count"),
                 )
             }
             Text(

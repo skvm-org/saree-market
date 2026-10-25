@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
+import com.sareemarket.app.data.CatalogQuery
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -153,6 +156,7 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onMenu: () -> Unit, viewModel: Cat
         onClearPhoto = viewModel::clearImage,
         onMenu = onMenu,
         onRefresh = viewModel::refresh,
+        onQueryChange = viewModel::apply,
     )
     if (showPhotoChoice) {
         PhotoSourceDialog(
@@ -198,12 +202,14 @@ fun CatalogContent(
     onClearPhoto: () -> Unit,
     onMenu: () -> Unit,
     onRefresh: () -> Unit = {},
+    onQueryChange: (CatalogQuery) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Spacer(Modifier.height(Spacing.sm))
             SearchField(searchText, onSearchText, onMenu, onPhotoSearch)
             FilterChips(state, onFollowingTab, onOpenFilters, onSort)
+            ActiveFilterRow(state, onQueryChange)
             if (state.imageUri != null) PhotoBanner(state.imageUri, state.totalItems.toInt(), onPhotoSearch, onClearPhoto)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
@@ -328,6 +334,31 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
     }
 }
 
+/** The filters that are on, each a chip with a cross, so the reseller sees why the list is short and can undo one at a time. */
+@Composable
+private fun ActiveFilterRow(state: CatalogState, onQueryChange: (CatalogQuery) -> Unit) {
+    val active = activeFilters(state.query, state.reference, state.sellers)
+    if (active.isEmpty()) return
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        active.forEach { filter ->
+            InputChip(
+                selected = true,
+                onClick = { onQueryChange(filter.clear(state.query)) },
+                label = { Text(filter.label, style = MaterialTheme.typography.labelMedium) },
+                trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Remove ${filter.label}", modifier = Modifier.size(16.dp)) },
+                shape = CircleShape,
+                colors = InputChipDefaults.inputChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f),
+                    selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedTrailingIconColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+                border = null,
+                modifier = Modifier.testTag("active-${filter.key}"),
+            )
+        }
+    }
+}
+
 /** Shows the picture being searched with, how many sarees matched, and a way to change or drop it. */
 @Composable
 private fun PhotoBanner(imageUri: String, matches: Int, onChange: () -> Unit, onClear: () -> Unit) {
@@ -428,11 +459,8 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Box {
                 SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-                StatusPill(
-                    if (soldOut) "Sold out" else "Available",
-                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
-                )
+                // The catalog lists what is available by default, so only the exception gets a badge.
+                if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
             }
             Text(
                 formatRupees(item.price),
@@ -509,7 +537,7 @@ private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
                 )
                 Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                StatusPill(if (soldOut) "Sold out" else "Available", if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
+                if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.align(Alignment.CenterVertically))
         }
