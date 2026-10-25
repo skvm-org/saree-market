@@ -21,6 +21,10 @@ public class SareeType {
 	protected SareeType() {
 	}
 
+	public SareeType(String name) {
+		this.name = name;
+	}
+
 	public Long getId() {
 		return id;
 	}
@@ -31,6 +35,14 @@ public class SareeType {
 
 	public boolean isActive() {
 		return active;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
 	}
 
 }

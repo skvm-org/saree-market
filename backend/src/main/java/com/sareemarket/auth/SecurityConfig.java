@@ -8,16 +8,20 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -36,7 +40,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain filterChain(HttpSecurity http, UserRepository users) throws Exception {
 		return http.csrf(AbstractHttpConfigurer::disable)
 			// Uses the CORS mappings from common/CorsConfig (allowed origins from config).
 			.cors(Customizer.withDefaults())
@@ -46,7 +50,7 @@ class SecurityConfig {
 				.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(o -> o
-				.jwt(j -> j.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+				.jwt(j -> j.jwtAuthenticationConverter(jwtAuthenticationConverter(users)))
 				.authenticationEntryPoint(unauthorized())
 				.accessDeniedHandler(forbidden()))
 			.exceptionHandling(e -> e.authenticationEntryPoint(unauthorized()).accessDeniedHandler(forbidden()))
@@ -72,13 +76,20 @@ class SecurityConfig {
 		return new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
-	private static JwtAuthenticationConverter jwtAuthenticationConverter() {
+	// A token stays valid for its lifetime, so check on every request that the user still exists and is enabled.
+	private static Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter(UserRepository users) {
 		JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
 		authorities.setAuthoritiesClaimName("role");
 		authorities.setAuthorityPrefix("ROLE_");
 		JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
 		converter.setJwtGrantedAuthoritiesConverter(authorities);
-		return converter;
+		return jwt -> {
+			boolean enabled = users.findById(Long.valueOf(jwt.getSubject())).map(AppUser::isEnabled).orElse(false);
+			if (!enabled) {
+				throw new DisabledException("Account disabled or removed");
+			}
+			return converter.convert(jwt);
+		};
 	}
 
 	// Security rejects requests before controllers run, so write the standard error body by hand.

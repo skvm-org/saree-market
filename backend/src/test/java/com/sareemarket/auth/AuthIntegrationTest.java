@@ -158,7 +158,7 @@ class AuthIntegrationTest {
 		postJson("/api/v1/auth/login", """
 				{"phone":"9000000007","password":"password1"}""").andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("ACCOUNT_DISABLED"));
-		getWith("/api/v1/auth/me", token).andExpect(status().isForbidden());
+		getWith("/api/v1/auth/me", token).andExpect(status().isUnauthorized());
 	}
 
 	@Test

@@ -8,4 +8,6 @@ public interface SareeTypeRepository extends JpaRepository<SareeType, Long> {
 
 	List<SareeType> findByActiveTrueOrderByName();
 
+	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
 }

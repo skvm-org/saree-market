@@ -8,4 +8,6 @@ public interface FabricRepository extends JpaRepository<Fabric, Long> {
 
 	List<Fabric> findByActiveTrueOrderByName();
 
+	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
 }

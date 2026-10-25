@@ -21,6 +21,10 @@ public class Fabric {
 	protected Fabric() {
 	}
 
+	public Fabric(String name) {
+		this.name = name;
+	}
+
 	public Long getId() {
 		return id;
 	}
@@ -31,6 +35,14 @@ public class Fabric {
 
 	public boolean isActive() {
 		return active;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
 	}
 
 }
