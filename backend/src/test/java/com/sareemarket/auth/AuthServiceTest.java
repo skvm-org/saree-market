@@ -37,7 +37,7 @@ class AuthServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		service = new AuthService(users, sellers, encoder, jwt);
+		service = new AuthService(users, sellers, encoder, jwt, new LoginAttemptLimiter());
 		when(jwt.issue(any())).thenReturn("token");
 	}
 
@@ -105,7 +105,7 @@ class AuthServiceTest {
 	void loginWithCorrectPasswordReturnsToken() {
 		when(users.findByPhone("9876543210")).thenReturn(Optional.of(user(true)));
 
-		assertThat(service.login(new LoginRequest("9876543210", "password1")).token()).isEqualTo("token");
+		assertThat(service.login(new LoginRequest("9876543210", "password1"), "1.1.1.1").token()).isEqualTo("token");
 	}
 
 	@Test
@@ -115,7 +115,7 @@ class AuthServiceTest {
 
 		for (var request : new LoginRequest[] { new LoginRequest("9876543210", "wrong-password"),
 				new LoginRequest("0000000000", "password1") }) {
-			assertThatThrownBy(() -> service.login(request)).isInstanceOfSatisfying(ApiException.class, e -> {
+			assertThatThrownBy(() -> service.login(request, "1.1.1.1")).isInstanceOfSatisfying(ApiException.class, e -> {
 				assertThat(e.status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 				assertThat(e.code()).isEqualTo("INVALID_CREDENTIALS");
 			});
@@ -123,10 +123,35 @@ class AuthServiceTest {
 	}
 
 	@Test
+	void afterFiveWrongPasswordsEvenTheRightOneIsRefusedUntilTheLockoutEnds() {
+		when(users.findByPhone("9876543210")).thenReturn(Optional.of(user(true)));
+		for (int i = 0; i < LoginAttemptLimiter.MAX_PER_PHONE; i++) {
+			assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "wrong-password"), "1.1.1.1"))
+				.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("INVALID_CREDENTIALS"));
+		}
+
+		assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "password1"), "1.1.1.1"))
+			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
+	}
+
+	@Test
+	void aSuccessfulLoginForgetsEarlierMistakes() {
+		when(users.findByPhone("9876543210")).thenReturn(Optional.of(user(true)));
+		for (int i = 0; i < LoginAttemptLimiter.MAX_PER_PHONE - 1; i++) {
+			assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "wrong-password"), "1.1.1.1"))
+				.isInstanceOf(ApiException.class);
+		}
+		service.login(new LoginRequest("9876543210", "password1"), "1.1.1.1");
+
+		assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "wrong-password"), "1.1.1.1"))
+			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("INVALID_CREDENTIALS"));
+	}
+
+	@Test
 	void disabledUserCannotLogInEvenWithCorrectPassword() {
 		when(users.findByPhone("9876543210")).thenReturn(Optional.of(user(false)));
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "password1")))
+		assertThatThrownBy(() -> service.login(new LoginRequest("9876543210", "password1"), "1.1.1.1"))
 			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("ACCOUNT_DISABLED"));
 	}
 

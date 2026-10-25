@@ -2,6 +2,7 @@ package com.sareemarket.catalog;
 
 import java.util.List;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -11,7 +12,7 @@ import jakarta.validation.constraints.Size;
  */
 public record CatalogFilter(@Size(max = 200) String q, List<Long> typeIds, List<Long> fabricIds,
 		@Size(max = 50) String colour, @Min(0) Integer minPrice, @Min(0) Integer maxPrice, Long sellerId,
-		StatusFilter status, @Min(1) Integer since, CatalogSort sort, @Min(0) Integer page, Boolean following) {
+		StatusFilter status, @Min(1) @Max(3650) Integer since, CatalogSort sort, @Min(0) Integer page, Boolean following) {
 
 	public CatalogFilter {
 		status = status == null ? StatusFilter.AVAILABLE : status;

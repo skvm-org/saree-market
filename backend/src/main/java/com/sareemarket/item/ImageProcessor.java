@@ -5,11 +5,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.Semaphore;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +32,13 @@ public class ImageProcessor {
 
 	private static final float QUALITY = 0.85f;
 
+	/** Decoding a 10 MB photo takes tens of MB of heap; this many at once keeps a 30-photo upload from exhausting it. */
+	static final int MAX_CONCURRENT = 3;
+
+	private static final Logger log = LoggerFactory.getLogger(ImageProcessor.class);
+
+	private final Semaphore slots = new Semaphore(MAX_CONCURRENT);
+
 	public ProcessedImage process(MultipartFile file) {
 		String name = file.getOriginalFilename() == null ? "photo" : file.getOriginalFilename();
 		byte[] original;
@@ -36,12 +46,14 @@ public class ImageProcessor {
 			original = file.getBytes();
 		}
 		catch (IOException e) {
+			log.warn("Could not read upload \"{}\"", name, e);
 			throw invalid(name);
 		}
 		// Look at the bytes, not the filename or Content-Type: both come from the client.
 		if (!looksLikeImage(original)) {
 			throw invalid(name);
 		}
+		slots.acquireUninterruptibly();
 		try {
 			byte[] full = resize(original, MAX_FULL);
 			byte[] thumb = resize(full, MAX_THUMB);
@@ -49,7 +61,11 @@ public class ImageProcessor {
 			return new ProcessedImage(full, thumb, ImageHasher.hash(decoded));
 		}
 		catch (IOException | RuntimeException e) {
+			log.warn("Could not process upload \"{}\"", name, e);
 			throw invalid(name);
+		}
+		finally {
+			slots.release();
 		}
 	}
 

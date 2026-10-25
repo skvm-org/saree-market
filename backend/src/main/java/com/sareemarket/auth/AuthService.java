@@ -31,10 +31,14 @@ class AuthService {
 
 	private final JwtService jwt;
 
+	private final LoginAttemptLimiter limiter;
+
 	// Checked against when the phone is unknown, so unknown-phone and wrong-password take equally long.
 	private final String dummyHash;
 
-	AuthService(UserRepository users, SellerProfileRepository sellers, PasswordEncoder encoder, JwtService jwt) {
+	AuthService(UserRepository users, SellerProfileRepository sellers, PasswordEncoder encoder, JwtService jwt,
+			LoginAttemptLimiter limiter) {
+		this.limiter = limiter;
 		this.users = users;
 		this.sellers = sellers;
 		this.encoder = encoder;
@@ -63,12 +67,15 @@ class AuthService {
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
-	AuthResponse login(LoginRequest request) {
+	AuthResponse login(LoginRequest request, String clientAddress) {
+		limiter.check(request.phone(), clientAddress);
 		AppUser user = users.findByPhone(request.phone()).orElse(null);
 		boolean passwordOk = encoder.matches(request.password(), user == null ? dummyHash : user.getPasswordHash());
 		if (user == null || !passwordOk) {
+			limiter.failed(request.phone(), clientAddress);
 			throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Wrong phone number or password");
 		}
+		limiter.succeeded(request.phone());
 		if (!user.isEnabled()) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_DISABLED", "This account has been disabled");
 		}

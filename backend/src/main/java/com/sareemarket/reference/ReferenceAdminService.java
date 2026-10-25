@@ -1,6 +1,9 @@
 package com.sareemarket.reference;
 
+import java.util.List;
+
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,17 @@ class ReferenceAdminService {
 	ReferenceAdminService(SareeTypeRepository types, FabricRepository fabrics) {
 		this.types = types;
 		this.fabrics = fabrics;
+	}
+
+	/** Every entry, including the deactivated ones that /reference/* hides. */
+	@Transactional(readOnly = true)
+	List<AdminRefDto> allTypes() {
+		return types.findAll(Sort.by("name")).stream().map(t -> new AdminRefDto(t.getId(), t.getName(), t.isActive())).toList();
+	}
+
+	@Transactional(readOnly = true)
+	List<AdminRefDto> allFabrics() {
+		return fabrics.findAll(Sort.by("name")).stream().map(f -> new AdminRefDto(f.getId(), f.getName(), f.isActive())).toList();
 	}
 
 	@Transactional

@@ -1,6 +1,9 @@
 package com.sareemarket.reference;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +26,16 @@ class ReferenceAdminController {
 
 	ReferenceAdminController(ReferenceAdminService service) {
 		this.service = service;
+	}
+
+	@GetMapping("/saree-types")
+	List<AdminRefDto> allTypes() {
+		return service.allTypes();
+	}
+
+	@GetMapping("/fabrics")
+	List<AdminRefDto> allFabrics() {
+		return service.allFabrics();
 	}
 
 	@PostMapping("/saree-types")

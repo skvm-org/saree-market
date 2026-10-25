@@ -96,4 +96,46 @@ class ImageProcessorTest {
 				ApiException.class, e -> assertThat(e.code()).isEqualTo("INVALID_IMAGE"));
 	}
 
+	/** A landscape JPEG whose EXIF says "rotate 90 degrees to view", as a phone held upright writes it. */
+	private static byte[] landscapeWithRotateTag() throws Exception {
+		byte[] plain = TestImages.jpeg(400, 200, 1);
+		byte[] exif = { (byte) 0xFF, (byte) 0xE1, 0x00, 0x22, 'E', 'x', 'i', 'f', 0, 0,
+				'M', 'M', 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08, // big-endian TIFF header, first directory at 8
+				0x00, 0x01, // one entry
+				0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00, // Orientation = 6
+				0x00, 0x00, 0x00, 0x00 }; // no next directory
+		byte[] out = new byte[plain.length + exif.length];
+		System.arraycopy(plain, 0, out, 0, 2); // the start-of-image marker stays first
+		System.arraycopy(exif, 0, out, 2, exif.length);
+		System.arraycopy(plain, 2, out, 2 + exif.length, plain.length - 2);
+		return out;
+	}
+
+	@Test
+	void exifRotationIsAppliedSoPhonePhotosAreNotSideways() throws Exception {
+		ProcessedImage result = processor.process(file("upright.jpg", landscapeWithRotateTag()));
+
+		BufferedImage full = decode(result.full());
+		assertThat(full.getHeight()).isGreaterThan(full.getWidth());
+		assertThat(decode(result.thumb()).getHeight()).isGreaterThan(decode(result.thumb()).getWidth());
+	}
+
+	@Test
+	void manyPhotosAtOnceAllComeOutRight() throws Exception {
+		var pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+		try {
+			var jobs = new java.util.ArrayList<java.util.concurrent.Future<ProcessedImage>>();
+			for (int i = 0; i < 12; i++) {
+				byte[] bytes = TestImages.jpeg(1800, 1200, i);
+				jobs.add(pool.submit(() -> processor.process(file("p.jpg", bytes))));
+			}
+			for (var job : jobs) {
+				assertThat(decode(job.get().full()).getWidth()).isEqualTo(1600);
+			}
+		}
+		finally {
+			pool.shutdownNow();
+		}
+	}
+
 }

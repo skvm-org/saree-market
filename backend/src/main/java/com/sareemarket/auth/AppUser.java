@@ -63,6 +63,10 @@ public class AppUser {
 		return role;
 	}
 
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
+
 	public boolean isEnabled() {
 		return enabled;
 	}

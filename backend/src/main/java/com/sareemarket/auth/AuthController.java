@@ -19,6 +19,7 @@ import com.sareemarket.auth.dto.RegisterRequest;
 import com.sareemarket.auth.dto.UpdateNameRequest;
 import com.sareemarket.auth.dto.UserDto;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -38,8 +39,8 @@ class AuthController {
 	}
 
 	@PostMapping("/login")
-	AuthResponse login(@Valid @RequestBody LoginRequest request) {
-		return service.login(request);
+	AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+		return service.login(request, http.getRemoteAddr());
 	}
 
 	@GetMapping("/me")
