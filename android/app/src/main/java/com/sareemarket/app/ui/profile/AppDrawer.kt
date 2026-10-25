@@ -61,8 +61,8 @@ const val ROUTE_PROFILE = "profile"
 const val ROUTE_PASSWORD = "password"
 
 /** Adds the profile and change-password screens to a role's navigation graph. */
-fun NavGraphBuilder.accountRoutes(nav: NavController) {
-    composable(ROUTE_PROFILE) { ProfileScreen(onBack = { nav.popBackStack() }) }
+fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit) {
+    composable(ROUTE_PROFILE) { ProfileScreen(onBack = { nav.popBackStack() }, onLogout = onLogout) }
     composable(ROUTE_PASSWORD) { ChangePasswordScreen(onBack = { nav.popBackStack() }) }
 }
 
@@ -167,25 +167,23 @@ fun AppDrawer(
         content { scope.launch { drawerState.open() } }
     }
 
-    if (confirmLogout) {
-        AlertDialog(
-            onDismissRequest = { confirmLogout = false },
-            title = { Text("Log out?") },
-            text = { Text("You will need your phone number and password to sign in again.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmLogout = false
-                        onLogout()
-                    },
-                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag("confirm-logout"),
-                ) { Text("Log out") }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmLogout = false }, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Cancel") }
-            },
-        )
-    }
+    if (confirmLogout) LogoutDialog(onDismiss = { confirmLogout = false }, onConfirm = { confirmLogout = false; onLogout() })
+}
+
+/** "Log out?" with the way back: used by the menu and by the profile screen. */
+@Composable
+fun LogoutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Log out?") },
+        text = { Text("You will need your phone number and password to sign in again.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("confirm-logout")) { Text("Log out") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Cancel") }
+        },
+    )
 }
 
 /** The hamburger in a top bar; opens the [AppDrawer]. */

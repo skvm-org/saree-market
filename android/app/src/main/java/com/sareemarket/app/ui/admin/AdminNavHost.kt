@@ -63,7 +63,7 @@ fun AdminNavHost(session: Session, onLogout: () -> Unit) {
                     }
                 }
             }
-            accountRoutes(nav)
+            accountRoutes(nav, onLogout)
         }
     }
 }

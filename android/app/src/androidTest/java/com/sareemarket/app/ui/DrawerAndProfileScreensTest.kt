@@ -143,4 +143,22 @@ class DrawerAndProfileScreensTest {
         compose.onNodeWithText("Saree Market").assertIsDisplayed()
         compose.onNodeWithText("L").assertIsDisplayed() // Lakshmi's initial
     }
+
+    @Test
+    fun profileHasALogOutThatAsksFirst() {
+        var logouts = 0
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.SELLER), {}, {}, {}, onLogout = { logouts++ })
+            }
+        }
+
+        compose.onNodeWithTag("logout").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(0, logouts)
+
+        compose.onNodeWithTag("logout").performClick()
+        compose.onNodeWithTag("confirm-logout").performClick()
+        assertEquals(1, logouts)
+    }
 }

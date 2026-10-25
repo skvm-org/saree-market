@@ -120,7 +120,7 @@ fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
                 composable("collection/{id}", arguments = id) {
                     ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
                 }
-                accountRoutes(nav)
+                accountRoutes(nav, onLogout)
             }
         }
         if (showBar) {

@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.profile
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.sareemarket.app.ui.components.SecondaryButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -76,13 +79,14 @@ private fun ErrorText(error: String?) {
 }
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(onBack: () -> Unit, onLogout: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown)
+    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout)
 }
 
 @Composable
-fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (String) -> Unit, onSave: () -> Unit, onBlur: () -> Unit = {}, onSavedShown: () -> Unit = {}) {
+fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (String) -> Unit, onSave: () -> Unit, onBlur: () -> Unit = {}, onSavedShown: () -> Unit = {}, onLogout: () -> Unit = {}) {
+    var confirmingLogout by remember { mutableStateOf(false) }
     ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
         SareeTextField(state.name, onNameChange, "Full name", tag = "name", imeAction = ImeAction.Done, onDone = onSave, onBlur = onBlur)
         Column {
@@ -100,7 +104,9 @@ fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (Str
         }
         ErrorText(state.error)
         PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
+        SecondaryButton("Log out", onClick = { confirmingLogout = true }, modifier = Modifier.testTag("logout"))
     }
+    if (confirmingLogout) LogoutDialog(onDismiss = { confirmingLogout = false }, onConfirm = { confirmingLogout = false; onLogout() })
 }
 
 @Composable
