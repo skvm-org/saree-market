@@ -1,5 +1,11 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
 import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -133,15 +139,10 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 PrimaryButton("Retry", onClick = viewModel::load, modifier = Modifier.padding(Spacing.md))
                 SecondaryButton("Back", onClick = onBack, modifier = Modifier.padding(horizontal = Spacing.md))
             }
-            else -> Column(Modifier.safeDrawingPadding()) {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
-                modifier = Modifier.weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
-            ) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
+            else -> BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+                // The same pieces, placed two ways: stacked above the grid on a phone, in a side panel on a wide screen.
+                val wide = maxWidth >= WIDE_LAYOUT
+                val topBar: @Composable () -> Unit = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                         Spacer(Modifier.weight(1f))
@@ -170,7 +171,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                         }
                     }
                 }
-                item(span = { GridItemSpan(maxLineSpan) }) {
+                val titleBlock: @Composable () -> Unit = {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text(detail.title, style = MaterialTheme.typography.headlineLarge)
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -188,12 +189,11 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                         }
                     }
                 }
-                if (detail.items.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                val stockBlock: @Composable () -> Unit = {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    if (detail.items.isEmpty()) {
                         Text("No photos yet. Use the menu to add photos.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    } else {
                         StockControls(
                             total = detail.items.size,
                             available = state.count(ItemStatus.AVAILABLE),
@@ -203,28 +203,62 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                             onFilter = viewModel::setFilter,
                             onMarkAll = viewModel::markAll,
                         )
-                    }
-                    if (state.visibleItems.isEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
+                        if (state.visibleItems.isEmpty()) {
                             Text("No sarees match this filter.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                }
-                items(state.visibleItems, key = { it.id }) { item ->
-                    Box(Modifier.animateItem()) {
-                        ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
                     }
                 }
-            }
-            FilledTonalButton(
-                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                shape = CircleShape,
-                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.margin, vertical = Spacing.sm).heightIn(min = MinTouchTarget).testTag("add-photos"),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("  Add more photos", style = MaterialTheme.typography.labelLarge)
-            }
+                val addPhotos: @Composable () -> Unit = {
+                FilledTonalButton(
+                    onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("add-photos"),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("  Add more photos", style = MaterialTheme.typography.labelLarge)
+                }
+                }
+                val photoGrid: @Composable (Modifier, Boolean) -> Unit = { modifier, withHeader ->
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
+                        modifier = modifier,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                    ) {
+                        if (withHeader) {
+                            item(span = { GridItemSpan(maxLineSpan) }) { topBar() }
+                            item(span = { GridItemSpan(maxLineSpan) }) { titleBlock() }
+                            item(span = { GridItemSpan(maxLineSpan) }) { stockBlock() }
+                        }
+                        items(state.visibleItems, key = { it.id }) { item ->
+                            Box(Modifier.animateItem()) {
+                                ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
+                            }
+                        }
+                    }
+                }
+                if (wide) {
+                    Row(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier.width(CONTROLS_PANEL_WIDTH).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = Spacing.margin, end = Spacing.sm, bottom = Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            topBar()
+                            titleBlock()
+                            stockBlock()
+                            addPhotos()
+                        }
+                        photoGrid(Modifier.weight(1f).fillMaxHeight(), false)
+                    }
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                        photoGrid(Modifier.weight(1f), true)
+                        Box(Modifier.padding(horizontal = Spacing.margin, vertical = Spacing.sm)) { addPhotos() }
+                    }
+                }
             }
         }
 
@@ -379,3 +413,7 @@ private fun EditItemSheet(item: Item, collectionPrice: Int, state: DetailState, 
         )
     }
 }
+
+/** Screens at least this wide put the details and actions in a side panel next to the photos. */
+private val WIDE_LAYOUT = 600.dp
+private val CONTROLS_PANEL_WIDTH = 330.dp

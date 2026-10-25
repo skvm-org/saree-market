@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -83,10 +87,12 @@ fun SellerHomeContent(
     onRefresh: () -> Unit = {},
     location: String = "",
 ) {
+    // On a wide screen the Add tab is enough, and a floating button would sit on top of a card.
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            if (!wide) ExtendedFloatingActionButton(
                 onClick = onNewCollection,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -102,7 +108,7 @@ fun SellerHomeContent(
                 .padding(padding)
                 .safeDrawingPadding(),
         ) {
-            ShopHeader(sellerName, location, state)
+            ShopHeader(sellerName, location, state, wide)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -121,12 +127,15 @@ fun SellerHomeContent(
                             )
                         } else {
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                                LazyColumn(
+                                // One column on a phone; two or three on a wide screen.
+                                LazyVerticalGrid(
+                                    columns = GridCells.Adaptive(minSize = 340.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                                     contentPadding = PaddingValues(top = Spacing.md, bottom = 96.dp),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
-                                    item {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                                             Text("Active collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
                                             Text("Newest first", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -146,7 +155,7 @@ fun SellerHomeContent(
 
 /** Shop name and place on a warm panel, with the two stock totals as tiles underneath. */
 @Composable
-private fun ShopHeader(shopName: String, location: String, state: SellerHomeState) {
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
@@ -157,18 +166,32 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
             .padding(horizontal = Spacing.margin, vertical = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            InitialAvatar(shopName, 44.dp)
-            Column(Modifier.weight(1f)) {
-                Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
-                if (location.isNotBlank()) {
-                    Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val identity: @Composable (Modifier) -> Unit = { modifier ->
+            Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                InitialAvatar(shopName, 44.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
+                    if (location.isNotBlank()) {
+                        Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs), modifier = Modifier.padding(bottom = Spacing.sm)) {
-            StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
-            StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
+        val totals: @Composable (Modifier) -> Unit = { modifier ->
+            Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
+                StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
+            }
+        }
+        if (wide) {
+            // Name on the left, totals on the right: one short band instead of two tall ones.
+            Row(Modifier.padding(bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                identity(Modifier.weight(1f))
+                totals(Modifier.width(360.dp))
+            }
+        } else {
+            identity(Modifier)
+            totals(Modifier.padding(bottom = Spacing.sm))
         }
     }
 }
