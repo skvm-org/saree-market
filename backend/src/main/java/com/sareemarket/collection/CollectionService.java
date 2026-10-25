@@ -2,6 +2,7 @@ package com.sareemarket.collection;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -77,7 +78,15 @@ public class CollectionService {
 	}
 
 	public List<CollectionSummaryDto> listMine(long sellerId) {
-		return collections.summariesFor(sellerId);
+		List<CollectionSummaryDto> summaries = collections.summariesFor(sellerId);
+		if (summaries.isEmpty()) {
+			return summaries;
+		}
+		Map<Long, List<Long>> previews = new HashMap<>();
+		for (Object[] row : collections.previewItems(summaries.stream().map(CollectionSummaryDto::id).toList())) {
+			previews.computeIfAbsent(((Number) row[0]).longValue(), k -> new ArrayList<>()).add(((Number) row[1]).longValue());
+		}
+		return summaries.stream().map(s -> s.withPreviews(previews.getOrDefault(s.id(), List.of()))).toList();
 	}
 
 	public CollectionDetailDto update(long sellerId, long id, UpdateCollectionRequest request) {

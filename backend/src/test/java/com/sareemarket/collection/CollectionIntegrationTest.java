@@ -416,4 +416,20 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 			.andExpect(status().isNotFound());
 	}
 
+	@Test
+	void dashboardRowsCarryUpToThreePreviewPhotosInOrder() throws Exception {
+		String seller = registerSeller();
+		long five = createdId(seller, "Five photos", 5);
+		long one = createdId(seller, "One photo", 1);
+		List<Long> fiveIds = itemIds(seller, five);
+
+		String json = getWith("/api/v1/sellers/me/collections", seller).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+		List<Number> previews = JsonPath.read(json, "$[?(@.id==" + five + ")].previewItemIds[*]");
+		assertThat(previews.stream().map(Number::longValue).toList()).containsExactlyElementsOf(fiveIds.stream().sorted().limit(3).toList());
+		List<Number> single = JsonPath.read(json, "$[?(@.id==" + one + ")].previewItemIds[*]");
+		assertThat(single).hasSize(1);
+		assertThat(((Object) JsonPath.read(json, "$[?(@.id==" + one + ")].createdAt[0]"))).isNotNull();
+	}
+
 }

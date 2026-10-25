@@ -179,4 +179,17 @@ class FollowIntegrationTest extends IntegrationTestBase {
 		getWith("/api/v1/sellers/" + s, adminToken()).andExpect(jsonPath("$.followMode").doesNotExist());
 	}
 
+	@Test
+	void followListSaysWhenEachSellerLastUploadedAndNullWhenNever() throws Exception {
+		String reseller = registerReseller();
+		long active = seller("Active Shop");
+		long quiet = seller("Quiet Shop");
+		listing(active, "Diwali");
+		follow(reseller, active, "INSTANT");
+		follow(reseller, quiet, "INSTANT");
+
+		getWith("/api/v1/follows", reseller).andExpect(jsonPath("$[?(@.shopName=='Active Shop')].lastUploadAt").isNotEmpty())
+			.andExpect(jsonPath("$[?(@.shopName=='Quiet Shop')].lastUploadAt").value(org.hamcrest.Matchers.contains((Object) null)));
+	}
+
 }

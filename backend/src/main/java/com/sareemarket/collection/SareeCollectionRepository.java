@@ -23,4 +23,12 @@ public interface SareeCollectionRepository extends JpaRepository<SareeCollection
 			order by c.createdAt desc, c.id desc""")
 	List<CollectionSummaryDto> summariesFor(@Param("sellerId") Long sellerId);
 
+	/** The first three photos of each collection: rows of (collection id, item id). */
+	@Query(value = """
+			SELECT collection_id, id FROM (
+			    SELECT collection_id, id, row_number() OVER (PARTITION BY collection_id ORDER BY id) AS n
+			    FROM item WHERE collection_id IN (:ids)) ranked
+			WHERE n <= 3 ORDER BY collection_id, id""", nativeQuery = true)
+	List<Object[]> previewItems(@Param("ids") java.util.Collection<Long> ids);
+
 }

@@ -44,7 +44,8 @@ public class FollowService {
 
 	public List<FollowDto> list(long resellerId) {
 		return jdbc.query("""
-				SELECT f.seller_id, sp.shop_name, sp.market_location, f.notify_mode, f.created_at
+				SELECT f.seller_id, sp.shop_name, sp.market_location, f.notify_mode, f.created_at,
+				       (SELECT max(c.created_at) FROM collection c WHERE c.seller_id = f.seller_id) AS last_upload_at
 				FROM seller_follow f
 				JOIN seller_profile sp ON sp.user_id = f.seller_id
 				JOIN app_user u ON u.id = f.seller_id AND u.enabled
@@ -52,7 +53,12 @@ public class FollowService {
 				ORDER BY lower(sp.shop_name), f.seller_id""", new MapSqlParameterSource("reseller", resellerId),
 				(rs, n) -> new FollowDto(rs.getLong("seller_id"), rs.getString("shop_name"),
 						rs.getString("market_location"), NotifyMode.valueOf(rs.getString("notify_mode")),
-						rs.getObject("created_at", OffsetDateTime.class).toInstant()));
+						rs.getObject("created_at", OffsetDateTime.class).toInstant(),
+						instantOrNull(rs.getObject("last_upload_at", OffsetDateTime.class))));
+	}
+
+	private static java.time.Instant instantOrNull(OffsetDateTime time) {
+		return time == null ? null : time.toInstant();
 	}
 
 	/** How this reseller follows the seller, or null when they do not. */

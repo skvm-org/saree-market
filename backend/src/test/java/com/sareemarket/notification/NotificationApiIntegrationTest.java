@@ -181,4 +181,19 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 		assertThat(NotificationService.message(NotificationType.BACK_IN_STOCK, 3, "Shop", "Title")).isEqualTo("3 sarees are back in stock at Shop · Title");
 	}
 
+	@Test
+	void notificationCarriesAPhotoOfTheCollectionForItsThumbnail() throws Exception {
+		String reseller = registerReseller();
+		long me = resellerId(reseller);
+		long c = collection();
+		long seller = jdbc.queryForObject("SELECT seller_id FROM collection WHERE id = ?", Long.class, c);
+		long first = jdbc.queryForObject("""
+				INSERT INTO item (collection_id, seller_id, image_path, thumb_path, image_hash)
+				VALUES (?, ?, 'a', 'b', 1) RETURNING id""", Long.class, c, seller);
+		jdbc.update("INSERT INTO item (collection_id, seller_id, image_path, thumb_path, image_hash) VALUES (?, ?, 'c', 'd', 2)", c, seller);
+		note(me, c, "NEW_COLLECTION", 2, "1 hour", false);
+
+		getWith("/api/v1/notifications", reseller).andExpect(jsonPath("$.items[0].coverItemId").value(first));
+	}
+
 }
