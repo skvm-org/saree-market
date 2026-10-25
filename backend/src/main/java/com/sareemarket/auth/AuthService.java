@@ -75,13 +75,34 @@ class AuthService {
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
+	@Transactional
+	UserDto updateName(long userId, String name) {
+		AppUser user = findUser(userId);
+		user.setName(name.strip());
+		return UserDto.from(user);
+	}
+
+	@Transactional
+	void changePassword(long userId, String currentPassword, String newPassword) {
+		AppUser user = findUser(userId);
+		if (!encoder.matches(currentPassword, user.getPasswordHash())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "WRONG_PASSWORD", "Current password is wrong",
+					Map.of("currentPassword", "is wrong"));
+		}
+		user.setPasswordHash(encoder.encode(newPassword));
+	}
+
 	UserDto currentUser(long userId) {
-		AppUser user = users.findById(userId)
-			.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Login required"));
+		AppUser user = findUser(userId);
 		if (!user.isEnabled()) {
 			throw new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_DISABLED", "This account has been disabled");
 		}
 		return UserDto.from(user);
+	}
+
+	private AppUser findUser(long userId) {
+		return users.findById(userId)
+			.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Login required"));
 	}
 
 	private void validate(RegisterRequest r) {

@@ -160,6 +160,9 @@ With ~100 sellers posting daily and ~15 resellers, notifying everyone of everyth
 | POST | /notifications/{id}/read, /notifications/read-all | Reseller |
 | POST/PUT | /admin/saree-types, /admin/fabrics | Admin |
 | PATCH | /admin/users/{id}/enabled | Admin |
+| PATCH | /auth/me (name) | Logged-in users |
+| PUT | /auth/me/password | Logged-in users |
+| GET/PUT | /seller/profile | Seller (own) |
 
 ## Screens
 
@@ -191,8 +194,9 @@ On phones the filters panel is a bottom sheet.
 6. **Image search** — dHash, Hamming match, gallery and camera capture in the app, tests with sample images
 7. **Follow and notifications** — follows, events, fan-out with coalescing, bell, notifications screen, WorkManager local notifications, Following filter, tests
 8. **Admin (backend only)** — reference data and user enable/disable endpoints with integration tests
+9. **Side menu and profile** — shared drawer for all roles (profile, change password, log out; sellers also edit shop details), with the endpoints above
 
-Each slice: plan → build → unit + integration tests → summary and how to try it → stop for review. The ponytail review (`/ponytail-review`) runs once on the whole backend after slice 8, not per slice.
+Each slice: plan → build → unit + integration tests → summary and how to try it → stop for review. The ponytail review (`/ponytail-review`) runs once on the whole backend after slice 9, not per slice.
 
 After the MVP: Angular web app (`frontend/`) with the admin screens.
 

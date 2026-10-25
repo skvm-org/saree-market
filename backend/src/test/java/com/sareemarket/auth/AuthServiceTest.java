@@ -130,6 +130,38 @@ class AuthServiceTest {
 			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("ACCOUNT_DISABLED"));
 	}
 
+	@Test
+	void updateNameTrimsAndSaves() {
+		AppUser user = user(true);
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+
+		assertThat(service.updateName(1, "  Meena ").name()).isEqualTo("Meena");
+	}
+
+	@Test
+	void changePasswordStoresANewHash() {
+		AppUser user = user(true);
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+
+		service.changePassword(1, "password1", "newpassword2");
+
+		assertThat(encoder.matches("newpassword2", user.getPasswordHash())).isTrue();
+	}
+
+	@Test
+	void changePasswordWithWrongCurrentPasswordIsABadRequestNotA401() {
+		AppUser user = user(true);
+		String oldHash = user.getPasswordHash();
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> service.changePassword(1, "wrong-one", "newpassword2"))
+			.isInstanceOfSatisfying(ApiException.class, e -> {
+				assertThat(e.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(e.fields()).containsKey("currentPassword");
+			});
+		assertThat(user.getPasswordHash()).isEqualTo(oldHash);
+	}
+
 	private AppUser user(boolean enabled) {
 		AppUser user = new AppUser("9876543210", encoder.encode("password1"), "Priya", Role.RESELLER);
 		if (!enabled) {

@@ -51,4 +51,11 @@ public class SellerProfile {
 		return whatsappNumber;
 	}
 
+	public void update(String shopName, String marketLocation, String contactPhone, String whatsappNumber) {
+		this.shopName = shopName;
+		this.marketLocation = marketLocation;
+		this.contactPhone = contactPhone;
+		this.whatsappNumber = whatsappNumber;
+	}
+
 }
