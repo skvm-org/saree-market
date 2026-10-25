@@ -171,11 +171,14 @@ private fun Chip(label: String, selected: Boolean, tag: String, onClick: () -> U
         shape = CircleShape,
         colors = FilterChipDefaults.filterChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+            selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.primaryContainer,
         ),
-        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected, borderColor = SareeColors.Hairline, selectedBorderColor = Color.Transparent),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true, selected = selected, borderColor = SareeColors.Hairline,
+            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+        ),
         modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
     )
 }

@@ -77,16 +77,17 @@ fun PillChip(label: String, selected: Boolean, tag: String, modifier: Modifier =
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelLarge) },
         shape = CircleShape,
+        // Selected is a tint of the brand colour, so the one solid crimson on a screen stays the main action.
         colors = FilterChipDefaults.filterChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+            selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
         ),
         border = FilterChipDefaults.filterChipBorder(
             enabled = true,
             selected = selected,
             borderColor = SareeColors.Hairline,
-            selectedBorderColor = Color.Transparent,
+            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
         ),
         modifier = modifier.heightIn(min = MinTouchTarget).testTag(tag),
     )
@@ -115,7 +116,7 @@ fun <T> PillSegmented(
                 Modifier
                     .weight(1f)
                     .heightIn(min = 44.dp)
-                    .background(if (on) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, CircleShape)
+                    .background(if (on) MaterialTheme.colorScheme.surfaceContainerLowest else Color.Transparent, CircleShape)
                     .clickable(role = androidx.compose.ui.semantics.Role.RadioButton, onClick = { onSelect(value) })
                     .testTag(tagFor(value)),
                 contentAlignment = Alignment.Center,
@@ -123,7 +124,7 @@ fun <T> PillSegmented(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    color = if (on) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

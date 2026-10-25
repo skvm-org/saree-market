@@ -161,4 +161,36 @@ class DrawerAndProfileScreensTest {
         compose.onNodeWithTag("confirm-logout").performClick()
         assertEquals(1, logouts)
     }
+
+    @Test
+    fun profileIsAHubWithChangePasswordAndTheShopForSellersOnly() {
+        var password = 0
+        var shop = 0
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(
+                    ProfileUiState(name = "Lakshmi", original = "Lakshmi", phone = "9876500001", role = Role.SELLER),
+                    {}, {}, {}, onChangePassword = { password++ }, onShopDetails = { shop++ },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("avatar").assertIsDisplayed()
+        compose.onNodeWithTag("role").assertIsDisplayed()
+        compose.onNodeWithTag("shop-details").performClick()
+        compose.onNodeWithTag("change-password").performClick()
+
+        assertEquals(1, shop)
+        assertEquals(1, password)
+    }
+
+    @Test
+    fun aResellerProfileHasNoShopRow() {
+        compose.setContent {
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, {}) }
+        }
+
+        compose.onNodeWithTag("change-password").assertIsDisplayed()
+        compose.onNodeWithTag("shop-details").assertDoesNotExist()
+    }
 }

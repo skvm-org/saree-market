@@ -77,7 +77,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                 CollectionDetailScreen(onBack = { nav.popBackStack() })
             }
             composable(SHOP) { ShopDetailsScreen(onBack = { nav.popBackStack() }) }
-            accountRoutes(nav, onLogout)
+            accountRoutes(nav, onLogout, onShopDetails = { nav.navigate(SHOP) { launchSingleTop = true } })
         }
         }
         if (showBar) {

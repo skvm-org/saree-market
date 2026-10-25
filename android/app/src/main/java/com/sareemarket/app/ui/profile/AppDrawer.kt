@@ -61,8 +61,15 @@ const val ROUTE_PROFILE = "profile"
 const val ROUTE_PASSWORD = "password"
 
 /** Adds the profile and change-password screens to a role's navigation graph. */
-fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit) {
-    composable(ROUTE_PROFILE) { ProfileScreen(onBack = { nav.popBackStack() }, onLogout = onLogout) }
+fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit, onShopDetails: (() -> Unit)? = null) {
+    composable(ROUTE_PROFILE) {
+        ProfileScreen(
+            onBack = { nav.popBackStack() },
+            onLogout = onLogout,
+            onChangePassword = { nav.navigate(ROUTE_PASSWORD) { launchSingleTop = true } },
+            onShopDetails = onShopDetails,
+        )
+    }
     composable(ROUTE_PASSWORD) { ChangePasswordScreen(onBack = { nav.popBackStack() }) }
 }
 

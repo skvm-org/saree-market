@@ -1,5 +1,20 @@
 package com.sareemarket.app.ui.profile
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.unit.dp
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.theme.MinTouchTarget
+import com.sareemarket.app.ui.theme.SareeColors
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.sareemarket.app.ui.components.SecondaryButton
@@ -12,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -79,34 +95,82 @@ private fun ErrorText(error: String?) {
 }
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit, onLogout: () -> Unit, viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileScreen(
+    onBack: () -> Unit,
+    onLogout: () -> Unit,
+    onChangePassword: () -> Unit,
+    onShopDetails: (() -> Unit)? = null,
+    viewModel: ProfileViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout)
+    ProfileContent(state, onBack, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onShopDetails)
+}
+
+/** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
+@Composable
+fun ProfileContent(
+    state: ProfileUiState,
+    onBack: () -> Unit,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onBlur: () -> Unit = {},
+    onSavedShown: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    onChangePassword: () -> Unit = {},
+    onShopDetails: (() -> Unit)? = null,
+) {
+    var confirmingLogout by remember { mutableStateOf(false) }
+    ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            InitialAvatar(state.name.ifBlank { state.original }, 72.dp, modifier = Modifier.testTag("avatar"))
+            Text(state.original.ifBlank { state.name }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = Spacing.sm).testTag("profile-name"))
+            Text("+91 ${state.phone}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("phone"))
+            Text(
+                state.role?.label().orEmpty(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier
+                    .padding(top = Spacing.xs)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f), CircleShape)
+                    .padding(horizontal = Spacing.sm + Spacing.xs, vertical = 4.dp)
+                    .testTag("role"),
+            )
+        }
+        SareeTextField(state.name, onNameChange, "Full name", tag = "name", imeAction = ImeAction.Done, onDone = onSave, onBlur = onBlur)
+        ErrorText(state.error)
+        PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
+        Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                if (onShopDetails != null) {
+                    ProfileRow(Icons.Filled.Storefront, "Shop details", "shop-details", onShopDetails)
+                    HorizontalDivider(color = SareeColors.Hairline)
+                }
+                ProfileRow(Icons.Filled.Lock, "Change password", "change-password", onChangePassword)
+                HorizontalDivider(color = SareeColors.Hairline)
+                ProfileRow(Icons.AutoMirrored.Filled.ExitToApp, "Log out", "logout", { confirmingLogout = true }, destructive = true)
+            }
+        }
+    }
+    if (confirmingLogout) LogoutDialog(onDismiss = { confirmingLogout = false }, onConfirm = { confirmingLogout = false; onLogout() })
 }
 
 @Composable
-fun ProfileContent(state: ProfileUiState, onBack: () -> Unit, onNameChange: (String) -> Unit, onSave: () -> Unit, onBlur: () -> Unit = {}, onSavedShown: () -> Unit = {}, onLogout: () -> Unit = {}) {
-    var confirmingLogout by remember { mutableStateOf(false) }
-    ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
-        SareeTextField(state.name, onNameChange, "Full name", tag = "name", imeAction = ImeAction.Done, onDone = onSave, onBlur = onBlur)
-        Column {
-            Text("Mobile number", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("+91 ${state.phone}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.testTag("phone"))
-            Text(
-                "Your number is your login, so it can't be changed here.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Column {
-            Text("Account type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(state.role?.label().orEmpty(), style = MaterialTheme.typography.bodyLarge)
-        }
-        ErrorText(state.error)
-        PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
-        SecondaryButton("Log out", onClick = { confirmingLogout = true }, modifier = Modifier.testTag("logout"))
+private fun ProfileRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tag: String, onClick: () -> Unit, destructive: Boolean = false) {
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = MinTouchTarget)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+    ) {
+        Icon(icon, contentDescription = null, tint = if (destructive) color else MaterialTheme.colorScheme.primaryContainer)
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
+        if (!destructive) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    if (confirmingLogout) LogoutDialog(onDismiss = { confirmingLogout = false }, onConfirm = { confirmingLogout = false; onLogout() })
 }
 
 @Composable

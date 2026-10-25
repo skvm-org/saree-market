@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,18 +33,15 @@ import androidx.navigation.navArgument
 import com.sareemarket.app.data.Session
 import com.sareemarket.app.ui.profile.AppDrawer
 import com.sareemarket.app.ui.profile.DrawerItem
-import com.sareemarket.app.ui.profile.accountItems
+import com.sareemarket.app.ui.profile.ROUTE_PASSWORD
 import com.sareemarket.app.ui.profile.accountRoutes
 import kotlinx.coroutines.delay
 
 /** How often the unread number on the Alerts tab is refreshed while the app is open. */
 private const val UNREAD_POLL_MS = 60_000L
 
-private val resellerItems = listOf(
-    DrawerItem(TAB_CATALOG, "Catalog", Icons.Filled.Search),
-    DrawerItem(TAB_SELLERS, "My sellers", Icons.Filled.Favorite),
-    DrawerItem(TAB_ALERTS, "Notifications", Icons.Filled.Notifications),
-) + accountItems
+// Catalog, My sellers, Alerts and Profile are the bottom bar; the menu keeps only what the bar has no room for.
+private val resellerItems = listOf(DrawerItem(ROUTE_PASSWORD, "Change password", Icons.Filled.Lock))
 
 @Composable
 fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
