@@ -48,7 +48,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.AppNotification
-import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -57,7 +56,7 @@ import com.sareemarket.app.ui.timeAgo
 private const val LOAD_MORE_AHEAD = 4
 
 @Composable
-fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onMenu: () -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
+fun NotificationsScreen(onOpenCollection: (Long) -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
@@ -68,18 +67,16 @@ fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onMenu: () -> Unit, vi
         onOpen = { viewModel.open(it); onOpenCollection(it.collectionId) },
         onMarkAllRead = viewModel::markAllRead,
         onLoadMore = viewModel::loadMore,
-        onMenu = onMenu,
         onRefresh = viewModel::pullRefresh,
     )
 }
 
 @Composable
-fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit, onMenu: () -> Unit = {}, onRefresh: () -> Unit = {}) {
+fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit, onRefresh: () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                MenuButton(onMenu)
-                Text("Notifications", style = MaterialTheme.typography.headlineMedium)
+                Text("Notifications", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = Spacing.sm))
                 val unread = state.items.count { !it.read }
                 if (unread > 0) {
                     Box(

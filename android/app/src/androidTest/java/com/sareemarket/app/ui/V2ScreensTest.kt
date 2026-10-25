@@ -47,7 +47,7 @@ class V2ScreensTest {
             SareeTheme {
                 CatalogContent(
                     CatalogState(items = listOf(exact, close), totalItems = 2, loading = false, imageUri = "content://photo"),
-                    "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
                 )
             }
         }
@@ -89,7 +89,7 @@ class V2ScreensTest {
                         items = listOf(item), totalItems = 1, loading = false, reference = reference,
                         query = com.sareemarket.app.data.CatalogQuery(typeIds = setOf(1), colour = "maroon"),
                     ),
-                    "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onQueryChange = { applied = it },
+                    "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onQueryChange = { applied = it },
                 )
             }
         }

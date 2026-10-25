@@ -63,27 +63,25 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.FollowItem
 import com.sareemarket.app.data.NotifyMode
-import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 
 @Composable
-fun MySellersScreen(onOpenSeller: (Long) -> Unit, onMenu: () -> Unit, onDiscover: () -> Unit, viewModel: MySellersViewModel = hiltViewModel()) {
+fun MySellersScreen(onOpenSeller: (Long) -> Unit, onDiscover: () -> Unit, viewModel: MySellersViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.load()
         onPauseOrDispose {}
     }
     MySellersContent(
-        state, onOpenSeller, viewModel::setMuted, viewModel::unfollow, onMenu,
+        state, onOpenSeller, viewModel::setMuted, viewModel::unfollow,
         onRefresh = viewModel::pullRefresh, onUndo = viewModel::undoUnfollow, onUndoDismissed = viewModel::dismissUndo, onDiscover = onDiscover,
     )
 }
 
 @Composable
 fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute: (Long, Boolean) -> Unit, onUnfollow: (Long) -> Unit,
-    onMenu: () -> Unit = {},
     onRefresh: () -> Unit = {},
     onUndo: () -> Unit = {},
     onUndoDismissed: () -> Unit = {},
@@ -99,8 +97,7 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
       Box {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                MenuButton(onMenu)
-                Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f).padding(start = Spacing.sm))
                 Text(
                     "Followed (${state.sellers.size})",
                     style = MaterialTheme.typography.labelLarge,

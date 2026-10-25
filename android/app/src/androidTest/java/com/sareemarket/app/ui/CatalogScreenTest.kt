@@ -47,7 +47,7 @@ class CatalogScreenTest {
         onClearPhoto: () -> Unit = {},
         onTab: (Boolean) -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto, {}) }
+        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto) }
     }
 
     @Test
@@ -95,7 +95,7 @@ class CatalogScreenTest {
     fun typedSearchTextIsReported() {
         compose.setContent {
             var text by remember { mutableStateOf("") }
-            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+            SareeTheme { CatalogContent(CatalogState(loading = false), text, { text = it }, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }
 
         compose.onNodeWithTag("search").performTextInput("peacock")
@@ -237,25 +237,13 @@ class CatalogScreenTest {
     @Test
     fun theFirstSareeStartsHighBecauseTheControlsShareOneSearchBarAndOneChipRow() {
         compose.setContent {
-            SareeTheme { CatalogContent(CatalogState(items = listOf(available), totalItems = 1, loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+            SareeTheme { CatalogContent(CatalogState(items = listOf(available), totalItems = 1, loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }
 
-        compose.onNodeWithTag("menu").assertExists()
+        compose.onNodeWithTag("menu").assertDoesNotExist() // resellers have the bottom bar, no side menu
         compose.onNodeWithTag("photo-search").assertExists()
         compose.onNodeWithTag("tab-following").assertExists()
         compose.onNodeWithTag("filters").assertExists()
         assertTrue(compose.onNodeWithTag("card-1").getUnclippedBoundsInRoot().top < 300.dp)
-    }
-
-    @Test
-    fun menuButtonInTheSearchBarOpensTheMenu() {
-        var opened = 0
-        compose.setContent {
-            SareeTheme { CatalogContent(CatalogState(loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { opened++ }) }
-        }
-
-        compose.onNodeWithTag("menu").performClick()
-
-        assertEquals(1, opened)
     }
 }

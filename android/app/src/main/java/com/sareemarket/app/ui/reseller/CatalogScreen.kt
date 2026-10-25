@@ -104,7 +104,6 @@ import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.components.sareeFieldColors
 import com.sareemarket.app.ui.formatRupees
-import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -118,7 +117,7 @@ private const val LOAD_MORE_AHEAD = 6
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogScreen(onOpenItem: (Long) -> Unit, onMenu: () -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
+fun CatalogScreen(onOpenItem: (Long) -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf(state.query.q) }
     var showFilters by remember { mutableStateOf(false) }
@@ -154,7 +153,6 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onMenu: () -> Unit, viewModel: Cat
         onFollowingTab = viewModel::setFollowingOnly,
         onPhotoSearch = { showPhotoChoice = true },
         onClearPhoto = viewModel::clearImage,
-        onMenu = onMenu,
         onRefresh = viewModel::refresh,
         onQueryChange = viewModel::apply,
     )
@@ -200,14 +198,13 @@ fun CatalogContent(
     onFollowingTab: (Boolean) -> Unit,
     onPhotoSearch: () -> Unit,
     onClearPhoto: () -> Unit,
-    onMenu: () -> Unit,
     onRefresh: () -> Unit = {},
     onQueryChange: (CatalogQuery) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Spacer(Modifier.height(Spacing.sm))
-            SearchField(searchText, onSearchText, onMenu, onPhotoSearch)
+            SearchField(searchText, onSearchText, onPhotoSearch)
             FilterChips(state, onFollowingTab, onOpenFilters, onSort)
             ActiveFilterRow(state, onQueryChange)
             if (state.imageUri != null) PhotoBanner(state.imageUri, state.totalItems.toInt(), onPhotoSearch, onClearPhoto)
@@ -247,14 +244,14 @@ fun CatalogContent(
     }
 }
 
-/** The one search bar: menu button in front, camera at the end, so the sarees start high on the screen. */
+/** The one search bar, with the camera at the end, so the sarees start high on the screen. */
 @Composable
-private fun SearchField(text: String, onText: (String) -> Unit, onMenu: () -> Unit, onPhotoSearch: () -> Unit) {
+private fun SearchField(text: String, onText: (String) -> Unit, onPhotoSearch: () -> Unit) {
     OutlinedTextField(
         value = text,
         onValueChange = onText,
         placeholder = { Text("Search sarees, colours, fabrics", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        leadingIcon = { MenuButton(onMenu) },
+        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (text.isNotEmpty()) {

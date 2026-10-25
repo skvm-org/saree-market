@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,21 +28,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.sareemarket.app.data.Session
-import com.sareemarket.app.ui.profile.AppDrawer
-import com.sareemarket.app.ui.profile.DrawerItem
-import com.sareemarket.app.ui.profile.ROUTE_PASSWORD
 import com.sareemarket.app.ui.profile.accountRoutes
 import kotlinx.coroutines.delay
 
 /** How often the unread number on the Alerts tab is refreshed while the app is open. */
 private const val UNREAD_POLL_MS = 60_000L
 
-// Catalog, My sellers, Alerts and Profile are the bottom bar; the menu keeps only what the bar has no room for.
-private val resellerItems = listOf(DrawerItem(ROUTE_PASSWORD, "Change password", Icons.Filled.Lock))
-
 @Composable
-fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
+fun ResellerNavHost(onLogout: () -> Unit) {
     val nav = rememberNavController()
     val shell: ResellerShellViewModel = hiltViewModel()
     val unread by shell.unread.collectAsStateWithLifecycle()
@@ -81,26 +72,18 @@ fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
             restoreState = true
         }
     }
-    AppDrawer(
-        session = session,
-        items = resellerItems,
-        currentRoute = route,
-        gesturesEnabled = showBar,
-        onSelect = { target -> if (target in TABS) openTab(target) else nav.navigate(target) { launchSingleTop = true } },
-        onLogout = onLogout,
-    ) { openMenu ->
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
             NavHost(navController = nav, startDestination = TAB_CATALOG) {
                 composable(TAB_CATALOG) {
-                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onMenu = openMenu)
+                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") })
                 }
                 composable(TAB_SELLERS) {
-                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onMenu = openMenu, onDiscover = { openTab(TAB_CATALOG) })
+                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
                 }
                 composable(TAB_ALERTS) {
-                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onMenu = openMenu)
+                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
                 }
                 composable("item/{id}", arguments = id) {
                     ItemDetailScreen(
@@ -121,6 +104,5 @@ fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
         if (showBar) {
             ResellerBottomBar(current = route, unread = unread, onSelect = openTab)
         }
-    }
     }
 }
