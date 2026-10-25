@@ -51,6 +51,8 @@ data class ItemDetail(
     val price: Int,
     val status: ItemStatus,
     val seller: SellerContact,
+    /** ISO-8601 instant the photo was uploaded. */
+    val createdAt: String? = null,
 )
 
 @Serializable

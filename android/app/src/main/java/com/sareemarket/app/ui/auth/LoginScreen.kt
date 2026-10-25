@@ -1,5 +1,9 @@
 package com.sareemarket.app.ui.auth
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.unit.dp
+import com.sareemarket.app.ui.components.BrandMark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -63,7 +67,9 @@ fun LoginContent(
                 .padding(horizontal = Spacing.margin, vertical = Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(Spacing.xl))
+            Spacer(Modifier.height(Spacing.lg))
+            BrandMark(80.dp)
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 text = "Saree Market",
                 style = MaterialTheme.typography.displayMedium,
@@ -83,6 +89,7 @@ fun LoginContent(
                     label = "Phone number",
                     tag = "phone",
                     prefix = "+91",
+                    placeholder = "10-digit mobile number",
                     keyboardType = KeyboardType.Phone,
                 )
                 SareeTextField(
@@ -90,6 +97,7 @@ fun LoginContent(
                     onValueChange = onPasswordChange,
                     label = "Password",
                     tag = "password",
+                    placeholder = "Your password",
                     isPassword = true,
                     imeAction = ImeAction.Done,
                     onDone = onSubmit,
@@ -102,7 +110,13 @@ fun LoginContent(
                         modifier = Modifier.testTag("error"),
                     )
                 }
-                PrimaryButton(text = "Log in", onClick = onSubmit, loading = state.loading, modifier = Modifier.testTag("submit"))
+                PrimaryButton(
+                    text = "Log in",
+                    onClick = onSubmit,
+                    loading = state.loading,
+                    trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                    modifier = Modifier.testTag("submit"),
+                )
             }
             Spacer(Modifier.height(Spacing.lg))
             Text(

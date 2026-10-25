@@ -1,5 +1,10 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import com.sareemarket.app.ui.components.FieldShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -41,19 +46,22 @@ fun CollectionFieldsForm(
 ) {
     FormColumn(Modifier.fillMaxWidth()) {
         SareeTextField(fields.title, onTitle, "Collection title", tag = "title", error = errors["title"])
-        SareeDropdown("Saree type", reference?.sareeTypes.orEmpty(), fields.sareeTypeId, onType, errors["sareeTypeId"], "type")
-        SareeDropdown("Fabric", reference?.fabrics.orEmpty(), fields.fabricId, onFabric, errors["fabricId"], "fabric")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SareeDropdown("Saree type", reference?.sareeTypes.orEmpty(), fields.sareeTypeId, onType, errors["sareeTypeId"], "type", Modifier.weight(1f))
+            SareeDropdown("Fabric", reference?.fabrics.orEmpty(), fields.fabricId, onFabric, errors["fabricId"], "fabric", Modifier.weight(1f))
+        }
         SareeTextField(
             fields.price, onPrice, "Price per saree", tag = "price", prefix = "₹",
             keyboardType = KeyboardType.Number, error = errors["price"],
         )
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Description (optional)", style = MaterialTheme.typography.labelMedium)
             OutlinedTextField(
                 value = fields.description,
                 onValueChange = onDescription,
-                label = { Text("Description (optional)") },
+                placeholder = { Text("Fabric, border, what is included", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 minLines = 3,
-                shape = MaterialTheme.shapes.medium,
+                shape = RoundedCornerShape(24.dp),
                 colors = sareeFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("description"),
@@ -71,18 +79,21 @@ private fun SareeDropdown(
     onSelect: (Long) -> Unit,
     error: String?,
     tag: String,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Column {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium)
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
             OutlinedTextField(
                 value = options.firstOrNull { it.id == selectedId }?.name.orEmpty(),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text(label) },
+                placeholder = { Text("Choose", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                singleLine = true,
                 isError = error != null,
-                shape = MaterialTheme.shapes.medium,
+                shape = FieldShape,
                 colors = sareeFieldColors(),
                 modifier = Modifier
                     .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)

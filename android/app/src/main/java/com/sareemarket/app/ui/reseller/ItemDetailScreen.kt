@@ -1,5 +1,27 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.ShareText
 import com.sareemarket.app.ui.share
 import com.sareemarket.app.ui.typeAndFabric
@@ -94,26 +116,33 @@ private fun open(context: Context, action: String, uri: String, failure: String)
         .onFailure { Toast.makeText(context, failure, Toast.LENGTH_SHORT).show() }
 }
 
-/** Call and WhatsApp buttons. WhatsApp only shows when the seller gave a number. */
+/** Call and WhatsApp as two pills. WhatsApp only shows when the seller gave a number. */
 @Composable
 internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCall: (String) -> Unit, onWhatsApp: (String) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
         if (!contactPhone.isNullOrBlank()) {
-            Button(
+            OutlinedButton(
                 onClick = { onCall(contactPhone) },
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimary),
-                modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("call"),
-            ) { Text("Call", style = MaterialTheme.typography.labelLarge) }
+                shape = CircleShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.then(if (whatsappNumber.isNullOrBlank()) Modifier.weight(1f) else Modifier).heightIn(min = MinTouchTarget).testTag("call"),
+            ) {
+                Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("  Call", style = MaterialTheme.typography.labelLarge)
+            }
         }
         if (!whatsappNumber.isNullOrBlank()) {
-            // DESIGN.md's green with white text is too faint to read, so the label is dark.
+            // The green is the brand's trade colour; the label is dark because white on this green is too faint to read.
             Button(
                 onClick = { onWhatsApp(whatsappNumber) },
-                shape = MaterialTheme.shapes.medium,
+                shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = SareeColors.WhatsApp, contentColor = MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("whatsapp"),
-            ) { Text("WhatsApp", style = MaterialTheme.typography.labelLarge) }
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("  Chat on WhatsApp", style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }
@@ -150,38 +179,105 @@ fun ItemDetailContent(
     onToggleFollow: () -> Unit,
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
-    Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        BackHeader("Saree details", onBack)
-        SareeImage(imageUrl(detail.id, thumb = false), contentDescription = detail.colour ?: detail.collectionTitle, modifier = Modifier.fillMaxWidth())
-        StatusPill(
-            if (soldOut) "Sold out" else "Available",
-            if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-            Modifier.testTag("status"),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(detail.collectionTitle, style = MaterialTheme.typography.headlineMedium)
-            Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            detail.colour?.let { Text("Colour: $it", style = MaterialTheme.typography.bodyMedium) }
-            Text(formatRupees(detail.price), style = PriceHero, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.testTag("price"))
-            detail.collectionDescription?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-        }
-        Surface(
-            onClick = { onOpenSeller(detail.seller.id) },
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            border = BorderStroke(1.dp, SareeColors.Hairline),
-            modifier = Modifier.fillMaxWidth().testTag("seller-card"),
-        ) {
-            Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(detail.seller.shopName, style = MaterialTheme.typography.titleLarge)
-                Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val context = LocalContext.current
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            // The photo runs edge to edge; back and status float over it.
+            Box {
+                AsyncImage(
+                    model = imageUrl(detail.id, thumb = false),
+                    contentDescription = detail.colour ?: detail.collectionTitle,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 5f)
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .background(SareeColors.SurfaceMuted),
+                )
+                Surface(
+                    onClick = onBack,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+                    modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs).size(44.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                }
+                StatusPill(
+                    if (soldOut) "Sold out" else "Available",
+                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
+                    Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"),
+                )
+            }
+            Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        formatRupees(detail.price),
+                        style = PriceHero.copy(fontSize = 30.sp, lineHeight = 36.sp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                        modifier = Modifier.weight(1f).testTag("price"),
+                    )
+                    IconButton(onClick = { share(context, ShareText.item(detail)) }, modifier = Modifier.testTag("share")) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineSmall)
+                    detail.colour?.let { Text("Colour: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        onClick = { onOpenCollection(detail.collectionId) },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.testTag("collection-link"),
+                    ) {
+                        Row(Modifier.padding(horizontal = Spacing.sm + Spacing.xs, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primaryContainer)
+                            Text(detail.collectionTitle, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    detail.createdAt?.let {
+                        Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                detail.collectionDescription?.let {
+                    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Text("About this collection", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                Surface(
+                    onClick = { onOpenSeller(detail.seller.id) },
+                    shape = CardShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth().testTag("seller-card"),
+                ) {
+                    Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        InitialAvatar(detail.seller.shopName, 48.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(detail.seller.shopName, style = MaterialTheme.typography.titleLarge)
+                            Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        FollowPill(followMode, onToggleFollow)
+                    }
+                }
+                if (followMode == NotifyMode.MUTED) {
+                    Text("Notifications are muted for this seller", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                followError?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("follow-error"))
+                }
+                Spacer(Modifier.height(Spacing.sm))
             }
         }
-        ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
-        FollowButton(followMode, followError, onToggleFollow)
-        SecondaryButton("More from this collection", onClick = { onOpenCollection(detail.collectionId) }, modifier = Modifier.testTag("collection-link"))
-        val context = LocalContext.current
-        SecondaryButton("Share", onClick = { share(context, ShareText.item(detail)) }, modifier = Modifier.testTag("share"))
-        Box(Modifier.padding(bottom = Spacing.lg))
+        // Always within reach: the whole point of the page is to contact the seller.
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 6.dp) {
+            Box(Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs)) {
+                ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
+            }
+        }
     }
 }

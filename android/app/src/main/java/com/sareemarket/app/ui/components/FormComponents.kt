@@ -1,5 +1,14 @@
 package com.sareemarket.app.ui.components
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,12 +44,19 @@ import com.sareemarket.app.ui.theme.SareeColors
 
 @Composable
 fun sareeFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    errorContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
-    unfocusedBorderColor = SareeColors.Hairline,
+    unfocusedBorderColor = Color.Transparent,
     focusedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+    cursorColor = MaterialTheme.colorScheme.primaryContainer,
 )
 
-/** Input from DESIGN.md: rounded 16 dp, slate border, maroon focus border. */
+/** v2 fields are filled pills (a rounded box when they hold several lines). */
+val FieldShape = RoundedCornerShape(28.dp)
+
+/** v2 input: the label sits above a warm filled pill; the border only appears (maroon) while typing. */
 @Composable
 fun SareeTextField(
     value: String,
@@ -53,6 +69,7 @@ fun SareeTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
+    placeholder: String? = null,
     /** Runs when the keyboard's Done key is pressed; set it on the last field of a form. */
     onDone: (() -> Unit)? = null,
     /** Runs when the field loses focus after being used, for checking it before the user moves on. */
@@ -60,16 +77,20 @@ fun SareeTextField(
 ) {
     var revealed by remember { mutableStateOf(false) }
     var wasFocused by remember { mutableStateOf(false) }
-    Column(modifier = modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label) },
+            placeholder = placeholder?.let { { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
             prefix = prefix?.let { { Text("$it ") } },
             trailingIcon = if (isPassword) {
                 {
-                    TextButton(onClick = { revealed = !revealed }, modifier = Modifier.heightIn(min = MinTouchTarget)) {
-                        Text(if (revealed) "Hide" else "Show")
+                    IconButton(onClick = { revealed = !revealed }, modifier = Modifier.testTag("$tag-reveal")) {
+                        Icon(
+                            if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (revealed) "Hide password" else "Show password",
+                        )
                     }
                 }
             } else {
@@ -83,7 +104,7 @@ fun SareeTextField(
             keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
             singleLine = true,
             isError = error != null,
-            shape = MaterialTheme.shapes.medium,
+            shape = FieldShape,
             colors = sareeFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,9 +127,16 @@ fun SareeTextField(
     }
 }
 
-/** Primary action from DESIGN.md: solid maroon, white text, 48 dp tall, 16 dp corners. */
+/** Primary action: solid crimson pill, white text, 48 dp tall, with an optional arrow or icon after the label. */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, loading: Boolean = false, enabled: Boolean = true) {
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    enabled: Boolean = true,
+    trailingIcon: ImageVector? = null,
+) {
     Button(
         onClick = onClick,
         enabled = enabled && !loading,
@@ -129,6 +157,9 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
             )
         } else {
             Text(text, style = MaterialTheme.typography.labelLarge)
+            if (trailingIcon != null) {
+                Icon(trailingIcon, contentDescription = null, modifier = Modifier.padding(start = 8.dp).size(18.dp))
+            }
         }
     }
 }

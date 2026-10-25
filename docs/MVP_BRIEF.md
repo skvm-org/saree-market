@@ -167,7 +167,7 @@ With ~100 sellers posting daily and ~15 resellers, notifying everyone of everyth
 
 ## Screens
 
-Layouts come from `docs/design/stitch/code.html` (one `screen-*` section each). The Android app builds each natively in Compose. The route column is the Angular route in phase 2.
+Layouts come from `docs/design/stitch/v2/code.html` (one `screen-*` section each). The Android app builds each natively in Compose. The route column is the Angular route in phase 2.
 
 | Screen (Stitch id) | Route (phase 2) | Who | Purpose |
 | --- | --- | --- | --- |

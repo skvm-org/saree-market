@@ -4,17 +4,18 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// Tokens from docs/design/DESIGN.md (YAML front matter).
+// Heritage palette of docs/design/stitch/v2 (ivory canvas, temple crimson, antique gold). It overrides the cool blue-white
+// surfaces and the #8B1E41 primary of DESIGN.md; type scale, spacing and component rules still come from DESIGN.md.
 val SareeColorScheme: ColorScheme = lightColorScheme(
-    primary = Color(0xFF6C002B),
+    primary = Color(0xFF941B2F),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFF8B1E41),
+    primaryContainer = Color(0xFF941B2F),
     onPrimaryContainer = Color(0xFFFF9DB2),
     inversePrimary = Color(0xFFFFB1C0),
-    secondary = Color(0xFF006D2F),
+    secondary = Color(0xFFC59B27),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFF5DFD8A),
-    onSecondaryContainer = Color(0xFF007232),
+    secondaryContainer = Color(0xFFFEF3C7),
+    onSecondaryContainer = Color(0xFF92400E),
     tertiary = Color(0xFF003C16),
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFF005622),
@@ -23,24 +24,24 @@ val SareeColorScheme: ColorScheme = lightColorScheme(
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF93000A),
-    background = Color(0xFFF8F9FF),
+    background = Color(0xFFFAF8F5),
     onBackground = Color(0xFF0B1C30),
-    surface = Color(0xFFF8F9FF),
+    surface = Color(0xFFFAF8F5),
     onSurface = Color(0xFF0B1C30),
-    surfaceVariant = Color(0xFFD3E4FE),
+    surfaceVariant = Color(0xFFEAE6DF),
     onSurfaceVariant = Color(0xFF564145),
     surfaceTint = Color(0xFFA63455),
     inverseSurface = Color(0xFF213145),
     inverseOnSurface = Color(0xFFEAF1FF),
     outline = Color(0xFF897175),
-    outlineVariant = Color(0xFFDCBFC3),
-    surfaceDim = Color(0xFFCBDBF5),
-    surfaceBright = Color(0xFFF8F9FF),
+    outlineVariant = Color(0xFFEAE6DF),
+    surfaceDim = Color(0xFFE4DDD0),
+    surfaceBright = Color(0xFFFAF8F5),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFEFF4FF),
-    surfaceContainer = Color(0xFFE5EEFF),
-    surfaceContainerHigh = Color(0xFFDCE9FF),
-    surfaceContainerHighest = Color(0xFFD3E4FE),
+    surfaceContainerLow = Color(0xFFF5EFE6),
+    surfaceContainer = Color(0xFFF0E9DD),
+    surfaceContainerHigh = Color(0xFFEAE2D3),
+    surfaceContainerHighest = Color(0xFFE4DBCB),
 )
 
 // Fixed colours named in the DESIGN.md prose that have no Material 3 role.
@@ -48,7 +49,12 @@ object SareeColors {
     val WhatsApp = Color(0xFF25D366)
     val Available = Color(0xFF16A34A)
     val SlateNeutral = Color(0xFF64748B)
-    val SurfaceSubtle = Color(0xFFF8F9FA)
-    val SurfaceMuted = Color(0xFFF1F3F5)
-    val Hairline = Color(0xFFE2E8F0)
+    val SurfaceSubtle = Color(0xFFFAF8F5)
+    val SurfaceMuted = Color(0xFFF5EFE6)
+    val Hairline = Color(0xFFEAE6DF)
+
+    /** Antique gold: secondary facts (counts, certification) and the pulse on live stock. */
+    val Gold = Color(0xFFC59B27)
+    val GoldBg = Color(0xFFFEF3C7)
+    val GoldText = Color(0xFF92400E)
 }

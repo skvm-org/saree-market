@@ -1,5 +1,26 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.timeAgo
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -48,7 +69,7 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 
 @Composable
-fun MySellersScreen(onOpenSeller: (Long) -> Unit, onMenu: () -> Unit, viewModel: MySellersViewModel = hiltViewModel()) {
+fun MySellersScreen(onOpenSeller: (Long) -> Unit, onMenu: () -> Unit, onDiscover: () -> Unit, viewModel: MySellersViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.load()
@@ -56,7 +77,7 @@ fun MySellersScreen(onOpenSeller: (Long) -> Unit, onMenu: () -> Unit, viewModel:
     }
     MySellersContent(
         state, onOpenSeller, viewModel::setMuted, viewModel::unfollow, onMenu,
-        onRefresh = viewModel::pullRefresh, onUndo = viewModel::undoUnfollow, onUndoDismissed = viewModel::dismissUndo,
+        onRefresh = viewModel::pullRefresh, onUndo = viewModel::undoUnfollow, onUndoDismissed = viewModel::dismissUndo, onDiscover = onDiscover,
     )
 }
 
@@ -66,6 +87,7 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
     onRefresh: () -> Unit = {},
     onUndo: () -> Unit = {},
     onUndoDismissed: () -> Unit = {},
+    onDiscover: () -> Unit = {},
 ) {
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(state.undo) {
@@ -78,12 +100,19 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MenuButton(onMenu)
-                Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(vertical = Spacing.sm))
+                Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                Text(
+                    "Followed (${state.sellers.size})",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape).padding(horizontal = Spacing.sm + Spacing.xs, vertical = 6.dp).testTag("followed-count"),
+                )
             }
             Text(
-                "Mute a seller to stop their notifications. You still see their sarees under Following.",
+                "You get updates only from sellers you follow. Tap the bell to mute one.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.sm),
             )
             if (state.error != null) {
                 Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("error").padding(top = Spacing.sm))
@@ -105,6 +134,17 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             items(state.sellers, key = { it.sellerId }) { SellerRow(it, onOpenSeller, onMute, onUnfollow, Modifier.animateItem()) }
+                            item {
+                                FilledTonalButton(
+                                    onClick = onDiscover,
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("discover"),
+                                ) {
+                                    Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Text("  Discover more sellers", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
                         }
                     }
                 }
@@ -119,34 +159,52 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
 private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long, Boolean) -> Unit, onUnfollow: (Long) -> Unit, modifier: Modifier = Modifier) {
     val notifying = seller.notifyMode == NotifyMode.INSTANT
     val haptics = LocalHapticFeedback.current
+    var menuOpen by remember { mutableStateOf(false) }
     Surface(
         onClick = { onOpen(seller.sellerId) },
-        shape = MaterialTheme.shapes.medium,
+        shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = BorderStroke(1.dp, SareeColors.Hairline),
+        border = CardBorder,
         modifier = modifier.fillMaxWidth().testTag("seller-${seller.sellerId}"),
     ) {
-        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(seller.shopName, style = MaterialTheme.typography.titleLarge)
-            Text(seller.marketLocation, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = Spacing.md, top = Spacing.sm + Spacing.xs, bottom = Spacing.sm + Spacing.xs, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+            InitialAvatar(seller.shopName, 48.dp, filled = notifying)
+            Column(Modifier.weight(1f)) {
+                Text(seller.shopName, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    if (notifying) "Notifications on" else "Muted",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (notifying) SareeColors.Available else SareeColors.SlateNeutral,
-                    modifier = Modifier.weight(1f),
+                    listOfNotNull(seller.lastUploadAt?.let { "Last upload ${timeAgo(it)}" }, seller.marketLocation).joinToString(" • "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Switch(
-                    checked = notifying,
-                    onCheckedChange = {
-                        haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                        onMute(seller.sellerId, !it)
-                    },
-                    colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available, checkedThumbColor = Color.White),
-                    modifier = Modifier.testTag("notify-${seller.sellerId}"),
+                if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral)
+            }
+            IconButton(
+                onClick = {
+                    haptics.performHapticFeedback(if (notifying) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn)
+                    onMute(seller.sellerId, notifying)
+                },
+                modifier = Modifier.testTag("notify-${seller.sellerId}"),
+            ) {
+                Icon(
+                    if (notifying) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsOff,
+                    contentDescription = if (notifying) "Mute ${seller.shopName}" else "Turn on notifications for ${seller.shopName}",
+                    tint = if (notifying) MaterialTheme.colorScheme.primaryContainer else SareeColors.SlateNeutral,
                 )
-                TextButton(onClick = { haptics.performHapticFeedback(HapticFeedbackType.Confirm); onUnfollow(seller.sellerId) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("unfollow-${seller.sellerId}")) {
-                    Text("Unfollow", style = MaterialTheme.typography.labelLarge)
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("more-${seller.sellerId}")) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More for ${seller.shopName}")
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Unfollow") },
+                        modifier = Modifier.heightIn(min = MinTouchTarget).testTag("unfollow-${seller.sellerId}"),
+                        onClick = {
+                            menuOpen = false
+                            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                            onUnfollow(seller.sellerId)
+                        },
+                    )
                 }
             }
         }

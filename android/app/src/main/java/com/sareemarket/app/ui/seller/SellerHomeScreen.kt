@@ -1,23 +1,24 @@
 package com.sareemarket.app.ui.seller
 
-import com.sareemarket.app.ui.typeAndFabric
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -25,11 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,21 +41,26 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.sareemarket.app.data.CollectionSummary
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.InitialAvatar
 import com.sareemarket.app.ui.components.PrimaryButton
-import com.sareemarket.app.ui.components.SareeImage
-import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
 import com.sareemarket.app.ui.profile.MenuButton
-import com.sareemarket.app.ui.theme.MinTouchTarget
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.theme.PhotoShape
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.SareeTheme
 import com.sareemarket.app.ui.theme.Spacing
+import com.sareemarket.app.ui.timeAgo
+import com.sareemarket.app.ui.typeAndFabric
 
 @Composable
 fun SellerHomeScreen(
-    sellerName: String,
+    shopName: String,
+    location: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
     onMenu: () -> Unit,
@@ -64,7 +72,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, sellerName, onNewCollection, onOpen, onMenu, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onMenu, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location)
 }
 
 @Composable
@@ -76,6 +84,7 @@ fun SellerHomeContent(
     onMenu: () -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit = {},
+    location: String = "",
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -84,7 +93,7 @@ fun SellerHomeContent(
                 onClick = onNewCollection,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.medium,
+                shape = CircleShape,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New collection", style = MaterialTheme.typography.labelLarge) },
                 modifier = Modifier.testTag("new-collection"),
@@ -94,22 +103,10 @@ fun SellerHomeContent(
         Column(
             Modifier
                 .padding(padding)
-                .safeDrawingPadding()
-                .padding(horizontal = Spacing.margin),
+                .safeDrawingPadding(),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                MenuButton(onMenu)
-                Column(Modifier.weight(1f)) {
-                    Text("Your collections", style = MaterialTheme.typography.headlineMedium)
-                    Text(
-                        sellerSummary(sellerName, state),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("summary"),
-                    )
-                }
-            }
-            Box(Modifier.fillMaxSize()) {
+            ShopHeader(sellerName, location, state, onMenu)
+            Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                     is SellerHomeState.Failed -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -128,10 +125,16 @@ fun SellerHomeContent(
                         } else {
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                                 LazyColumn(
-                                    verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(top = Spacing.md, bottom = 96.dp),
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                                    contentPadding = PaddingValues(top = Spacing.md, bottom = 96.dp),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
+                                    item {
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                                            Text("Active collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
+                                            Text("Newest first", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
                                     items(state.collections, key = { it.id }) {
                                         Box(Modifier.animateItem()) { CollectionCard(it, onClick = { onOpen(it.id) }) }
                                     }
@@ -144,45 +147,117 @@ fun SellerHomeContent(
     }
 }
 
-/** "Lakshmi · 18 sarees · 15 available", or just the name until there is something to count. */
-internal fun sellerSummary(name: String, state: SellerHomeState): String {
+/** Shop name and place on a warm panel, with the two stock totals as tiles underneath. */
+@Composable
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, onMenu: () -> Unit) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
-    val sarees = collections.sumOf { it.availableCount + it.soldOutCount }
-    if (sarees == 0L) return name
-    return "$name · ${if (sarees == 1L) "1 saree" else "$sarees sarees"} · ${collections.sumOf { it.availableCount }} available"
+    val available = collections.sumOf { it.availableCount }
+    val soldOut = collections.sumOf { it.soldOutCount }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .padding(horizontal = Spacing.margin, vertical = Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            MenuButton(onMenu)
+            InitialAvatar(shopName, 44.dp)
+            Column(Modifier.weight(1f)) {
+                Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
+                if (location.isNotBlank()) {
+                    Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs), modifier = Modifier.padding(bottom = Spacing.sm)) {
+            StatTile("Available", available, SareeColors.Available, Modifier.weight(1f).testTag("stat-available")) {
+                Box(Modifier.size(10.dp).background(SareeColors.Gold, CircleShape))
+            }
+            StatTile("Sold out", soldOut, SareeColors.SlateNeutral, Modifier.weight(1f).testTag("stat-sold-out")) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = SareeColors.SlateNeutral, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatTile(label: String, value: Long, tint: androidx.compose.ui.graphics.Color, modifier: Modifier, icon: @Composable () -> Unit) {
+    Surface(modifier, shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        Row(Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value.toString(), style = MaterialTheme.typography.headlineMedium)
+            }
+            Box(Modifier.size(32.dp).background(tint.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) { icon() }
+        }
+    }
 }
 
 @Composable
 internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
+        shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = BorderStroke(1.dp, SareeColors.Hairline),
+        border = CardBorder,
         modifier = Modifier.fillMaxWidth().testTag("collection-${collection.id}"),
     ) {
-        Row(Modifier.padding(Spacing.sm + Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            SareeImage(
-                model = collection.coverItemId?.let { imageUrl(it, thumb = true) },
-                contentDescription = null,
-                modifier = Modifier.width(72.dp),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Column(Modifier.weight(1f)) {
+                    Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        typeAndFabric(collection.sareeType, collection.fabric),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(formatRupees(collection.price), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer)
+            }
+            PhotoStrip(collection)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    typeAndFabric(collection.sareeType, collection.fabric),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    buildString {
+                        append("${collection.availableCount} available")
+                        if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = SareeColors.GoldText,
                 )
-                Text(formatRupees(collection.price), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primaryContainer)
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    StatusPill("${collection.availableCount} available", SareeColors.Available)
-                    if (collection.soldOutCount > 0) StatusPill("${collection.soldOutCount} sold out", SareeColors.SlateNeutral)
+                collection.createdAt?.let {
+                    Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
 }
+
+/** Up to three photos side by side; a collection with fewer photos shows what it has. */
+@Composable
+private fun PhotoStrip(collection: CollectionSummary) {
+    val ids = collection.previewItemIds.ifEmpty { listOfNotNull(collection.coverItemId) }
+    if (ids.isEmpty()) return
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        ids.take(3).forEach { id ->
+            AsyncImage(
+                model = imageUrl(id, thumb = true),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatioPortrait()
+                    .clip(PhotoShape)
+                    .background(SareeColors.SurfaceMuted),
+            )
+        }
+        // Keep the photos the same width when there are fewer than three.
+        repeat(3 - ids.take(3).size) { Box(Modifier.weight(1f)) }
+    }
+}
+
+private fun Modifier.aspectRatioPortrait() = this.aspectRatio(4f / 5f)
+
 
 @Preview(showBackground = true)
 @Composable
@@ -190,7 +265,7 @@ private fun SellerHomePreview() {
     SareeTheme {
         SellerHomeContent(
             SellerHomeState.Loaded(listOf(CollectionSummary(1, "Diwali soft silks", "Soft silk", "Pure silk", 4500, 18, 15, 3, 1))),
-            "Lakshmi", {}, {}, {}, {},
+            "Lakshmi Silks", {}, {}, {}, {}, location = "Chinnalapatti",
         )
     }
 }

@@ -102,7 +102,7 @@ fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
                     CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onMenu = openMenu)
                 }
                 composable(TAB_SELLERS) {
-                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onMenu = openMenu)
+                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onMenu = openMenu, onDiscover = { openTab(TAB_CATALOG) })
                 }
                 composable(TAB_ALERTS) {
                     NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onMenu = openMenu)

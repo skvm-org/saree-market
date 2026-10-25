@@ -1,5 +1,23 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.PillChip
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.typeAndFabric
 import com.sareemarket.app.ui.ShareText
 import com.sareemarket.app.ui.share
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -102,9 +120,10 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 PrimaryButton("Retry", onClick = viewModel::load, modifier = Modifier.padding(Spacing.md))
                 SecondaryButton("Back", onClick = onBack, modifier = Modifier.padding(horizontal = Spacing.md))
             }
-            else -> LazyVerticalGrid(
+            else -> Column(Modifier.safeDrawingPadding()) {
+            LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                modifier = Modifier.safeDrawingPadding(),
+                modifier = Modifier.weight(1f),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
@@ -112,7 +131,10 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                        Text(detail.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { editingCollection = true }, modifier = Modifier.testTag("edit")) {
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit details", tint = MaterialTheme.colorScheme.primaryContainer)
+                        }
                         Box {
                             IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("menu")) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = "Collection actions")
@@ -137,8 +159,12 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text("${detail.sareeType.name} · ${detail.fabric.name}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatRupees(detail.price), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primaryContainer)
+                        Text(detail.title, style = MaterialTheme.typography.headlineLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                            Text(typeAndFabric(detail.sareeType.name, detail.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(formatRupees(detail.price), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primaryContainer)
+                        }
                         detail.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                         state.progress?.let {
                             LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm))
@@ -177,17 +203,27 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                     }
                 }
             }
+            FilledTonalButton(
+                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                shape = CircleShape,
+                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.margin, vertical = Spacing.sm).heightIn(min = MinTouchTarget).testTag("add-photos"),
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("  Add more photos", style = MaterialTheme.typography.labelLarge)
+            }
+            }
         }
 
         val detailForSheets = state.detail
         if (editingCollection && detailForSheets != null) {
-            ModalBottomSheet(onDismissRequest = { editingCollection = false; viewModel.clearError() }) {
+            ModalBottomSheet(onDismissRequest = { editingCollection = false; viewModel.clearError() }, containerColor = MaterialTheme.colorScheme.surface) {
                 EditCollectionSheet(detailForSheets, state, onSave = { fields -> viewModel.saveCollection(fields) { editingCollection = false } })
             }
         }
         val item = editingItem
         if (item != null && detailForSheets != null) {
-            ModalBottomSheet(onDismissRequest = { editingItem = null; viewModel.clearError() }) {
+            ModalBottomSheet(onDismissRequest = { editingItem = null; viewModel.clearError() }, containerColor = MaterialTheme.colorScheme.surface) {
                 EditItemSheet(
                     item, detailForSheets.price, state,
                     onSave = { colour, price -> viewModel.saveItem(item.id, colour, price) { editingItem = null } },
@@ -208,6 +244,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
 }
 
 /** Filter chips and the "mark all" button from the design. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun StockControls(
     total: Int,
@@ -218,30 +255,19 @@ internal fun StockControls(
     onFilter: (ItemFilter) -> Unit,
     onMarkAll: (ItemStatus) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            listOf(
-                Triple(ItemFilter.ALL, "All $total", "chip-all"),
-                Triple(ItemFilter.AVAILABLE, "Available $available", "chip-available"),
-                Triple(ItemFilter.SOLD_OUT, "Sold out $soldOut", "chip-sold-out"),
-            ).forEach { (value, label, tag) ->
-                FilterChip(
-                    selected = filter == value,
-                    onClick = { onFilter(value) },
-                    label = { Text(label, style = MaterialTheme.typography.labelLarge) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
-                )
-            }
-        }
+    // Chips on the left and the bulk action after them; on a narrow phone the action wraps to its own line.
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.Center) {
+        listOf(
+            Triple(ItemFilter.ALL, "All $total", "chip-all"),
+            Triple(ItemFilter.AVAILABLE, "Available $available", "chip-available"),
+            Triple(ItemFilter.SOLD_OUT, "Sold out $soldOut", "chip-sold-out"),
+        ).forEach { (value, label, tag) -> PillChip(label, filter == value, tag) { onFilter(value) } }
         // With nothing left in stock the useful action is the opposite one.
-        if (available == 0) {
-            SecondaryButton("Mark all available", onClick = { onMarkAll(ItemStatus.AVAILABLE) }, modifier = Modifier.testTag("mark-all").alpha(if (busy) 0.5f else 1f))
-        } else {
-            SecondaryButton("Mark all sold out", onClick = { onMarkAll(ItemStatus.SOLD_OUT) }, modifier = Modifier.testTag("mark-all").alpha(if (busy) 0.5f else 1f))
+        TextButton(
+            onClick = { onMarkAll(if (available == 0) ItemStatus.AVAILABLE else ItemStatus.SOLD_OUT) },
+            modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all").alpha(if (busy) 0.5f else 1f),
+        ) {
+            Text(if (available == 0) "Mark all available" else "Mark all sold out", style = MaterialTheme.typography.labelLarge, textDecoration = TextDecoration.Underline)
         }
     }
 }
@@ -250,32 +276,41 @@ internal fun StockControls(
 internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
     val haptics = LocalHapticFeedback.current
-    Column(Modifier.testTag("item-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Box {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-                StatusPill(
-                    if (soldOut) "Sold out" else "Available",
-                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.testTag("item-${item.id}")) {
+        Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Box {
+                    SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                    StatusPill(
+                        if (soldOut) "Sold out" else "Available",
+                        if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
+                        Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+                    )
+                }
+                Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    formatRupees(item.effectivePrice),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    textDecoration = if (soldOut) TextDecoration.LineThrough else null,
                 )
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(item.colour ?: "No colour", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(formatRupees(item.effectivePrice), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer)
+            Row(
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape).padding(start = Spacing.md),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
+                Checkbox(
+                    checked = !soldOut,
+                    onCheckedChange = {
+                        haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                        onToggle()
+                    },
+                    colors = CheckboxDefaults.colors(checkedColor = SareeColors.Available),
+                    modifier = Modifier.testTag("stock-${item.id}"),
+                )
             }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
-            Switch(
-                checked = !soldOut,
-                onCheckedChange = {
-                    haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                    onToggle()
-                },
-                colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available, checkedThumbColor = androidx.compose.ui.graphics.Color.White),
-                modifier = Modifier.testTag("stock-${item.id}"),
-            )
         }
     }
 }

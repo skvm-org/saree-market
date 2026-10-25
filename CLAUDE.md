@@ -9,7 +9,7 @@ Full scope: `docs/MVP_BRIEF.md`. Read it before starting any feature. If it conf
 - **Phase 1 (MVP, now): native Android app** in `android/`
 - **Phase 2 (after the MVP): Angular web app** in `frontend/`, built against the same backend. Not started; do not scaffold `frontend/` until told to
 - Both frontends use the same REST API. The backend stays **client-neutral**: no Android-specific endpoints, response shapes or assumptions
-- `docs/design/DESIGN.md` is the shared design source for both apps: same colours, type scale, radii, spacing. The screens in `docs/design/stitch/code.html` (one HTML file, one `screen-*` section per screen) are the visual reference for both
+- `docs/design/DESIGN.md` is the shared design source for both apps: same colours, type scale, radii, spacing. The screens in `docs/design/stitch/v2/code.html` (one HTML file, one `screen-*` section per screen) are the visual reference for both. v2's colours are the "Heritage" override block inside that HTML (ivory #FAF8F5, crimson #941B2F, gold #C59B27, stone border #EAE6DF); `stitch/v2/DESIGN.md` is identical to `docs/design/DESIGN.md`, so it does not carry them. v1 is kept for history. v2 also shows wholesale features (bulk order, lot sizes, loom counts, Silk Mark) that are out of scope; build the look, not those
 
 ## Stack
 

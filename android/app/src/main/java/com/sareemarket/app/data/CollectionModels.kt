@@ -19,6 +19,10 @@ data class CollectionSummary(
     val availableCount: Long,
     val soldOutCount: Long,
     val coverItemId: Long? = null,
+    /** Up to three photos for the strip on the dashboard card. */
+    val previewItemIds: List<Long> = emptyList(),
+    /** ISO-8601 instant the collection was created. */
+    val createdAt: String? = null,
 )
 
 @Serializable

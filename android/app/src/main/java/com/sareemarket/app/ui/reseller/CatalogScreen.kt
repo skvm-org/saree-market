@@ -1,5 +1,20 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Storefront
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.FieldShape
+import com.sareemarket.app.ui.components.PillChip
+import com.sareemarket.app.ui.components.PillSegmented
+import com.sareemarket.app.ui.theme.CardShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
@@ -156,7 +171,7 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onMenu: () -> Unit, viewModel: Cat
         )
     }
     if (showFilters) {
-        ModalBottomSheet(onDismissRequest = { showFilters = false }) {
+        ModalBottomSheet(onDismissRequest = { showFilters = false }, containerColor = MaterialTheme.colorScheme.surface) {
             FilterSheetContent(
                 query = state.query,
                 reference = state.reference,
@@ -189,7 +204,7 @@ fun CatalogContent(
             Spacer(Modifier.height(Spacing.sm))
             SearchField(searchText, onSearchText, onMenu, onPhotoSearch)
             FilterChips(state, onFollowingTab, onOpenFilters, onSort)
-            if (state.imageUri != null) PhotoBanner(state.imageUri, onClearPhoto)
+            if (state.imageUri != null) PhotoBanner(state.imageUri, state.totalItems.toInt(), onPhotoSearch, onClearPhoto)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -218,7 +233,7 @@ fun CatalogContent(
                         }
                     }
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                        ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
+                        if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
                     }
                 }
             }
@@ -226,27 +241,26 @@ fun CatalogContent(
     }
 }
 
-/** The one search bar: menu button in front, photo search at the end, so the sarees start high on the screen. */
+/** The one search bar: menu button in front, camera at the end, so the sarees start high on the screen. */
 @Composable
 private fun SearchField(text: String, onText: (String) -> Unit, onMenu: () -> Unit, onPhotoSearch: () -> Unit) {
     OutlinedTextField(
         value = text,
         onValueChange = onText,
-        placeholder = { Text("Search sarees") },
+        placeholder = { Text("Search sarees, colours, fabrics", color = MaterialTheme.colorScheme.onSurfaceVariant) },
         leadingIcon = { MenuButton(onMenu) },
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (text.isNotEmpty()) {
                     IconButton(onClick = { onText("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
                 }
-                TextButton(
-                    onClick = onPhotoSearch,
-                    modifier = Modifier.heightIn(min = MinTouchTarget).semantics { contentDescription = "Search by photo" }.testTag("photo-search"),
-                ) { Text("Photo", style = MaterialTheme.typography.labelLarge) }
+                IconButton(onClick = onPhotoSearch, modifier = Modifier.testTag("photo-search")) {
+                    Icon(Icons.Filled.PhotoCamera, contentDescription = "Search by photo", tint = MaterialTheme.colorScheme.primaryContainer)
+                }
             }
         },
         singleLine = true,
-        shape = MaterialTheme.shapes.medium,
+        shape = FieldShape,
         colors = sareeFieldColors(),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = {}),
@@ -255,25 +269,30 @@ private fun SearchField(text: String, onText: (String) -> Unit, onMenu: () -> Un
 }
 
 /**
- * One scrolling row of chips: "Following (3)" shows what followed sellers posted, "All sellers" is the whole market,
- * then Filters and the sort order. The chips are neutral; only the chosen tab and active filters take the brand colour.
+ * Following / All sellers as one warm switch, then a scrolling row with Filters and the sort order, then what is
+ * being shown and how many. The chips are neutral; only the chosen tab and active filters take the brand colour.
  */
 @Composable
 private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit) {
     var sortOpen by remember { mutableStateOf(false) }
     val count = state.query.activeFilterCount
+    PillSegmented(
+        options = listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})"),
+        selected = state.query.followingOnly,
+        onSelect = onFollowing,
+        tagFor = { if (it) "tab-following" else "tab-all" },
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
+    )
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BrandChip("Following (${state.followedCount})", state.query.followingOnly, "tab-following") { onFollowing(true) }
-        BrandChip("All sellers (${state.sellers.size})", !state.query.followingOnly, "tab-all") { onFollowing(false) }
-        BrandChip(if (count > 0) "Filters ($count)" else "Filters", count > 0, "filters", onOpenFilters)
+        PillChip(if (count > 0) "Filters ($count)" else "Filters", count > 0, "filters", onClick = onOpenFilters)
         // A photo search lists the closest match first, so there is no sort order to choose.
         if (state.imageUri == null) {
             Box {
-                BrandChip(state.query.sort.label, false, "sort") { sortOpen = true }
+                PillChip(state.query.sort.label, false, "sort") { sortOpen = true }
                 DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
                     CatalogSort.entries.forEach { sort ->
                         DropdownMenuItem(
@@ -286,7 +305,20 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
             }
         }
     }
-    if (!state.loading && state.items.isNotEmpty()) {
+    if (state.imageUri == null && !state.loading && state.items.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth().padding(bottom = Spacing.sm), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Text(
+                if (state.query.followingOnly) "New from sellers you follow" else "All sarees",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                "${state.items.size} of ${state.totalItems} sarees",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("count"),
+            )
+        }
+    } else if (!state.loading && state.items.isNotEmpty()) {
         Text(
             "${state.items.size} of ${state.totalItems} sarees",
             style = MaterialTheme.typography.bodySmall,
@@ -296,58 +328,59 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
     }
 }
 
+/** Shows the picture being searched with, how many sarees matched, and a way to change or drop it. */
 @Composable
-private fun BrandChip(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
-        shape = MaterialTheme.shapes.medium,
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = SareeColors.Hairline,
-            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-        modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
-    )
-}
-
-/** Reminds the reseller that the list is a photo search, and lets them go back to the full catalog. */
-@Composable
-private fun PhotoBanner(imageUri: String, onClear: () -> Unit) {
+private fun PhotoBanner(imageUri: String, matches: Int, onChange: () -> Unit, onClear: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(bottom = Spacing.sm).testTag("photo-banner"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         SareeImage(imageUri, contentDescription = "Your photo", modifier = Modifier.width(40.dp))
-        Text("Sarees that look like your photo", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(if (matches == 1) "1 match found" else "$matches matches found", style = MaterialTheme.typography.titleSmall)
+            Text("Sarees that look like your photo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TextButton(onClick = onChange, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("change-photo")) {
+            Text("Change photo", style = MaterialTheme.typography.labelLarge)
+        }
         TextButton(onClick = onClear, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("clear-photo")) {
             Text("Clear", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
 
-/** Where the search picture comes from: a new photo from the camera, or one already on the phone (even a screenshot). */
+/** "Find by photo": take a new photo, or pick one already on the phone (a screenshot someone sent works well). */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PhotoSourceDialog(onDismiss: () -> Unit, onCamera: () -> Unit, onGallery: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Search by photo") },
-        text = { Text("Find sarees that look like a picture. Take a photo, or pick one from your phone, such as a screenshot someone sent you.") },
-        confirmButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                TextButton(onClick = onCamera, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("take-photo")) { Text("Take a photo") }
-                TextButton(onClick = onGallery, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("choose-photo")) { Text("Choose from phone") }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Icon(Icons.Filled.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
+                Text("Find by photo", style = MaterialTheme.typography.headlineSmall)
             }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Cancel") } },
-    )
+            Text(
+                "Works best with a photo forwarded from a seller's WhatsApp, or a screenshot from your phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                PhotoSourceButton("Camera", Icons.Filled.PhotoCamera, "take-photo", onCamera, Modifier.weight(1f))
+                PhotoSourceButton("Gallery or screenshot", Icons.Filled.PhotoLibrary, "choose-photo", onGallery, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourceButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tag: String, onClick: () -> Unit, modifier: Modifier) {
+    Surface(onClick = onClick, shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier.testTag(tag)) {
+        Column(Modifier.fillMaxWidth().padding(vertical = Spacing.md), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
+            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+        }
+    }
 }
 
 @Composable
@@ -386,22 +419,99 @@ private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadM
 @Composable
 internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
-    Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("card-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Box {
-            SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-            StatusPill(
-                if (soldOut) "Sold out" else "Available",
-                if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = CardBorder,
+        modifier = Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("card-${item.id}"),
+    ) {
+        Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Box {
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                StatusPill(
+                    if (soldOut) "Sold out" else "Available",
+                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
+                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+                )
+            }
+            Text(
+                formatRupees(item.price),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                modifier = Modifier.padding(horizontal = Spacing.xs),
             )
+            Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = Spacing.xs))
+            Row(Modifier.padding(horizontal = Spacing.xs).padding(bottom = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Icon(Icons.Filled.Storefront, contentDescription = null, tint = SareeColors.SlateNeutral, modifier = Modifier.size(14.dp))
+                Text(item.shopName, style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
-        Text(
-            formatRupees(item.price),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            textDecoration = if (soldOut) TextDecoration.LineThrough else null,
-        )
-        Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(item.shopName, style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Photo-search results as rows, closest match first, each saying how close it is. */
+@Composable
+private fun MatchList(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadMore: () -> Unit) {
+    val list = rememberLazyListState()
+    LaunchedEffect(list, state.items.size) {
+        snapshotFlow { list.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.collect { last ->
+            if (last != null && last >= state.items.size - LOAD_MORE_AHEAD) onLoadMore()
+        }
+    }
+    LazyColumn(
+        state = list,
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+        contentPadding = PaddingValues(bottom = Spacing.lg),
+        modifier = Modifier.fillMaxSize().testTag("results"),
+    ) {
+        items(state.items, key = { it.id }) { item -> Box(Modifier.animateItem()) { MatchRow(item, onClick = { onOpenItem(item.id) }) } }
+        if (state.loadingMore) {
+            item { Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() } }
+        }
+    }
+}
+
+/** A hash distance of 0..EXACT_MATCH_DISTANCE is the same picture; anything beyond is merely similar. */
+private const val EXACT_MATCH_DISTANCE = 6
+
+@Composable
+private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
+    val soldOut = item.status == ItemStatus.SOLD_OUT
+    val exact = (item.distance ?: Int.MAX_VALUE) <= EXACT_MATCH_DISTANCE
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = CardBorder,
+        modifier = Modifier.fillMaxWidth().clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("card-${item.id}"),
+    ) {
+        Row(Modifier.padding(Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Box(Modifier.width(96.dp)) {
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                Text(
+                    if (exact) "Exact match" else "Close match",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (exact) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(Spacing.xs)
+                        .background(if (exact) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                        .padding(horizontal = Spacing.sm, vertical = 2.dp)
+                        .testTag("match-${item.id}"),
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    formatRupees(item.price),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                )
+                Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                StatusPill(if (soldOut) "Sold out" else "Available", if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.align(Alignment.CenterVertically))
+        }
     }
 }

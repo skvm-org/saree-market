@@ -1,5 +1,9 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.material3.Surface
+import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.theme.CardShape
+import com.sareemarket.app.ui.typeAndFabric
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +59,7 @@ fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, 
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 BackHeader(collection.title, onBack)
-                Text("${collection.sareeType.name} · ${collection.fabric.name}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(typeAndFabric(collection.sareeType.name, collection.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatRupees(collection.price), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primaryContainer)
                 collection.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             }
@@ -67,22 +71,28 @@ fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, 
 @Composable
 private fun PhotoTile(item: Item, onClick: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
-    Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("tile-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Box {
-            SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-            StatusPill(
-                if (soldOut) "Sold out" else "Available",
-                if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                Modifier.padding(Spacing.sm).align(Alignment.TopStart),
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(item.colour ?: "No colour", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = CardBorder,
+        modifier = Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("tile-${item.id}"),
+    ) {
+        Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Box {
+                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
+                StatusPill(
+                    if (soldOut) "Sold out" else "Available",
+                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
+                    Modifier.padding(Spacing.sm).align(Alignment.TopStart),
+                )
+            }
+            Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.padding(horizontal = Spacing.xs))
             Text(
                 formatRupees(item.effectivePrice),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                modifier = Modifier.padding(horizontal = Spacing.xs).padding(bottom = Spacing.xs),
             )
         }
     }

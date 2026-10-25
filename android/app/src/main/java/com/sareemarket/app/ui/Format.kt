@@ -24,3 +24,14 @@ fun timeAgo(iso: String, now: java.time.Instant = java.time.Instant.now()): Stri
         else -> java.time.LocalDate.ofInstant(then, java.time.ZoneId.systemDefault()).toString()
     }
 }
+
+/** "Today", "Yesterday" or "Earlier" for grouping a list by when things happened. [iso] is an ISO-8601 instant. */
+fun dayLabel(iso: String, now: java.time.Instant = java.time.Instant.now(), zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String {
+    val day = java.time.LocalDate.ofInstant(java.time.Instant.parse(iso), zone)
+    val today = java.time.LocalDate.ofInstant(now, zone)
+    return when (day) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> "Earlier"
+    }
+}

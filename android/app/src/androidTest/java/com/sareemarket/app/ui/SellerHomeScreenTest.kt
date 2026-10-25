@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui
 
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -45,8 +48,7 @@ class SellerHomeScreenTest {
         compose.onNodeWithText("Diwali soft silks").assertExists()
         compose.onNodeWithText("Soft silk · Pure silk").assertExists()
         compose.onNodeWithText("₹1,25,000").assertExists()
-        compose.onNodeWithText("15 available").assertExists()
-        compose.onNodeWithText("3 sold out").assertExists()
+        compose.onNodeWithText("15 available · 3 sold out").assertExists()
     }
 
     @Test
@@ -84,9 +86,14 @@ class SellerHomeScreenTest {
     }
 
     @Test
-    fun summaryLineCountsSareesAcrossCollections() {
-        show(SellerHomeState.Loaded(listOf(diwali)))
+    fun headerShowsTheShopAndTheStockTotals() {
+        compose.setContent {
+            SareeTheme { SellerHomeContent(SellerHomeState.Loaded(listOf(diwali)), "Lakshmi Silks", {}, {}, {}, {}, location = "Dindigul") }
+        }
 
-        compose.onNodeWithTag("summary").assertTextEquals("Lakshmi · 18 sarees · 15 available")
+        compose.onNodeWithTag("shop-name").assertTextEquals("Lakshmi Silks")
+        compose.onNodeWithText("Dindigul").assertExists()
+        compose.onNodeWithTag("stat-available").assert(hasAnyDescendant(hasText("15")))
+        compose.onNodeWithTag("stat-sold-out").assert(hasAnyDescendant(hasText("3")))
     }
 }

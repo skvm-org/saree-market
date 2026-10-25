@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.auth
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Storefront
+import com.sareemarket.app.ui.components.PillSegmented
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,25 +78,13 @@ fun RegisterContent(
                 Text("Create account", style = MaterialTheme.typography.headlineSmall)
             }
 
-            val roles = listOf(Role.SELLER to "I'm a Seller", Role.RESELLER to "I'm a Reseller")
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                roles.forEachIndexed { index, (role, label) ->
-                    SegmentedButton(
-                        selected = state.role == role,
-                        onClick = { onRoleChange(role) },
-                        shape = SegmentedButtonDefaults.itemShape(index, roles.size),
-                        colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                        modifier = Modifier
-                            .testTag("role-${role.name}")
-                            ,
-                    ) {
-                        Text(label, style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
+            PillSegmented(
+                options = listOf(Role.SELLER to "I'm a Seller", Role.RESELLER to "I'm a Reseller"),
+                selected = state.role,
+                onSelect = onRoleChange,
+                tagFor = { "role-${it.name}" },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             FormColumn(Modifier.fillMaxWidth()) {
                 field(state, onChange, onBlur, onSubmit, RegisterField.NAME, "Full name", "name")
@@ -101,11 +92,14 @@ fun RegisterContent(
                 field(state, onChange, onBlur, onSubmit, RegisterField.PASSWORD, "Set password", "password", password = true)
 
                 if (state.role == Role.SELLER) {
-                    Text(
-                        "Your shop",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
+                        Text(
+                            "Your shop",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    }
                     field(state, onChange, onBlur, onSubmit, RegisterField.SHOP_NAME, "Registered shop name", "shopName")
                     field(state, onChange, onBlur, onSubmit, RegisterField.MARKET_LOCATION, "Market and location", "marketLocation")
                     field(state, onChange, onBlur, onSubmit, RegisterField.CONTACT_PHONE, "Contact phone", "contactPhone", prefix = "+91", keyboard = KeyboardType.Phone)
@@ -120,7 +114,7 @@ fun RegisterContent(
                         modifier = Modifier.testTag("error"),
                     )
                 }
-                PrimaryButton(text = "Create account", onClick = onSubmit, loading = state.loading, modifier = Modifier.testTag("submit"))
+                PrimaryButton(text = "Create account", onClick = onSubmit, loading = state.loading, trailingIcon = Icons.Filled.CheckCircle, modifier = Modifier.testTag("submit"))
             }
             androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
         }

@@ -37,4 +37,14 @@ class FollowViewModel @Inject constructor(private val repository: FollowReposito
             result.onFailure { e -> _state.update { it.copy(chosen = it.chosen + (sellerId to current), error = e.message) } }
         }
     }
+
+    /** The bell on a seller page: turns notifications off or back on for a seller who is already followed. */
+    fun toggleMute(sellerId: Long, current: NotifyMode?) {
+        if (current == null) return
+        val target = if (current == NotifyMode.MUTED) NotifyMode.INSTANT else NotifyMode.MUTED
+        _state.update { it.copy(chosen = it.chosen + (sellerId to target), error = null) }
+        viewModelScope.launch {
+            repository.follow(sellerId, target).onFailure { e -> _state.update { it.copy(chosen = it.chosen + (sellerId to current), error = e.message) } }
+        }
+    }
 }

@@ -19,9 +19,8 @@ import com.sareemarket.app.ui.profile.ChangePasswordUiState
 import com.sareemarket.app.ui.profile.ProfileUiState
 import com.sareemarket.app.ui.profile.ProfileViewModel
 import com.sareemarket.app.ui.profile.ShopDetailsViewModel
+import com.sareemarket.app.ui.reseller.withoutShop
 import com.sareemarket.app.ui.seller.NewCollectionViewModel
-import com.sareemarket.app.ui.seller.SellerHomeState
-import com.sareemarket.app.ui.seller.sellerSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -55,12 +54,19 @@ class StabilityAndPolishTest {
     }
 
     @Test
-    fun sellerSummaryCountsSareesAndWhatIsAvailable() {
-        val loaded = SellerHomeState.Loaded(listOf(summary(1).copy(availableCount = 3, soldOutCount = 1), summary(2).copy(availableCount = 2, soldOutCount = 0)))
+    fun dayLabelGroupsNotificationsByCalendarDay() {
+        val now = java.time.Instant.parse("2026-10-25T10:00:00Z")
+        val utc = java.time.ZoneOffset.UTC
 
-        assertEquals("Lakshmi · 6 sarees · 5 available", sellerSummary("Lakshmi", loaded))
-        assertEquals("Lakshmi", sellerSummary("Lakshmi", SellerHomeState.Loaded(emptyList())))
-        assertEquals("Lakshmi", sellerSummary("Lakshmi", SellerHomeState.Loading))
+        assertEquals("Today", dayLabel("2026-10-25T01:00:00Z", now, utc))
+        assertEquals("Yesterday", dayLabel("2026-10-24T23:59:00Z", now, utc))
+        assertEquals("Earlier", dayLabel("2026-10-20T12:00:00Z", now, utc))
+    }
+
+    @Test
+    fun theShopNameIsNotRepeatedUnderItsOwnHeading() {
+        assertEquals("Added 4 sarees · Diwali", withoutShop("Kanchi Weaves added 4 sarees · Diwali", "Kanchi Weaves"))
+        assertEquals("1 saree is back in stock at Kanchi Weaves · Diwali", withoutShop("1 saree is back in stock at Kanchi Weaves · Diwali", "Kanchi Weaves"))
     }
 
     @Test

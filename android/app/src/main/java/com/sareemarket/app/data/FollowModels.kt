@@ -7,7 +7,14 @@ import kotlinx.serialization.Serializable
 enum class NotifyMode { INSTANT, MUTED }
 
 @Serializable
-data class FollowItem(val sellerId: Long, val shopName: String, val marketLocation: String, val notifyMode: NotifyMode)
+data class FollowItem(
+    val sellerId: Long,
+    val shopName: String,
+    val marketLocation: String,
+    val notifyMode: NotifyMode,
+    /** ISO-8601 instant of the seller's newest collection, or null if they have none. */
+    val lastUploadAt: String? = null,
+)
 
 @Serializable
 data class FollowBody(val notifyMode: NotifyMode)
@@ -29,6 +36,8 @@ data class AppNotification(
     val read: Boolean,
     val createdAt: String,
     val updatedAt: String,
+    /** A photo of the collection, for the round thumbnail. */
+    val coverItemId: Long? = null,
 )
 
 @Serializable

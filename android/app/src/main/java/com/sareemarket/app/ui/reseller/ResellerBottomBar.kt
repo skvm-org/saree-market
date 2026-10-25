@@ -2,6 +2,7 @@ package com.sareemarket.app.ui.reseller
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Badge
@@ -16,11 +17,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import com.sareemarket.app.ui.profile.ROUTE_PROFILE
 
 internal const val TAB_CATALOG = "catalog"
 internal const val TAB_SELLERS = "sellers"
 internal const val TAB_ALERTS = "alerts"
-internal val TABS = setOf(TAB_CATALOG, TAB_SELLERS, TAB_ALERTS)
+internal val TABS = setOf(TAB_CATALOG, TAB_SELLERS, TAB_ALERTS, ROUTE_PROFILE)
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
@@ -28,9 +30,10 @@ private val tabs = listOf(
     Tab(TAB_CATALOG, "Catalog", Icons.Filled.Search),
     Tab(TAB_SELLERS, "My sellers", Icons.Filled.Person),
     Tab(TAB_ALERTS, "Alerts", Icons.Filled.Notifications),
+    Tab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
 )
 
-/** The three places a reseller lives. The Alerts tab carries the unread number (the bell). */
+/** The four places a reseller lives. The Alerts tab carries the unread number (the bell). */
 @Composable
 fun ResellerBottomBar(current: String?, unread: Long, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {

@@ -1,5 +1,17 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
+import com.sareemarket.app.ui.components.FieldShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -60,7 +72,25 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
         Modifier.imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Text("Filters", style = MaterialTheme.typography.headlineSmall)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Filters", style = MaterialTheme.typography.headlineSmall)
+            if (query.activeFilterCount > 0) {
+                Text(
+                    query.activeFilterCount.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier
+                        .padding(start = Spacing.sm)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f), CircleShape)
+                        .padding(horizontal = Spacing.sm, vertical = 2.dp),
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = { draft = CatalogQuery(q = draft.q, sort = draft.sort, followingOnly = draft.followingOnly) },
+                modifier = Modifier.heightIn(min = MinTouchTarget).testTag("clear"),
+            ) { Text("Reset", style = MaterialTheme.typography.labelLarge) }
+        }
 
         Section("Saree type") {
             reference?.sareeTypes.orEmpty().forEach { type ->
@@ -101,17 +131,18 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
                 Chip(label, draft.sinceDays == days, "since-${days ?: "any"}") { draft = draft.copy(sinceDays = days) }
             }
         }
-        Row(Modifier.fillMaxWidth().heightIn(min = MinTouchTarget), verticalAlignment = Alignment.CenterVertically) {
-            Text("Include sold out", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Switch(
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape).padding(start = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Include sold out", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Checkbox(
                 checked = draft.includeSoldOut,
                 onCheckedChange = { draft = draft.copy(includeSoldOut = it) },
-                colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available, checkedThumbColor = Color.White),
                 modifier = Modifier.testTag("include-sold-out"),
             )
         }
-        PrimaryButton("Show results", onClick = { onApply(draft) }, modifier = Modifier.testTag("apply"))
-        SecondaryButton("Clear all", onClick = { draft = CatalogQuery(q = draft.q, sort = draft.sort, followingOnly = draft.followingOnly) }, modifier = Modifier.testTag("clear"))
+        PrimaryButton("Show results", onClick = { onApply(draft) }, trailingIcon = Icons.AutoMirrored.Filled.ArrowForward, modifier = Modifier.testTag("apply"))
     }
 }
 
@@ -132,10 +163,19 @@ private fun Chip(label: String, selected: Boolean, tag: String, onClick: () -> U
         selected = selected,
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        leadingIcon = if (selected) {
+            { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+        } else {
+            null
+        },
+        shape = CircleShape,
         colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
         ),
+        border = FilterChipDefaults.filterChipBorder(enabled = true, selected = selected, borderColor = SareeColors.Hairline, selectedBorderColor = Color.Transparent),
         modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
     )
 }
@@ -144,14 +184,16 @@ private fun Chip(label: String, selected: Boolean, tag: String, onClick: () -> U
 @Composable
 private fun SellerDropdown(sellers: List<SellerListItem>, selected: Long?, onSelect: (Long?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Text("Seller", style = MaterialTheme.typography.labelMedium)
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = sellers.firstOrNull { it.id == selected }?.shopName ?: "All sellers",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Seller") },
+            singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            shape = MaterialTheme.shapes.medium,
+            shape = FieldShape,
             colors = sareeFieldColors(),
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth().heightIn(min = MinTouchTarget).testTag("seller"),
         )
@@ -165,5 +207,6 @@ private fun SellerDropdown(sellers: List<SellerListItem>, selected: Long?, onSel
                 )
             }
         }
+    }
     }
 }

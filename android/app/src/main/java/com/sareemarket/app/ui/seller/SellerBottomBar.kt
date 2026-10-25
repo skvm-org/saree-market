@@ -1,0 +1,49 @@
+package com.sareemarket.app.ui.seller
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+
+internal const val SELLER_HOME = "home"
+internal const val SELLER_NEW = "new"
+internal const val SELLER_SHOP = "shop"
+
+private data class SellerTab(val route: String, val label: String, val icon: ImageVector)
+
+private val sellerTabs = listOf(
+    SellerTab(SELLER_HOME, "Collections", Icons.Filled.PhotoLibrary),
+    SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
+    SellerTab(SELLER_SHOP, "Shop profile", Icons.Filled.Storefront),
+)
+
+/** The three places a seller works from: their collections, a new upload, and the shop's own details. */
+@Composable
+fun SellerBottomBar(current: String?, onSelect: (String) -> Unit) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        sellerTabs.forEach { tab ->
+            NavigationBarItem(
+                selected = current == tab.route,
+                onClick = { onSelect(tab.route) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(tab.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedTextColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+                modifier = Modifier.testTag("seller-tab-${tab.route}"),
+            )
+        }
+    }
+}

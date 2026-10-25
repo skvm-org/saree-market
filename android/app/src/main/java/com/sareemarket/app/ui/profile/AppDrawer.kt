@@ -43,6 +43,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.sareemarket.app.BuildConfig
 import com.sareemarket.app.data.Role
+import com.sareemarket.app.ui.components.BrandMark
 import com.sareemarket.app.data.Session
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.Spacing
@@ -95,7 +96,10 @@ fun AppDrawer(
         drawerContent = {
             ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 Column(Modifier.padding(horizontal = Spacing.margin, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    Text("Saree Market", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primaryContainer)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        BrandMark(32.dp)
+                        Text("Saree Market", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primaryContainer)
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                         // The person's initial in the brand colour, so the menu is clearly "your" account.
                         Box(

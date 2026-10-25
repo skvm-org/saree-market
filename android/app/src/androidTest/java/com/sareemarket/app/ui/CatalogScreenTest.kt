@@ -187,19 +187,17 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun photoDialogOffersCameraAndPhoneAndCancel() {
+    fun photoSheetOffersCameraAndPhone() {
         var camera = 0
         var gallery = 0
-        var dismissed = 0
-        compose.setContent { SareeTheme { PhotoSourceDialog({ dismissed++ }, { camera++ }, { gallery++ }) } }
+        compose.setContent { SareeTheme { PhotoSourceDialog({}, { camera++ }, { gallery++ }) } }
 
+        compose.onNodeWithText("Find by photo").assertExists()
         compose.onNodeWithTag("take-photo").performClick()
         compose.onNodeWithTag("choose-photo").performClick()
-        compose.onNodeWithText("Cancel").performClick()
 
         assertEquals(1, camera)
         assertEquals(1, gallery)
-        assertEquals(1, dismissed)
     }
 
     @Test

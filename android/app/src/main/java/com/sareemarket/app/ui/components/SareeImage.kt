@@ -2,7 +2,6 @@ package com.sareemarket.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -10,6 +9,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.sareemarket.app.BuildConfig
+import com.sareemarket.app.ui.theme.PhotoShape
 import com.sareemarket.app.ui.theme.SareeColors
 
 fun imageUrl(itemId: Long, thumb: Boolean) =
@@ -24,7 +24,7 @@ fun SareeImage(model: Any?, contentDescription: String?, modifier: Modifier = Mo
         contentScale = ContentScale.Crop,
         modifier = modifier
             .aspectRatio(4f / 5f)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(PhotoShape)
             .background(SareeColors.SurfaceMuted),
     )
 }

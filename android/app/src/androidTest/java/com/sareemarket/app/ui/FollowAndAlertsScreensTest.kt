@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -48,14 +49,13 @@ class FollowAndAlertsScreensTest {
 
         compose.onNodeWithText("Lakshmi Silks").assertExists()
         compose.onNodeWithText("Kanchipuram").assertExists()
-        compose.onNodeWithText("Notifications on").assertExists()
         compose.onNodeWithText("Muted").assertExists()
-        compose.onNodeWithTag("notify-1").assertIsOn()
-        compose.onNodeWithTag("notify-2").assertIsOff()
+        compose.onNodeWithContentDescription("Mute Lakshmi Silks").assertExists() // the bell is on
+        compose.onNodeWithContentDescription("Turn on notifications for Kanchi Weaves").assertExists() // this one is muted
     }
 
     @Test
-    fun theSwitchMutesAndUnmutes() {
+    fun theBellMutesAndUnmutes() {
         val calls = mutableListOf<Pair<Long, Boolean>>()
         showSellers(MySellersState(listOf(lakshmi, kanchi), loading = false), onMute = { id, muted -> calls += id to muted })
 
@@ -71,6 +71,7 @@ class FollowAndAlertsScreensTest {
         var opened = 0L
         showSellers(MySellersState(listOf(lakshmi), loading = false), onOpen = { opened = it }, onUnfollow = { unfollowed = it })
 
+        compose.onNodeWithTag("more-1").performClick()
         compose.onNodeWithTag("unfollow-1").performClick()
         compose.onNodeWithTag("seller-1").performClick()
 
@@ -100,7 +101,7 @@ class FollowAndAlertsScreensTest {
     fun showsMessagesWithTimeAndUnreadDots() {
         showNotes(NotificationsState(listOf(note(1, false, "Lakshmi Silks added 18 sarees · Diwali silks"), note(2, true, "Older news")), loading = false))
 
-        compose.onNodeWithText("Lakshmi Silks added 18 sarees · Diwali silks").assertExists()
+        compose.onNodeWithText("Added 18 sarees · Diwali silks").assertExists() // the shop name heads the row, so it is not repeated
         compose.onNodeWithText("Older news").assertExists()
         compose.onNodeWithTag("unread-dot-1", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("unread-dot-2", useUnmergedTree = true).assertDoesNotExist()

@@ -57,8 +57,8 @@ class ItemDetailScreenTest {
     fun callAndWhatsAppPassTheSellersNumbers() {
         show()
 
-        compose.onNodeWithTag("call").performScrollTo().performClick()
-        compose.onNodeWithTag("whatsapp").performScrollTo().performClick()
+        compose.onNodeWithTag("call").performClick()
+        compose.onNodeWithTag("whatsapp").performClick()
 
         assertEquals("9876543210", called)
         assertEquals("9876543211", chatted)
@@ -68,7 +68,7 @@ class ItemDetailScreenTest {
     fun noWhatsAppButtonWhenTheSellerGaveNoNumber() {
         show(detail.copy(seller = seller.copy(whatsappNumber = null)))
 
-        compose.onNodeWithTag("call").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("call").assertIsDisplayed()
         compose.onNodeWithTag("whatsapp").assertDoesNotExist()
     }
 
