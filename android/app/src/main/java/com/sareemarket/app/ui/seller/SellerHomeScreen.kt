@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
+import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.SareeTheme
@@ -52,7 +54,7 @@ fun SellerHomeScreen(
     sellerName: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
-    onLogout: () -> Unit,
+    onMenu: () -> Unit,
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -61,7 +63,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, sellerName, onNewCollection, onOpen, onLogout, onRetry = viewModel::refresh)
+    SellerHomeContent(state, sellerName, onNewCollection, onOpen, onMenu, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh)
 }
 
 @Composable
@@ -70,8 +72,9 @@ fun SellerHomeContent(
     sellerName: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
-    onLogout: () -> Unit,
+    onMenu: () -> Unit,
     onRetry: () -> Unit,
+    onRefresh: () -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -94,12 +97,10 @@ fun SellerHomeContent(
                 .padding(horizontal = Spacing.margin),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                MenuButton(onMenu)
                 Column(Modifier.weight(1f)) {
                     Text("Your collections", style = MaterialTheme.typography.headlineMedium)
                     Text(sellerName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                TextButton(onClick = onLogout, modifier = Modifier.heightIn(min = MinTouchTarget)) {
-                    Text("Log out", style = MaterialTheme.typography.labelLarge)
                 }
             }
             Box(Modifier.fillMaxSize()) {
@@ -119,11 +120,16 @@ fun SellerHomeContent(
                                 modifier = Modifier.align(Alignment.Center).testTag("empty"),
                             )
                         } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = Spacing.md, bottom = 96.dp),
-                            ) {
-                                items(state.collections, key = { it.id }) { CollectionCard(it, onClick = { onOpen(it.id) }) }
+                            PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(top = Spacing.md, bottom = 96.dp),
+                                    modifier = Modifier.fillMaxSize(),
+                                ) {
+                                    items(state.collections, key = { it.id }) {
+                                        Box(Modifier.animateItem()) { CollectionCard(it, onClick = { onOpen(it.id) }) }
+                                    }
+                                }
                             }
                         }
                 }

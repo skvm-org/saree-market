@@ -18,6 +18,7 @@ data class NotificationsState(
     val hasMore: Boolean = false,
     val loading: Boolean = true,
     val loadingMore: Boolean = false,
+    val refreshing: Boolean = false,
     val error: String? = null,
 ) {
     val hasUnread: Boolean get() = items.any { !it.read }
@@ -33,6 +34,12 @@ class NotificationsViewModel @Inject constructor(private val repository: Notific
     fun refresh() {
         viewModelScope.launch { fetch(0) }
         viewModelScope.launch { repository.refreshUnread() }
+    }
+
+    /** Pull-to-refresh: shows the indicator while the newest page reloads. */
+    fun pullRefresh() {
+        _state.update { it.copy(refreshing = true) }
+        refresh()
     }
 
     fun loadMore() {
@@ -72,11 +79,12 @@ class NotificationsViewModel @Inject constructor(private val repository: Notific
                         hasMore = page + 1 < result.totalPages,
                         loading = false,
                         loadingMore = false,
+                        refreshing = false,
                         error = null,
                     )
                 }
             },
-            onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, error = e.message) } },
+            onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, refreshing = false, error = e.message) } },
         )
     }
 }

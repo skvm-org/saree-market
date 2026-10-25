@@ -23,10 +23,10 @@ class SellerHomeScreenTest {
         state: SellerHomeState,
         onNew: () -> Unit = {},
         onOpen: (Long) -> Unit = {},
-        onLogout: () -> Unit = {},
+        onMenu: () -> Unit = {},
         onRetry: () -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { SellerHomeContent(state, "Lakshmi", onNew, onOpen, onLogout, onRetry) }
+        SareeTheme { SellerHomeContent(state, "Lakshmi", onNew, onOpen, onMenu, onRetry) }
     }
 
     @Test
@@ -59,16 +59,16 @@ class SellerHomeScreenTest {
     }
 
     @Test
-    fun newCollectionAndLogOutButtonsWork() {
+    fun newCollectionAndMenuButtonsWork() {
         var newClicks = 0
-        var logouts = 0
-        show(SellerHomeState.Loaded(emptyList()), onNew = { newClicks++ }, onLogout = { logouts++ })
+        var menus = 0
+        show(SellerHomeState.Loaded(emptyList()), onNew = { newClicks++ }, onMenu = { menus++ })
 
         compose.onNodeWithTag("new-collection").performClick()
-        compose.onNodeWithText("Log out").performClick()
+        compose.onNodeWithTag("menu").performClick()
 
         assertEquals(1, newClicks)
-        assertEquals(1, logouts)
+        assertEquals(1, menus)
     }
 
     @Test

@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -90,6 +91,8 @@ fun LoginContent(
                     label = "Password",
                     tag = "password",
                     isPassword = true,
+                    imeAction = ImeAction.Done,
+                    onDone = onSubmit,
                 )
                 if (state.error != null) {
                     Text(

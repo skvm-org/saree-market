@@ -16,6 +16,9 @@ import kotlinx.coroutines.launch
 data class MySellersState(
     val sellers: List<FollowItem> = emptyList(),
     val loading: Boolean = true,
+    val refreshing: Boolean = false,
+    /** The seller just unfollowed, kept briefly so the screen can offer Undo. */
+    val undo: FollowItem? = null,
     val error: String? = null,
 )
 
@@ -29,10 +32,16 @@ class MySellersViewModel @Inject constructor(private val repository: FollowRepos
     fun load() {
         viewModelScope.launch {
             repository.follows().fold(
-                onSuccess = { list -> _state.update { it.copy(sellers = list, loading = false, error = null) } },
-                onFailure = { e -> _state.update { it.copy(loading = false, error = e.message.takeIf { _ -> it.sellers.isEmpty() }) } },
+                onSuccess = { list -> _state.update { it.copy(sellers = list, loading = false, refreshing = false, error = null) } },
+                onFailure = { e -> _state.update { it.copy(loading = false, refreshing = false, error = e.message.takeIf { _ -> it.sellers.isEmpty() }) } },
             )
         }
+    }
+
+    /** Pull-to-refresh: shows the indicator while the list reloads. */
+    fun pullRefresh() {
+        _state.update { it.copy(refreshing = true) }
+        load()
     }
 
     /** Muted keeps the follow (and the Following tab) but sends no notifications. */
@@ -47,11 +56,26 @@ class MySellersViewModel @Inject constructor(private val repository: FollowRepos
 
     fun unfollow(sellerId: Long) {
         val before = _state.value.sellers
-        _state.update { s -> s.copy(sellers = s.sellers.filterNot { it.sellerId == sellerId }) }
+        val removed = before.firstOrNull { it.sellerId == sellerId } ?: return
+        _state.update { s -> s.copy(sellers = s.sellers.filterNot { it.sellerId == sellerId }, undo = removed) }
         viewModelScope.launch {
-            repository.unfollow(sellerId).onFailure { e -> _state.update { it.copy(sellers = before, error = e.message) } }
+            repository.unfollow(sellerId).onFailure { e -> _state.update { it.copy(sellers = before, undo = null, error = e.message) } }
         }
     }
+
+    /** Follows the seller again with the notification setting they had. */
+    fun undoUnfollow() {
+        val removed = _state.value.undo ?: return
+        _state.update { it.copy(undo = null) }
+        viewModelScope.launch {
+            repository.follow(removed.sellerId, removed.notifyMode).fold(
+                onSuccess = { load() },
+                onFailure = { e -> _state.update { it.copy(error = e.message) } },
+            )
+        }
+    }
+
+    fun dismissUndo() = _state.update { it.copy(undo = null) }
 
     fun clearError() = _state.update { it.copy(error = null) }
 }

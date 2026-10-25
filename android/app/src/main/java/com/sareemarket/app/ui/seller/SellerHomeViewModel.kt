@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 sealed interface SellerHomeState {
     data object Loading : SellerHomeState
-    data class Loaded(val collections: List<CollectionSummary>) : SellerHomeState
+    data class Loaded(val collections: List<CollectionSummary>, val refreshing: Boolean = false) : SellerHomeState
     data class Failed(val message: String) : SellerHomeState
 }
 
@@ -23,6 +23,12 @@ class SellerHomeViewModel @Inject constructor(private val repository: Collection
     private val _state = MutableStateFlow<SellerHomeState>(SellerHomeState.Loading)
     val state: StateFlow<SellerHomeState> = _state.asStateFlow()
 
+    /** Pull-to-refresh: shows the indicator while the list reloads. */
+    fun pullRefresh() {
+        (_state.value as? SellerHomeState.Loaded)?.let { _state.value = it.copy(refreshing = true) }
+        refresh()
+    }
+
     /** Called whenever the screen comes back into view, so counts are fresh after editing a collection. */
     fun refresh() {
         // Keep showing the old list while reloading; only a first load or a failure shows the spinner.
@@ -31,8 +37,9 @@ class SellerHomeViewModel @Inject constructor(private val repository: Collection
             repository.myCollections().fold(
                 onSuccess = { _state.value = SellerHomeState.Loaded(it) },
                 onFailure = {
-                    if (_state.value !is SellerHomeState.Loaded) {
-                        _state.value = SellerHomeState.Failed(it.message.orEmpty())
+                    when (val current = _state.value) {
+                        is SellerHomeState.Loaded -> _state.value = current.copy(refreshing = false)
+                        else -> _state.value = SellerHomeState.Failed(it.message.orEmpty())
                     }
                 },
             )

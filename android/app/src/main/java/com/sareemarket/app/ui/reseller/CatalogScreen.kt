@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.ui.semantics.Role
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -75,6 +77,7 @@ import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.components.sareeFieldColors
 import com.sareemarket.app.ui.formatRupees
+import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -88,7 +91,7 @@ private const val LOAD_MORE_AHEAD = 6
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
+fun CatalogScreen(onOpenItem: (Long) -> Unit, onMenu: () -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf(state.query.q) }
     var showFilters by remember { mutableStateOf(false) }
@@ -124,7 +127,8 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onLogout: () -> Unit, viewModel: C
         onFollowingTab = viewModel::setFollowingOnly,
         onPhotoSearch = { showPhotoChoice = true },
         onClearPhoto = viewModel::clearImage,
-        onLogout = onLogout,
+        onMenu = onMenu,
+        onRefresh = viewModel::refresh,
     )
     if (showPhotoChoice) {
         PhotoSourceDialog(
@@ -168,15 +172,14 @@ fun CatalogContent(
     onFollowingTab: (Boolean) -> Unit,
     onPhotoSearch: () -> Unit,
     onClearPhoto: () -> Unit,
-    onLogout: () -> Unit,
+    onMenu: () -> Unit,
+    onRefresh: () -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                MenuButton(onMenu)
                 Text("Catalog", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onLogout, modifier = Modifier.heightIn(min = MinTouchTarget)) {
-                    Text("Log out", style = MaterialTheme.typography.labelLarge)
-                }
             }
             SearchField(searchText, onSearchText)
             FollowTabs(state, onFollowingTab)
@@ -209,7 +212,9 @@ fun CatalogContent(
                             TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
                         }
                     }
-                    else -> ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
+                    else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
+                        ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
+                    }
                 }
             }
         }
@@ -363,7 +368,7 @@ private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadM
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         modifier = Modifier.fillMaxSize().testTag("results"),
     ) {
-        items(state.items, key = { it.id }) { CatalogCard(it, onClick = { onOpenItem(it.id) }) }
+        items(state.items, key = { it.id }) { Box(Modifier.animateItem()) { CatalogCard(it, onClick = { onOpenItem(it.id) }) } }
         if (state.loadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() }
@@ -383,7 +388,7 @@ private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadM
 @Composable
 internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
-    Column(Modifier.clickable(onClick = onClick).testTag("card-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("card-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Box {
             SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
             StatusPill(

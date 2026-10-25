@@ -37,6 +37,12 @@ class FakeAuthApi : AuthApi {
     var loginResult: () -> AuthResponse = { AuthResponse("token-1", priya) }
     var registerResult: () -> AuthResponse = { AuthResponse("token-2", priya) }
     var meResult: () -> UserDto = { priya }
+    var updateNameResult: (String) -> UserDto = { priya.copy(name = it) }
+    var changePasswordResult: () -> Unit = {}
+    var shopResult: () -> ShopDetails = { ShopDetails("Lakshmi Silks", "Dindigul", "9876500001", null) }
+    var updateShopResult: (ShopDetails) -> ShopDetails = { it }
+    var lastPasswordChange: ChangePasswordRequest? = null
+    var lastShopUpdate: ShopDetails? = null
     var lastRegister: RegisterRequest? = null
     var loginCalls = 0
 
@@ -51,6 +57,20 @@ class FakeAuthApi : AuthApi {
     }
 
     override suspend fun me(): UserDto = meResult()
+
+    override suspend fun updateName(request: UpdateNameRequest): UserDto = updateNameResult(request.name)
+
+    override suspend fun changePassword(request: ChangePasswordRequest) {
+        lastPasswordChange = request
+        changePasswordResult()
+    }
+
+    override suspend fun shopDetails(): ShopDetails = shopResult()
+
+    override suspend fun updateShopDetails(details: ShopDetails): ShopDetails {
+        lastShopUpdate = details
+        return updateShopResult(details)
+    }
 }
 
 fun httpError(code: Int, body: String = ""): HttpException =

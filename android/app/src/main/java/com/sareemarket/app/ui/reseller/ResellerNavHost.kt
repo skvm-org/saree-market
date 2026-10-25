@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,13 +32,24 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.sareemarket.app.data.Session
+import com.sareemarket.app.ui.profile.AppDrawer
+import com.sareemarket.app.ui.profile.DrawerItem
+import com.sareemarket.app.ui.profile.accountItems
+import com.sareemarket.app.ui.profile.accountRoutes
 import kotlinx.coroutines.delay
 
 /** How often the unread number on the Alerts tab is refreshed while the app is open. */
 private const val UNREAD_POLL_MS = 60_000L
 
+private val resellerItems = listOf(
+    DrawerItem(TAB_CATALOG, "Catalog", Icons.Filled.Search),
+    DrawerItem(TAB_SELLERS, "My sellers", Icons.Filled.Favorite),
+    DrawerItem(TAB_ALERTS, "Notifications", Icons.Filled.Notifications),
+) + accountItems
+
 @Composable
-fun ResellerNavHost(onLogout: () -> Unit) {
+fun ResellerNavHost(session: Session, onLogout: () -> Unit) {
     val nav = rememberNavController()
     val shell: ResellerShellViewModel = hiltViewModel()
     val unread by shell.unread.collectAsStateWithLifecycle()
@@ -64,18 +79,33 @@ fun ResellerNavHost(onLogout: () -> Unit) {
     }
 
     val showBar = route in TABS
+    val openTab: (String) -> Unit = { tab ->
+        nav.navigate(tab) {
+            popUpTo(TAB_CATALOG) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+    AppDrawer(
+        session = session,
+        items = resellerItems,
+        currentRoute = route,
+        gesturesEnabled = showBar,
+        onSelect = { target -> if (target in TABS) openTab(target) else nav.navigate(target) { launchSingleTop = true } },
+        onLogout = onLogout,
+    ) { openMenu ->
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
             NavHost(navController = nav, startDestination = TAB_CATALOG) {
                 composable(TAB_CATALOG) {
-                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onLogout = onLogout)
+                    CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onMenu = openMenu)
                 }
                 composable(TAB_SELLERS) {
-                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") })
+                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onMenu = openMenu)
                 }
                 composable(TAB_ALERTS) {
-                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
+                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onMenu = openMenu)
                 }
                 composable("item/{id}", arguments = id) {
                     ItemDetailScreen(
@@ -90,16 +120,12 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                 composable("collection/{id}", arguments = id) {
                     ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
                 }
+                accountRoutes(nav)
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = route, unread = unread) { tab ->
-                nav.navigate(tab) {
-                    popUpTo(TAB_CATALOG) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            }
+            ResellerBottomBar(current = route, unread = unread, onSelect = openTab)
         }
+    }
     }
 }

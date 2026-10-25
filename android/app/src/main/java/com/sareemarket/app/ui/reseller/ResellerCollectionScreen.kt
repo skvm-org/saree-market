@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,14 +60,14 @@ fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, 
                 collection.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             }
         }
-        items(collection.items, key = { it.id }) { PhotoTile(it, onClick = { onOpenItem(it.id) }) }
+        items(collection.items, key = { it.id }) { Box(Modifier.animateItem()) { PhotoTile(it, onClick = { onOpenItem(it.id) }) } }
     }
 }
 
 @Composable
 private fun PhotoTile(item: Item, onClick: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
-    Column(Modifier.clickable(onClick = onClick).testTag("tile-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("tile-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Box {
             SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
             StatusPill(

@@ -1,5 +1,8 @@
 package com.sareemarket.app.ui.seller
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -159,7 +162,9 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                     }
                 }
                 items(state.visibleItems, key = { it.id }) { item ->
-                    ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
+                    Box(Modifier.animateItem()) {
+                        ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
+                    }
                 }
             }
         }
@@ -234,8 +239,9 @@ internal fun StockControls(
 @Composable
 internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
+    val haptics = LocalHapticFeedback.current
     Column(Modifier.testTag("item-${item.id}"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Column(Modifier.clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Box {
                 SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
                 StatusPill(
@@ -253,7 +259,10 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
             Text(if (soldOut) "Out of stock" else "In stock", style = MaterialTheme.typography.labelMedium, color = if (soldOut) SareeColors.SlateNeutral else SareeColors.Available)
             Switch(
                 checked = !soldOut,
-                onCheckedChange = { onToggle() },
+                onCheckedChange = {
+                    haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                    onToggle()
+                },
                 colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available, checkedThumbColor = androidx.compose.ui.graphics.Color.White),
                 modifier = Modifier.testTag("stock-${item.id}"),
             )

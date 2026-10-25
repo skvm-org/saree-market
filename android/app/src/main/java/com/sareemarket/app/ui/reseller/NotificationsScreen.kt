@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.AppNotification
+import com.sareemarket.app.ui.profile.MenuButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -43,7 +45,7 @@ import com.sareemarket.app.ui.timeAgo
 private const val LOAD_MORE_AHEAD = 4
 
 @Composable
-fun NotificationsScreen(onOpenCollection: (Long) -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
+fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onMenu: () -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
@@ -54,14 +56,17 @@ fun NotificationsScreen(onOpenCollection: (Long) -> Unit, viewModel: Notificatio
         onOpen = { viewModel.open(it); onOpenCollection(it.collectionId) },
         onMarkAllRead = viewModel::markAllRead,
         onLoadMore = viewModel::loadMore,
+        onMenu = onMenu,
+        onRefresh = viewModel::pullRefresh,
     )
 }
 
 @Composable
-fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit) {
+fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit, onMenu: () -> Unit = {}, onRefresh: () -> Unit = {}) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                MenuButton(onMenu)
                 Text("Notifications", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                 if (state.hasUnread) {
                     TextButton(onClick = onMarkAllRead, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all-read")) {
@@ -82,7 +87,9 @@ fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) ->
                         textAlign = TextAlign.Center,
                         modifier = Modifier.align(Alignment.Center).testTag("empty"),
                     )
-                    else -> NotificationList(state, onOpen, onLoadMore)
+                    else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
+                        NotificationList(state, onOpen, onLoadMore)
+                    }
                 }
             }
         }
@@ -103,7 +110,7 @@ private fun NotificationList(state: NotificationsState, onOpen: (AppNotification
         contentPadding = PaddingValues(vertical = Spacing.md),
         modifier = Modifier.fillMaxSize().testTag("list"),
     ) {
-        items(state.items, key = { it.id }) { NotificationRow(it, onOpen) }
+        items(state.items, key = { it.id }) { Box(Modifier.animateItem()) { NotificationRow(it, onOpen) } }
         if (state.loadingMore) {
             item { Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() } }
         }

@@ -1,10 +1,12 @@
 package com.sareemarket.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -21,7 +23,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -48,8 +52,14 @@ fun SareeTextField(
     prefix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     isPassword: Boolean = false,
+    imeAction: ImeAction = ImeAction.Next,
+    /** Runs when the keyboard's Done key is pressed; set it on the last field of a form. */
+    onDone: (() -> Unit)? = null,
+    /** Runs when the field loses focus after being used, for checking it before the user moves on. */
+    onBlur: (() -> Unit)? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
+    var wasFocused by remember { mutableStateOf(false) }
     Column(modifier = modifier) {
         OutlinedTextField(
             value = value,
@@ -66,7 +76,11 @@ fun SareeTextField(
                 null
             },
             visualTransformation = if (isPassword && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (isPassword) KeyboardType.Password else keyboardType,
+                imeAction = imeAction,
+            ),
+            keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
             singleLine = true,
             isError = error != null,
             shape = MaterialTheme.shapes.medium,
@@ -74,11 +88,16 @@ fun SareeTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = MinTouchTarget)
+                .onFocusChanged {
+                    if (wasFocused && !it.isFocused) onBlur?.invoke()
+                    wasFocused = it.isFocused
+                }
                 .testTag(tag),
         )
-        if (error != null) {
+        // Springs in and out with a gentle, non-bouncy default, so a message never pops the form around.
+        AnimatedVisibility(visible = error != null) {
             Text(
-                text = error,
+                text = error.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.testTag("$tag-error"),

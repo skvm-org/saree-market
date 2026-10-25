@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,7 +21,9 @@ import com.sareemarket.app.ui.theme.Spacing
 
 /** Pill badge from DESIGN.md: tinted background, solid dot, label. */
 @Composable
-fun StatusPill(text: String, color: Color, modifier: Modifier = Modifier) {
+fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
+    // The pill eases between its colours when an item flips between available and sold out.
+    val color by animateColorAsState(target, label = "pill")
     Surface(
         shape = PillShape,
         color = color.copy(alpha = 0.10f),

@@ -28,6 +28,8 @@ data class CatalogState(
     /** True while the first page of the current search is loading. */
     val loading: Boolean = true,
     val loadingMore: Boolean = false,
+    /** True while a pull-to-refresh reload runs; the old results stay on screen meanwhile. */
+    val refreshing: Boolean = false,
     val error: String? = null,
     /** Choices for the filter sheet; empty until they have loaded. */
     val reference: ReferenceData? = null,
@@ -108,6 +110,12 @@ class CatalogViewModel @Inject constructor(
         apply(CatalogQuery(q = q.q, sort = q.sort, followingOnly = q.followingOnly))
     }
 
+    fun refresh() {
+        loadJob?.cancel()
+        _state.update { it.copy(refreshing = true, loadingMore = false, error = null) }
+        loadJob = viewModelScope.launch { fetch(0) }
+    }
+
     fun retry() = if (_state.value.items.isEmpty()) reload() else loadNextPage()
 
     fun loadNextPage() {
@@ -140,10 +148,11 @@ class CatalogViewModel @Inject constructor(
                         hasMore = page + 1 < result.totalPages,
                         loading = false,
                         loadingMore = false,
+                        refreshing = false,
                     )
                 }
             },
-            onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, error = e.message) } },
+            onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, refreshing = false, error = e.message) } },
         )
     }
 }

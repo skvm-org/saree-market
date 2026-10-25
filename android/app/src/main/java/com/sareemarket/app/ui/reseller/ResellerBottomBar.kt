@@ -1,7 +1,7 @@
 package com.sareemarket.app.ui.reseller
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Badge
@@ -25,7 +25,7 @@ internal val TABS = setOf(TAB_CATALOG, TAB_SELLERS, TAB_ALERTS)
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
-    Tab(TAB_CATALOG, "Catalog", Icons.Filled.Home),
+    Tab(TAB_CATALOG, "Catalog", Icons.Filled.Search),
     Tab(TAB_SELLERS, "My sellers", Icons.Filled.Person),
     Tab(TAB_ALERTS, "Alerts", Icons.Filled.Notifications),
 )

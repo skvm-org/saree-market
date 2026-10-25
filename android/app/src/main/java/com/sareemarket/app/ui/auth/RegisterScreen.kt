@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,6 +46,7 @@ fun RegisterScreen(onBack: () -> Unit, viewModel: RegisterViewModel = hiltViewMo
         onRoleChange = viewModel::onRoleChange,
         onChange = viewModel::onChange,
         onSubmit = viewModel::submit,
+        onBlur = viewModel::onBlur,
     )
 }
 
@@ -55,6 +57,7 @@ fun RegisterContent(
     onRoleChange: (Role) -> Unit,
     onChange: (RegisterField, String) -> Unit,
     onSubmit: () -> Unit,
+    onBlur: (RegisterField) -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -93,9 +96,9 @@ fun RegisterContent(
             }
 
             FormColumn(Modifier.fillMaxWidth()) {
-                field(state, onChange, RegisterField.NAME, "Full name", "name")
-                field(state, onChange, RegisterField.PHONE, "Mobile number", "phone", prefix = "+91", keyboard = KeyboardType.Phone)
-                field(state, onChange, RegisterField.PASSWORD, "Set password", "password", password = true)
+                field(state, onChange, onBlur, onSubmit, RegisterField.NAME, "Full name", "name")
+                field(state, onChange, onBlur, onSubmit, RegisterField.PHONE, "Mobile number", "phone", prefix = "+91", keyboard = KeyboardType.Phone)
+                field(state, onChange, onBlur, onSubmit, RegisterField.PASSWORD, "Set password", "password", password = true)
 
                 if (state.role == Role.SELLER) {
                     Text(
@@ -103,10 +106,10 @@ fun RegisterContent(
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primaryContainer,
                     )
-                    field(state, onChange, RegisterField.SHOP_NAME, "Registered shop name", "shopName")
-                    field(state, onChange, RegisterField.MARKET_LOCATION, "Market and location", "marketLocation")
-                    field(state, onChange, RegisterField.CONTACT_PHONE, "Contact phone", "contactPhone", prefix = "+91", keyboard = KeyboardType.Phone)
-                    field(state, onChange, RegisterField.WHATSAPP, "WhatsApp number (optional)", "whatsapp", prefix = "+91", keyboard = KeyboardType.Phone)
+                    field(state, onChange, onBlur, onSubmit, RegisterField.SHOP_NAME, "Registered shop name", "shopName")
+                    field(state, onChange, onBlur, onSubmit, RegisterField.MARKET_LOCATION, "Market and location", "marketLocation")
+                    field(state, onChange, onBlur, onSubmit, RegisterField.CONTACT_PHONE, "Contact phone", "contactPhone", prefix = "+91", keyboard = KeyboardType.Phone)
+                    field(state, onChange, onBlur, onSubmit, RegisterField.WHATSAPP, "WhatsApp number (optional)", "whatsapp", prefix = "+91", keyboard = KeyboardType.Phone)
                 }
 
                 if (state.error != null) {
@@ -128,6 +131,8 @@ fun RegisterContent(
 private fun field(
     state: RegisterUiState,
     onChange: (RegisterField, String) -> Unit,
+    onBlur: (RegisterField) -> Unit,
+    onSubmit: () -> Unit,
     field: RegisterField,
     label: String,
     tag: String,
@@ -144,8 +149,14 @@ private fun field(
         prefix = prefix,
         keyboardType = keyboard,
         isPassword = password,
+        // The keyboard's Done key submits from the last field the current role fills in.
+        imeAction = if (field == lastField(state.role)) ImeAction.Done else ImeAction.Next,
+        onDone = onSubmit,
+        onBlur = { onBlur(field) },
     )
 }
+
+private fun lastField(role: Role) = if (role == Role.SELLER) RegisterField.WHATSAPP else RegisterField.PASSWORD
 
 @Preview(showBackground = true)
 @Composable

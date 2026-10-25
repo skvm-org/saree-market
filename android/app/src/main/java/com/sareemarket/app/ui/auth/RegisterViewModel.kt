@@ -52,6 +52,12 @@ class RegisterViewModel @Inject constructor(private val repository: AuthReposito
         _state.update { it.copy(values = it.values + (field to value), fieldErrors = it.fieldErrors - field.key, error = null) }
     }
 
+    /** Checks one field when the user leaves it, so a mistake shows before they reach the button. */
+    fun onBlur(field: RegisterField) {
+        val message = validate(_state.value)[field.key]
+        _state.update { it.copy(fieldErrors = if (message == null) it.fieldErrors - field.key else it.fieldErrors + (field.key to message)) }
+    }
+
     fun submit() {
         val s = _state.value
         if (s.loading) return

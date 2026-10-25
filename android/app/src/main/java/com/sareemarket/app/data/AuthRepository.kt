@@ -4,6 +4,7 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 
@@ -19,6 +20,19 @@ class AuthRepository @Inject constructor(
         authenticate { api.login(LoginRequest(phone, password)) }
 
     suspend fun register(request: RegisterRequest): Result<Unit> = authenticate { api.register(request) }
+
+    /** Saves the new name and keeps the stored session in step, so every screen shows it. */
+    suspend fun updateName(name: String): Result<Unit> = apiCall(json) { api.updateName(UpdateNameRequest(name)) }.map { user ->
+        sessionStore.session.first()?.let { sessionStore.save(it.copy(name = user.name)) }
+    }
+
+    suspend fun changePassword(current: String, new: String): Result<Unit> =
+        apiCall(json) { api.changePassword(ChangePasswordRequest(current, new)) }
+
+    suspend fun shopDetails(): Result<ShopDetails> = apiCall(json) { api.shopDetails() }
+
+    suspend fun updateShopDetails(details: ShopDetails): Result<ShopDetails> =
+        apiCall(json) { api.updateShopDetails(details) }
 
     suspend fun logout() = sessionStore.clear()
 

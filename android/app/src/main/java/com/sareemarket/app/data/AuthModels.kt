@@ -26,6 +26,21 @@ data class RegisterRequest(
     val whatsappNumber: String? = null,
 )
 
+@Serializable
+data class UpdateNameRequest(val name: String)
+
+@Serializable
+data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
+
+/** A seller's own shop details, as read and as saved. */
+@Serializable
+data class ShopDetails(
+    val shopName: String,
+    val marketLocation: String,
+    val contactPhone: String,
+    val whatsappNumber: String? = null,
+)
+
 /** The backend's standard error body: `{ "code", "message", "fields" }`. */
 @Serializable
 data class ApiError(val code: String, val message: String, val fields: Map<String, String> = emptyMap())
