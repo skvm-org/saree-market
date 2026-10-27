@@ -1,0 +1,35 @@
+# Production on EC2: backend + Caddy (automatic HTTPS). The database is the shared RDS instance.
+# Every ${VAR:?} is a GitHub Actions secret, passed in the environment of `docker compose up`
+# (run from the workflow with DOCKER_HOST=ssh://<user>@<ec2>); nothing secret lives in the repo.
+services:
+  backend:
+    image: ${BACKEND_IMAGE:?}   # <dockerhub-user>/saree-backend:<git-sha>, set by the deploy workflow
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_URL:?}   # jdbc:postgresql://<rds-endpoint>:5432/saree?sslmode=require
+      SPRING_DATASOURCE_USERNAME: saree_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?}
+      # Shared RDS instance, so keep this app's pool small.
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 8
+      # Behind Caddy: use X-Forwarded-For as the client address, or the login limiter sees one shared IP.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      JWT_SECRET: ${JWT_SECRET:?}   # 32+ characters
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?}   # BCrypt; read by the V3 migration on first start
+    volumes:
+      - uploads:/data/uploads
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    # Gets and renews the HTTPS certificate for SITE_ADDRESS itself (e.g. 1-2-3-4.sslip.io).
+    command: caddy reverse-proxy --from ${SITE_ADDRESS:?} --to backend:8080
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      - backend
+
+volumes:
+  uploads:
+  caddy_data:
