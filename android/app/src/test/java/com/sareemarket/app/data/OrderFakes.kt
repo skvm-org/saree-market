@@ -59,6 +59,7 @@ class FakeShoppingApi : ShoppingApi {
     var onRemoveLine: (Long) -> Response<Unit> = { Response.success(Unit) }
     var onWishlist: (Int) -> CatalogPage = { page -> CatalogPage(emptyList(), page, 20, 0, 0) }
     var onAddress: (AddressForm) -> Address = { homeAddress }
+    var failWishlistRemove: Exception? = null
 
     override suspend fun cart(): Cart {
         calls += "cart"
@@ -87,6 +88,7 @@ class FakeShoppingApi : ShoppingApi {
 
     override suspend fun removeFromWishlist(itemId: Long): Response<Unit> {
         calls += "wish- $itemId"
+        failWishlistRemove?.let { throw it }
         return Response.success(Unit)
     }
 
