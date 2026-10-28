@@ -84,7 +84,7 @@ class OrderController {
 	@PostMapping("/orders/{id}/cancel")
 	@PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
 	OrderDto cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id,
-			@RequestBody(required = false) CancelRequest body) {
+			@Valid @RequestBody(required = false) CancelRequest body) {
 		if (isSeller(jwt)) {
 			return orders.cancelBySeller(userId(jwt), id, body == null ? null : body.reason());
 		}

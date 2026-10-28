@@ -40,6 +40,8 @@ public class OrderService {
 
 	static final int PAGE_SIZE = 20;
 
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OrderService.class);
+
 	private final NamedParameterJdbcTemplate jdbc;
 
 	private final JsonMapper json;
@@ -262,6 +264,7 @@ public class OrderService {
 		for (Long id : jdbc.queryForList("""
 				SELECT id FROM customer_order WHERE status = 'PAYMENT_REJECTED' AND payment_deadline <= now() ORDER BY id""",
 				new MapSqlParameterSource(), Long.class)) {
+			try {
 			Integer one = tx.execute(status -> {
 				List<Long> locked = jdbc.queryForList("""
 						SELECT id FROM customer_order WHERE id = :o AND status = 'PAYMENT_REJECTED'
@@ -273,6 +276,10 @@ public class OrderService {
 				return 1;
 			});
 			cancelled += one == null ? 0 : one;
+			}
+			catch (RuntimeException e) {
+				log.warn("Could not cancel order {} after its payment window; the next run will try again", id, e);
+			}
 		}
 		return cancelled;
 	}

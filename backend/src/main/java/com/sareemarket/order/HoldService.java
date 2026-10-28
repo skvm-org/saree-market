@@ -40,6 +40,8 @@ public class HoldService {
 
 	static final long MAX_TOTAL = 10_000_000L;
 
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HoldService.class);
+
 	private final NamedParameterJdbcTemplate jdbc;
 
 	private final AddressService addresses;
@@ -149,8 +151,13 @@ public class HoldService {
 		int released = 0;
 		for (Long id : jdbc.queryForList("SELECT id FROM payment_hold WHERE expires_at <= now() ORDER BY id",
 				new MapSqlParameterSource(), Long.class)) {
-			Integer one = tx.execute(status -> releaseIfLapsed(id) ? 1 : 0);
-			released += one == null ? 0 : one;
+			try {
+				Integer one = tx.execute(status -> releaseIfLapsed(id) ? 1 : 0);
+				released += one == null ? 0 : one;
+			}
+			catch (RuntimeException e) {
+				log.warn("Could not release payment hold {}; the next run will try again", id, e);
+			}
 		}
 		return released;
 	}
