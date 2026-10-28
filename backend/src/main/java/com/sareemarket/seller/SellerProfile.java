@@ -19,6 +19,10 @@ public class SellerProfile {
 
 	private String whatsappNumber;
 
+	private String upiId;
+
+	private int shippingFee;
+
 	protected SellerProfile() {
 	}
 
@@ -49,6 +53,19 @@ public class SellerProfile {
 
 	public String getWhatsappNumber() {
 		return whatsappNumber;
+	}
+
+	public String getUpiId() {
+		return upiId;
+	}
+
+	public int getShippingFee() {
+		return shippingFee;
+	}
+
+	public void updatePayment(String upiId, int shippingFee) {
+		this.upiId = upiId;
+		this.shippingFee = shippingFee;
 	}
 
 	public void update(String shopName, String marketLocation, String contactPhone, String whatsappNumber) {
