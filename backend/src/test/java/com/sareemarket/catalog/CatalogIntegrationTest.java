@@ -64,7 +64,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void onlyResellersAndAdminsCanSearch() throws Exception {
-		getWith("/api/v1/catalog", registerReseller()).andExpect(status().isOk());
+		getWith("/api/v1/catalog", registerCustomer()).andExpect(status().isOk());
 		getWith("/api/v1/catalog", adminToken()).andExpect(status().isOk());
 		getWith("/api/v1/catalog", registerSeller()).andExpect(status().isForbidden());
 		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/catalog"))
@@ -73,7 +73,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void cardsCarryTheFieldsTheGridShows() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Lakshmi Silks");
 		long c = collection(s, "Diwali soft silks", 3, 1, 4500, "festive");
 		long i = item(c, s, "peacock blue", 3800, "AVAILABLE", 0);
@@ -92,7 +92,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void showsAvailableFirstByDefaultAndSoldOutOnRequest() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Stock", 1, 1, 1000, null);
 		long older = item(c, s, "red", null, "AVAILABLE", 2);
@@ -107,7 +107,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void keywordSearchCoversTitleDescriptionAndColour() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
 		long festive = collection(s, "Diwali " + tag, 3, 1, 1000, "festive wear");
@@ -122,7 +122,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void keywordsMayBeJustTheStartOfAWordAndAllMustMatch() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
 		long c = collection(s, "Soft silks " + tag, 3, 1, 1000, null);
@@ -138,7 +138,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void oddKeywordTextIsHarmless() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		item(collection(s, "Plain", 1, 1, 1000, null), s, "red");
 
@@ -153,7 +153,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void tamilWordsCanBeSearchedByTheirFirstLetters() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long silk = item(collection(s, "காஞ்சிபுரம் பட்டு புடவை", 1, 1, 1000, null), s, "சிவப்பு");
 		item(collection(s, "Cotton", 4, 3, 1000, null), s, "red");
@@ -166,7 +166,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void sareeTypeAndFabricFiltersAcceptSeveralValues() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long kanji = item(collection(s, "K", 1, 1, 1000, null), s, "red");
 		long banarasi = item(collection(s, "B", 2, 2, 1000, null), s, "red");
@@ -182,7 +182,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void colourMatchesPartsOfTheNameIgnoringCaseAndTreatsPercentLiterally() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Colours", 1, 1, 1000, null);
 		long peacock = item(c, s, "Peacock Blue");
@@ -198,7 +198,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void priceRangeUsesWhatEachSareeActuallyCosts() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long dear = collection(s, "Dear", 1, 1, 5000, null);
 		long cheap = collection(s, "Cheap", 4, 3, 800, null);
@@ -216,7 +216,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void sellerFilterNarrowsToOneShop() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long one = seller("One");
 		long two = seller("Two");
 		long a = item(collection(one, "A", 1, 1, 1000, null), one, "red");
@@ -228,7 +228,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void uploadedWithinFilterCountsDays() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Dates", 1, 1, 1000, null);
 		long today = item(c, s, "a", null, "AVAILABLE", 0);
@@ -242,7 +242,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void sortsNewestFirstByDefaultOrByPrice() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Sorting", 1, 1, 2000, null);
 		long mid = item(c, s, "a", null, "AVAILABLE", 3); // 2000
@@ -257,7 +257,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void equalPricesKeepAStableOrder() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Ties", 1, 1, 1000, null);
 		long first = item(c, s, "a");
@@ -270,7 +270,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void resultsComeIn24sWithTotals() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Many", 1, 1, 1000, null);
 		for (int n = 0; n < 30; n++) {
@@ -291,7 +291,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void filtersCombine() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
 		long wanted = item(collection(s, "Wanted " + tag, 3, 1, 3000, null), s, "maroon", null, "AVAILABLE", 1);
@@ -305,7 +305,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void photosOfADisabledSellerLeaveTheCatalog() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Gone soon");
 		long a = item(collection(s, "Visible", 1, 1, 1000, null), s, "red");
 		assertThat(ids(reseller, s, "")).containsExactly(a);
@@ -317,7 +317,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void badParametersAreRejected() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		for (String bad : new String[] { "sort=CHEAPEST", "status=MAYBE", "page=-1", "minPrice=-5", "since=0",
 				"typeIds=abc", "sellerId=x" }) {
 			getWith("/api/v1/catalog?" + bad, reseller).andExpect(status().isBadRequest())
@@ -333,7 +333,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		long c = collection(s, "Diwali silks", 3, 1, 4500, "festive");
 		long i = item(c, s, "maroon", 4000, "AVAILABLE", 0);
 
-		for (String token : new String[] { registerReseller(), adminToken() }) {
+		for (String token : new String[] { registerCustomer(), adminToken() }) {
 			getWith("/api/v1/items/" + i, token).andExpect(status().isOk())
 				.andExpect(jsonPath("$.collectionTitle").value("Diwali silks"))
 				.andExpect(jsonPath("$.collectionDescription").value("festive"))
@@ -368,7 +368,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String intruder = registerSeller();
 
 		getWith("/api/v1/items/" + i, intruder).andExpect(status().isForbidden());
-		getWith("/api/v1/items/999999", registerReseller()).andExpect(status().isNotFound());
+		getWith("/api/v1/items/999999", registerCustomer()).andExpect(status().isNotFound());
 		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/items/" + i))
 			.andExpect(status().isUnauthorized());
 	}
@@ -379,7 +379,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		long i = item(collection(s, "Hidden", 1, 1, 1000, null), s, "red");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", s);
 
-		getWith("/api/v1/items/" + i, registerReseller()).andExpect(status().isNotFound());
+		getWith("/api/v1/items/" + i, registerCustomer()).andExpect(status().isNotFound());
 		getWith("/api/v1/items/" + i, adminToken()).andExpect(status().isOk());
 	}
 
@@ -395,7 +395,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void collectionListIsForResellersAndAdminsOnly() throws Exception {
-		getWith("/api/v1/catalog/collections", registerReseller()).andExpect(status().isOk());
+		getWith("/api/v1/catalog/collections", registerCustomer()).andExpect(status().isOk());
 		getWith("/api/v1/catalog/collections", adminToken()).andExpect(status().isOk());
 		getWith("/api/v1/catalog/collections", registerSeller()).andExpect(status().isForbidden());
 		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/catalog/collections"))
@@ -404,7 +404,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void aCollectionCardShowsTheWholeCollectionAsTheSellerPostedIt() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Lakshmi Silks");
 		long c = collection(s, "Diwali soft silks", 3, 1, 4500, "festive");
 		long first = item(c, s, "maroon");
@@ -434,7 +434,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void aCollectionIsListedOnceNoMatterHowManyPhotosMatch() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long c = collection(s, "Reds", 1, 1, 1000, null);
 		item(c, s, "red");
@@ -448,7 +448,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void collectionsFollowTheSameFiltersAsPhotos() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
 		long silk = collection(s, "Silk " + tag, 3, 1, 5000, null);
@@ -469,7 +469,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void newestCollectionComesFirstAndADisabledSellersCollectionsAreHidden() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		long older = collection(s, "Older", 1, 1, 1000, null);
 		item(older, s, "red", null, "AVAILABLE", 3);

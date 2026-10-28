@@ -17,7 +17,7 @@ class RoleProbeController {
 	}
 
 	@GetMapping("/reseller-only")
-	@PreAuthorize("hasRole('RESELLER')")
+	@PreAuthorize("hasRole('CUSTOMER')")
 	String resellerOnly() {
 		return "ok";
 	}

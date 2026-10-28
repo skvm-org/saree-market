@@ -31,14 +31,14 @@ class CatalogController {
 	}
 
 	@GetMapping("/catalog")
-	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
 	PageDto<CatalogItemDto> search(@AuthenticationPrincipal Jwt jwt, @Valid @ModelAttribute CatalogFilter filter) {
 		return service.search(filter, Long.parseLong(jwt.getSubject()));
 	}
 
 	/** The same filters, but the results are whole collections, as the sellers posted them. */
 	@GetMapping("/catalog/collections")
-	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
 	PageDto<CatalogCollectionDto> collections(@AuthenticationPrincipal Jwt jwt,
 			@Valid @ModelAttribute CatalogFilter filter) {
 		return service.searchCollections(filter, Long.parseLong(jwt.getSubject()));
@@ -46,7 +46,7 @@ class CatalogController {
 
 	/** Multipart: the "image" part plus the same optional filters as GET /catalog (as form fields or in the URL). */
 	@PostMapping(path = "/catalog/image-search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN')")
 	PageDto<CatalogItemDto> imageSearch(@AuthenticationPrincipal Jwt jwt,
 			@RequestParam(name = "image", required = false) MultipartFile image,
 			@Valid @ModelAttribute CatalogFilter filter) {
@@ -54,7 +54,7 @@ class CatalogController {
 	}
 
 	@GetMapping("/items/{id}")
-	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN', 'SELLER')")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN', 'SELLER')")
 	ItemDetailDto item(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		return service.itemDetail(id, Long.parseLong(jwt.getSubject()), jwt.getClaimAsString("role"));
 	}

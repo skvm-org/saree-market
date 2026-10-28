@@ -32,7 +32,7 @@ class SellerPageIntegrationTest extends IntegrationTestBase {
 		collection(s, "First");
 		collection(s, "Second");
 
-		getWith("/api/v1/sellers/" + s, registerReseller()).andExpect(status().isOk())
+		getWith("/api/v1/sellers/" + s, registerCustomer()).andExpect(status().isOk())
 			.andExpect(jsonPath("$.shopName").value("Page Silks"))
 			.andExpect(jsonPath("$.marketLocation").value("Erode"))
 			.andExpect(jsonPath("$.contactPhone").value("9876543210"))
@@ -53,7 +53,7 @@ class SellerPageIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void sellerListShowsEnabledShopsByName() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long visible = seller("Aaa Visible Shop");
 		long hidden = seller("Aab Hidden Shop");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", hidden);
@@ -65,7 +65,7 @@ class SellerPageIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void unknownOrDisabledSellersAre404() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Soon disabled");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", s);
 

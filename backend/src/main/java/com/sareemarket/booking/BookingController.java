@@ -33,7 +33,7 @@ class BookingController {
 	// ---- reseller ----
 
 	@PostMapping("/items/{itemId}/bookings")
-	@PreAuthorize("hasRole('RESELLER')")
+	@PreAuthorize("hasRole('CUSTOMER')")
 	@ResponseStatus(HttpStatus.CREATED)
 	BookingDto request(@AuthenticationPrincipal Jwt jwt, @PathVariable long itemId,
 			@Valid @RequestBody(required = false) CreateBookingRequest body) {
@@ -41,21 +41,21 @@ class BookingController {
 	}
 
 	@GetMapping("/bookings/mine")
-	@PreAuthorize("hasRole('RESELLER')")
+	@PreAuthorize("hasRole('CUSTOMER')")
 	PageDto<BookingDto> mine(@AuthenticationPrincipal Jwt jwt, @RequestParam(required = false) BookingFilter status,
 			@RequestParam(required = false) BookingStatus state, @RequestParam(defaultValue = "0") int page) {
 		return service.mine(userId(jwt), status, state, page);
 	}
 
 	@PostMapping("/bookings/{id}/cancel")
-	@PreAuthorize("hasRole('RESELLER')")
+	@PreAuthorize("hasRole('CUSTOMER')")
 	BookingDto cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		return service.cancel(userId(jwt), id);
 	}
 
 	/** The reseller has looked at the status changes: clears the badge. */
 	@PostMapping("/bookings/seen")
-	@PreAuthorize("hasRole('RESELLER')")
+	@PreAuthorize("hasRole('CUSTOMER')")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void seen(@AuthenticationPrincipal Jwt jwt) {
 		service.markSeen(userId(jwt));
@@ -97,7 +97,7 @@ class BookingController {
 	// ---- both ----
 
 	@GetMapping("/bookings/summary")
-	@PreAuthorize("hasAnyRole('SELLER', 'RESELLER')")
+	@PreAuthorize("hasAnyRole('SELLER', 'CUSTOMER')")
 	BookingSummaryDto summary(@AuthenticationPrincipal Jwt jwt) {
 		return service.summary("SELLER".equals(jwt.getClaimAsString("role")), userId(jwt));
 	}

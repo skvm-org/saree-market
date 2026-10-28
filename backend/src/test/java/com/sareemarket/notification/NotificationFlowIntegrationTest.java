@@ -98,9 +98,9 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	void aFollowerIsToldAboutANewCollectionAndNobodyElseIs() throws Exception {
 		String sellerA = registerSeller();
 		String sellerB = registerSeller();
-		String followsA = registerReseller();
-		String followsB = registerReseller();
-		String followsNobody = registerReseller();
+		String followsA = registerCustomer();
+		String followsB = registerCustomer();
+		String followsNobody = registerCustomer();
 		follow(followsA, sellerA, "INSTANT");
 		follow(followsB, sellerB, "INSTANT");
 
@@ -121,8 +121,8 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aMutedFollowerGetsNothingButStillSeesTheSellerUnderFollowing() throws Exception {
 		String seller = registerSeller();
-		String muted = registerReseller();
-		String instant = registerReseller();
+		String muted = registerCustomer();
+		String instant = registerCustomer();
 		follow(muted, seller, "MUTED");
 		follow(instant, seller, "INSTANT");
 
@@ -137,7 +137,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void morePhotosToTheSameCollectionWithinTwoHoursFoldIntoOneUnreadNotification() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long resellerId = idOf(reseller);
 		follow(reseller, seller, "INSTANT");
 		long collection = publish(seller, "Growing", 1);
@@ -158,7 +158,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aReadOrOlderNotificationIsNotFoldedIntoAndANewOneStarts() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long resellerId = idOf(reseller);
 		follow(reseller, seller, "INSTANT");
 		long collection = publish(seller, "Rolling", 1);
@@ -180,7 +180,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void markingSoldOutNotifiesNobody() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		follow(reseller, seller, "INSTANT");
 		long collection = publish(seller, "Selling out", 2);
 		waitForUnread(reseller, 1);
@@ -196,7 +196,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void sareesComingBackInStockAreNewsAndAvailableToAvailableIsNot() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long resellerId = idOf(reseller);
 		follow(reseller, seller, "INSTANT");
 		long collection = publish(seller, "Restocking", 3);
@@ -225,8 +225,8 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void unfollowingStopsNotificationsAtOnceButKeepsTheOldOnes() throws Exception {
 		String seller = registerSeller();
-		String leaver = registerReseller();
-		String stayer = registerReseller();
+		String leaver = registerCustomer();
+		String stayer = registerCustomer();
 		follow(leaver, seller, "INSTANT");
 		follow(stayer, seller, "INSTANT");
 		publish(seller, "First", 1);
@@ -244,7 +244,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aFailedUploadNotifiesNobody() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		follow(reseller, seller, "INSTANT");
 
 		mvc.perform(multipart("/api/v1/collections").file(photo(1))
@@ -261,8 +261,8 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aDisabledFollowerIsSkipped() throws Exception {
 		String seller = registerSeller();
-		String disabled = registerReseller();
-		String active = registerReseller();
+		String disabled = registerCustomer();
+		String active = registerCustomer();
 		long disabledId = idOf(disabled);
 		follow(disabled, seller, "INSTANT");
 		follow(active, seller, "INSTANT");

@@ -23,7 +23,7 @@ class ProfileIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void anyRoleCanRenameThemselves() throws Exception {
-		for (String token : new String[] { registerSeller(), registerReseller(), adminToken() }) {
+		for (String token : new String[] { registerSeller(), registerCustomer(), adminToken() }) {
 			send(patch("/api/v1/auth/me"), token, "{\"name\":\"  New Name \"}").andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("New Name"));
 			getWith("/api/v1/auth/me", token).andExpect(jsonPath("$.name").value("New Name"));
@@ -33,7 +33,7 @@ class ProfileIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void renameRejectsBlankName() throws Exception {
-		send(patch("/api/v1/auth/me"), registerReseller(), "{\"name\":\" \"}").andExpect(status().isBadRequest())
+		send(patch("/api/v1/auth/me"), registerCustomer(), "{\"name\":\" \"}").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.name").exists());
 	}
 
@@ -41,7 +41,7 @@ class ProfileIntegrationTest extends IntegrationTestBase {
 	void passwordChangeNeedsTheCurrentPasswordAndThenAppliesToLogin() throws Exception {
 		String phone = newPhone();
 		String body = """
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(phone);
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(phone);
 		mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
 			.andExpect(status().isCreated());
 		String token = com.jayway.jsonpath.JsonPath.read(mvc
@@ -78,7 +78,7 @@ class ProfileIntegrationTest extends IntegrationTestBase {
 				{"shopName":"","marketLocation":"Erode","contactPhone":"12"}""").andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.shopName").exists()).andExpect(jsonPath("$.fields.contactPhone").exists());
 
-		for (String token : new String[] { registerReseller(), adminToken() }) {
+		for (String token : new String[] { registerCustomer(), adminToken() }) {
 			getWith("/api/v1/seller/profile", token).andExpect(status().isForbidden());
 			send(put("/api/v1/seller/profile"), token, """
 					{"shopName":"X","marketLocation":"Y","contactPhone":"9111111111"}""").andExpect(status().isForbidden());

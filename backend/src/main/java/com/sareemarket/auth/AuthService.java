@@ -115,7 +115,7 @@ class AuthService {
 	private void validate(RegisterRequest r) {
 		Map<String, String> fields = new LinkedHashMap<>();
 		if (r.role() == Role.ADMIN) {
-			fields.put("role", "must be SELLER or RESELLER");
+			fields.put("role", "must be SELLER or CUSTOMER");
 		}
 		if (r.role() == Role.SELLER) {
 			require(fields, "shopName", r.shopName());

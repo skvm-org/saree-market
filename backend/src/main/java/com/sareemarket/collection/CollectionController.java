@@ -47,7 +47,7 @@ class CollectionController {
 	}
 
 	@GetMapping("/collections/{id}")
-	@PreAuthorize("hasAnyRole('SELLER', 'RESELLER', 'ADMIN')")
+	@PreAuthorize("hasAnyRole('SELLER', 'CUSTOMER', 'ADMIN')")
 	CollectionDetailDto get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		return service.get(id, userId(jwt), "SELLER".equals(jwt.getClaimAsString("role")));
 	}

@@ -46,9 +46,9 @@ public abstract class IntegrationTestBase {
 				 "shopName":"Lakshmi Silks","marketLocation":"Dindigul","contactPhone":"%s"}""".formatted(phone, phone));
 	}
 
-	protected String registerReseller() throws Exception {
+	protected String registerCustomer() throws Exception {
 		return token("""
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(newPhone()));
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(newPhone()));
 	}
 
 	protected String adminToken() throws Exception {

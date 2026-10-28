@@ -264,7 +264,7 @@ public class CatalogService {
 
 	/** The viewing reseller's latest booking request for this photo, or null. */
 	private MyBookingDto myBooking(String role, long userId, long itemId) {
-		if (!"RESELLER".equals(role)) {
+		if (!"CUSTOMER".equals(role)) {
 			return null;
 		}
 		List<MyBookingDto> latest = jdbc.query("""
@@ -280,7 +280,7 @@ public class CatalogService {
 
 	/** How the viewing reseller follows this seller (INSTANT or MUTED), or null: not following, or not a reseller. */
 	private String followMode(String role, long userId, long sellerId) {
-		if (!"RESELLER".equals(role)) {
+		if (!"CUSTOMER".equals(role)) {
 			return null;
 		}
 		List<String> modes = jdbc.queryForList("SELECT notify_mode FROM seller_follow WHERE reseller_id = :r AND seller_id = :s",

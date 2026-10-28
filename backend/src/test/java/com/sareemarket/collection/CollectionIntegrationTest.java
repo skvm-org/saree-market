@@ -100,7 +100,7 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void resellersAndAnonymousUsersCannotCreate() throws Exception {
-		create(registerReseller(), "Nope", photos(1)).andExpect(status().isForbidden());
+		create(registerCustomer(), "Nope", photos(1)).andExpect(status().isForbidden());
 		mvc.perform(multipart("/api/v1/collections").file(photo(1)).param("title", "Nope"))
 			.andExpect(status().isUnauthorized());
 	}
@@ -191,7 +191,7 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	@Test
 	void resellersCanViewCollectionsAndPhotosButNotChangeThem() throws Exception {
 		String seller = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long id = createdId(seller, "Shared", 1);
 		long itemId = itemIds(seller, id).get(0);
 
@@ -308,7 +308,7 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void referenceListsNeedALoginAndHideInactiveEntries() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 
 		getWith("/api/v1/reference/saree-types", reseller).andExpect(status().isOk())
 			.andExpect(jsonPath("$[?(@.name == 'Kanjivaram')]").exists());
@@ -368,7 +368,7 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	void onlyTheOwningSellerCanChangeAvailability() throws Exception {
 		String owner = registerSeller();
 		String intruder = registerSeller();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long id = createdId(owner, "Guarded", 2);
 		long itemId = itemIds(owner, id).get(0);
 

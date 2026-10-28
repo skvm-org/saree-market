@@ -50,9 +50,9 @@ class AuthIntegrationTest {
 		return mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(json));
 	}
 
-	String registerReseller(String phone) throws Exception {
+	String registerCustomer(String phone) throws Exception {
 		String json = postJson("/api/v1/auth/register", """
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(phone))
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(phone))
 			.andExpect(status().isCreated())
 			.andReturn()
 			.getResponse()
@@ -86,7 +86,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void passwordIsStoredHashedNotPlain() throws Exception {
-		registerReseller("9000000002");
+		registerCustomer("9000000002");
 
 		assertThat(jdbc.queryForObject("SELECT password_hash FROM app_user WHERE phone = '9000000002'", String.class))
 			.startsWith("$2").doesNotContain("password1");
@@ -94,10 +94,10 @@ class AuthIntegrationTest {
 
 	@Test
 	void registeringTheSamePhoneTwiceIsConflict() throws Exception {
-		registerReseller("9000000003");
+		registerCustomer("9000000003");
 
 		postJson("/api/v1/auth/register", """
-				{"phone":"9000000003","name":"Other","password":"password1","role":"RESELLER"}""")
+				{"phone":"9000000003","name":"Other","password":"password1","role":"CUSTOMER"}""")
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("PHONE_TAKEN"));
 	}
@@ -105,7 +105,7 @@ class AuthIntegrationTest {
 	@Test
 	void invalidRegistrationReturnsFieldErrors() throws Exception {
 		postJson("/api/v1/auth/register", """
-				{"phone":"123","name":"","password":"short","role":"RESELLER"}""")
+				{"phone":"123","name":"","password":"short","role":"CUSTOMER"}""")
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 			.andExpect(jsonPath("$.fields.phone").exists())
@@ -132,12 +132,12 @@ class AuthIntegrationTest {
 
 	@Test
 	void loginWorksAndWrongPasswordIsUnauthorized() throws Exception {
-		registerReseller("9000000006");
+		registerCustomer("9000000006");
 
 		postJson("/api/v1/auth/login", """
 				{"phone":"9000000006","password":"password1"}""").andExpect(status().isOk())
 			.andExpect(jsonPath("$.token").isNotEmpty())
-			.andExpect(jsonPath("$.user.role").value("RESELLER"));
+			.andExpect(jsonPath("$.user.role").value("CUSTOMER"));
 		postJson("/api/v1/auth/login", """
 				{"phone":"9000000006","password":"nope-nope"}""").andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
@@ -152,7 +152,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void disabledUserIsRefusedAtLoginAndOnExistingToken() throws Exception {
-		String token = registerReseller("9000000007");
+		String token = registerCustomer("9000000007");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE phone = '9000000007'");
 
 		postJson("/api/v1/auth/login", """
@@ -179,7 +179,7 @@ class AuthIntegrationTest {
 	@Test
 	void roleChecksAllowOnlyTheMatchingRole() throws Exception {
 		String seller = registerSeller("9000000008");
-		String reseller = registerReseller("9000000009");
+		String reseller = registerCustomer("9000000009");
 
 		getWith("/api/v1/test/seller-only", seller).andExpect(status().isOk());
 		getWith("/api/v1/test/seller-only", reseller).andExpect(status().isForbidden())
@@ -192,7 +192,7 @@ class AuthIntegrationTest {
 
 	@Test
 	void adminPathsAreForAdminsOnly() throws Exception {
-		String reseller = registerReseller("9000000010");
+		String reseller = registerCustomer("9000000010");
 		String json = postJson("/api/v1/auth/login", """
 				{"phone":"9999999999","password":"admin123"}""").andReturn().getResponse().getContentAsString();
 		String admin = JsonPath.read(json, "$.token");
@@ -224,4 +224,19 @@ class AuthIntegrationTest {
 			.getTokenValue();
 	}
 
+
+	@Test
+	void registerAsCustomerReturnsCustomerRole() throws Exception {
+		postJson("/api/v1/auth/register", """
+				{"phone":"9000000091","name":"Cust","password":"password1","role":"CUSTOMER"}""")
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.user.role").value("CUSTOMER"));
+	}
+
+	@Test
+	void registerAsResellerIsRejected() throws Exception {
+		postJson("/api/v1/auth/register", """
+				{"phone":"9000000092","name":"Old","password":"password1","role":"RESELLER"}""")
+			.andExpect(status().isBadRequest());
+	}
 }

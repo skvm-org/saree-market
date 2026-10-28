@@ -32,7 +32,7 @@ class AdminIntegrationTest extends IntegrationTestBase {
 	void onlyAdminsReachTheAdminEndpoints() throws Exception {
 		String body = "{\"name\":\"Nope\"}";
 		send(post("/api/v1/admin/saree-types"), null, body).andExpect(status().isUnauthorized());
-		for (String token : new String[] { registerSeller(), registerReseller() }) {
+		for (String token : new String[] { registerSeller(), registerCustomer() }) {
 			send(post("/api/v1/admin/saree-types"), token, body).andExpect(status().isForbidden());
 			send(put("/api/v1/admin/fabrics/1"), token, body).andExpect(status().isForbidden());
 			send(patch("/api/v1/admin/users/1/enabled"), token, "{\"enabled\":false}")
@@ -47,7 +47,7 @@ class AdminIntegrationTest extends IntegrationTestBase {
 			.andExpect(jsonPath("$.name").value("Paithani Test"))
 			.andExpect(jsonPath("$.active").value(true));
 
-		getWith("/api/v1/reference/saree-types", registerReseller()).andExpect(jsonPath("$[?(@.name=='Paithani Test')]").exists());
+		getWith("/api/v1/reference/saree-types", registerCustomer()).andExpect(jsonPath("$[?(@.name=='Paithani Test')]").exists());
 	}
 
 	@Test
@@ -60,7 +60,7 @@ class AdminIntegrationTest extends IntegrationTestBase {
 			.andExpect(jsonPath("$.name").value("Crepe Test 2"))
 			.andExpect(jsonPath("$.active").value(false));
 
-		getWith("/api/v1/reference/fabrics", registerReseller()).andExpect(jsonPath("$[?(@.id==" + id + ")]").doesNotExist());
+		getWith("/api/v1/reference/fabrics", registerCustomer()).andExpect(jsonPath("$[?(@.id==" + id + ")]").doesNotExist());
 	}
 
 	@Test
@@ -78,7 +78,7 @@ class AdminIntegrationTest extends IntegrationTestBase {
 		String admin = adminToken();
 		String phone = newPhone();
 		String reseller = JsonPath.read(send(post("/api/v1/auth/register"), null, """
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(phone))
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(phone))
 			.andReturn().getResponse().getContentAsString(), "$.token");
 		long userId = jdbc.queryForObject("SELECT id FROM app_user WHERE phone = ?", Long.class, phone);
 		getWith("/api/v1/catalog", reseller).andExpect(status().isOk());

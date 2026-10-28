@@ -86,7 +86,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aResellerAsksTheSellerHoldsItAndMarksItSold() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 
 		long booking = id(postJson("/api/v1/items/" + item + "/bookings", reseller, "{\"note\":\"need it by Friday\"}")
@@ -132,7 +132,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void rejectingAPendingRequestLeavesTheSareeAvailable() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 		long booking = book(reseller, item);
 
@@ -149,7 +149,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void rejectingOrCancellingAHoldPutsTheSareeBackOnSale() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 		long first = book(reseller, item);
 		act("accept", first, seller.token()).andExpect(status().isOk());
@@ -167,8 +167,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aResellerCanCancelAPendingRequestButNotSomeoneElses() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long booking = book(reseller, item(seller));
 
 		act("cancel", booking, other).andExpect(status().isForbidden());
@@ -179,7 +179,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void extendingRestartsTheTwentyFourHours() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long booking = book(reseller, item(seller));
 
 		act("extend", booking, seller.token()).andExpect(status().isConflict()); // only a hold can be extended
@@ -199,8 +199,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void theSellerPicksOneAndTheOthersWaitUntilTheHoldIsReleased() throws Exception {
 		Shop seller = shop();
-		String first = registerReseller();
-		String second = registerReseller();
+		String first = registerCustomer();
+		String second = registerCustomer();
 		long item = item(seller);
 		long a = book(first, item);
 		long b = book(second, item);
@@ -212,7 +212,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 		assertThat(bookingStatus(b)).isEqualTo("PENDING");
 
 		// A reseller may still queue up on a held saree.
-		String third = registerReseller();
+		String third = registerCustomer();
 		book(third, item);
 
 		act("reject", a, seller.token()).andExpect(status().isOk());
@@ -223,8 +223,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void sellingToTheHolderClosesEveryoneElsesRequest() throws Exception {
 		Shop seller = shop();
-		String holder = registerReseller();
-		String waiting = registerReseller();
+		String holder = registerCustomer();
+		String waiting = registerCustomer();
 		long item = item(seller);
 		long a = book(holder, item);
 		long b = book(waiting, item);
@@ -241,8 +241,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void markingASareeSoldOutByHandClosesItsRequests() throws Exception {
 		Shop seller = shop();
-		String r1 = registerReseller();
-		String r2 = registerReseller();
+		String r1 = registerCustomer();
+		String r2 = registerCustomer();
 		long item = item(seller);
 		long a = book(r1, item);
 		long b = book(r2, item);
@@ -257,8 +257,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void markingAHeldSareeSoldOutSellsItToTheHolder() throws Exception {
 		Shop seller = shop();
-		String holder = registerReseller();
-		String waiting = registerReseller();
+		String holder = registerCustomer();
+		String waiting = registerCustomer();
 		long item = item(seller);
 		long a = book(holder, item);
 		long b = book(waiting, item);
@@ -273,7 +273,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aHeldSareeCannotBeSetAvailableOrOnHoldByHand() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 
 		patchItem(item, seller.token(), "{\"status\":\"ON_HOLD\"}").andExpect(status().isBadRequest());
@@ -287,8 +287,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void markAllSoldOutAndMarkAllAvailableLeaveHeldPhotosAlone() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long collection = collection(seller.id());
 		long plain = item(collection, seller.id());
 		long requested = item(collection, seller.id());
@@ -320,8 +320,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void twoAcceptsAtTheSameTimeCannotBothWin() throws Exception {
 		Shop seller = shop();
 		long item = item(seller);
-		long a = book(registerReseller(), item);
-		long b = book(registerReseller(), item);
+		long a = book(registerCustomer(), item);
+		long b = book(registerCustomer(), item);
 
 		ExecutorService pool = Executors.newFixedThreadPool(2);
 		CountDownLatch go = new CountDownLatch(1);
@@ -349,8 +349,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void holdsPastTheirTimeGoBackOnSaleAndUnansweredRequestsLapse() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long held = item(seller);
 		long stale = item(seller);
 		long fresh = item(seller);
@@ -376,7 +376,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void everyActionChecksTheRoleAndTheOwner() throws Exception {
 		Shop seller = shop();
 		Shop rival = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 		long booking = book(reseller, item);
 
@@ -401,8 +401,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void sellersOnlySeeTheirOwnRequestsAndResellersTheirs() throws Exception {
 		Shop seller = shop();
 		Shop rival = shop();
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		book(reseller, item(seller));
 		book(other, item(rival));
 
@@ -417,7 +417,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void youCannotAskTwiceForTheSameSareeOrForOneThatIsGone() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long item = item(seller);
 		long gone = item(seller);
 		jdbc.update("UPDATE item SET status = 'SOLD_OUT' WHERE id = ?", gone);
@@ -428,14 +428,14 @@ class BookingIntegrationTest extends IntegrationTestBase {
 		postJson("/api/v1/items/" + gone + "/bookings", reseller, "{}").andExpect(status().isConflict())
 			.andExpect(jsonPath("$.code").value("NOT_BOOKABLE"));
 		postJson("/api/v1/items/999999/bookings", reseller, "{}").andExpect(status().isNotFound());
-		postJson("/api/v1/items/" + item + "/bookings", registerReseller(), "{\"note\":\"" + "x".repeat(301) + "\"}")
+		postJson("/api/v1/items/" + item + "/bookings", registerCustomer(), "{\"note\":\"" + "x".repeat(301) + "\"}")
 			.andExpect(status().isBadRequest());
 	}
 
 	@Test
 	void aRequestWithNoBodyOrABlankNoteIsFine() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 
 		postWith("/api/v1/items/" + item(seller) + "/bookings", reseller).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.note").doesNotExist());
@@ -447,7 +447,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aResellerHasAtMostTenOpenRequests() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long collection = collection(seller.id());
 		long first = 0;
 		for (int i = 0; i < BookingService.MAX_OPEN_PER_RESELLER; i++) {
@@ -469,7 +469,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 		long item = item(seller);
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", seller.id());
 
-		postJson("/api/v1/items/" + item + "/bookings", registerReseller(), "{}").andExpect(status().isNotFound());
+		postJson("/api/v1/items/" + item + "/bookings", registerCustomer(), "{}").andExpect(status().isNotFound());
 	}
 
 	// ---- what the rest of the app shows ----
@@ -477,8 +477,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void heldPhotosAreCountedSeparatelyAndOnlyTheSellerSeesRequestCounts() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long collection = collection(seller.id());
 		long held = item(collection, seller.id());
 		long asked = item(collection, seller.id());
@@ -513,7 +513,7 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	@Test
 	void photoSearchAndTheCatalogHideHeldPhotosUnlessAsked() throws Exception {
 		Shop seller = shop();
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long collection = collection(seller.id());
 		long held = item(collection, seller.id());
 		long open = item(collection, seller.id());
@@ -533,9 +533,9 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void openRequestsAreListedOldestFirstWithPendingOnTop() throws Exception {
 		Shop seller = shop();
 		long collection = collection(seller.id());
-		long first = book(registerReseller(), item(collection, seller.id()));
-		long second = book(registerReseller(), item(collection, seller.id()));
-		long third = book(registerReseller(), item(collection, seller.id()));
+		long first = book(registerCustomer(), item(collection, seller.id()));
+		long second = book(registerCustomer(), item(collection, seller.id()));
+		long third = book(registerCustomer(), item(collection, seller.id()));
 		act("accept", first, seller.token()).andExpect(status().isOk());
 
 		String json = getWith("/api/v1/bookings/received?status=OPEN", seller.token()).andReturn().getResponse().getContentAsString();
@@ -548,10 +548,10 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void aSingleStatusCanBeListedAndWinsOverTheBroaderFilter() throws Exception {
 		Shop seller = shop();
 		long collection = collection(seller.id());
-		long pending = book(registerReseller(), item(collection, seller.id()));
-		long held = book(registerReseller(), item(collection, seller.id()));
-		long sold = book(registerReseller(), item(collection, seller.id()));
-		long rejected = book(registerReseller(), item(collection, seller.id()));
+		long pending = book(registerCustomer(), item(collection, seller.id()));
+		long held = book(registerCustomer(), item(collection, seller.id()));
+		long sold = book(registerCustomer(), item(collection, seller.id()));
+		long rejected = book(registerCustomer(), item(collection, seller.id()));
 		act("accept", held, seller.token()).andExpect(status().isOk());
 		act("sold", sold, seller.token()).andExpect(status().isOk());
 		act("reject", rejected, seller.token()).andExpect(status().isOk());
@@ -569,8 +569,8 @@ class BookingIntegrationTest extends IntegrationTestBase {
 	void heldRequestsAreListedSoonestEndingFirst() throws Exception {
 		Shop seller = shop();
 		long collection = collection(seller.id());
-		long later = book(registerReseller(), item(collection, seller.id()));
-		long sooner = book(registerReseller(), item(collection, seller.id()));
+		long later = book(registerCustomer(), item(collection, seller.id()));
+		long sooner = book(registerCustomer(), item(collection, seller.id()));
 		act("accept", later, seller.token()).andExpect(status().isOk());
 		act("accept", sooner, seller.token()).andExpect(status().isOk());
 		jdbc.update("UPDATE booking_request SET hold_expires_at = now() + interval '2 hours' WHERE id = ?", sooner);
