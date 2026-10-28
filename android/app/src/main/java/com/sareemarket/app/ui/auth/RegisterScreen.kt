@@ -79,7 +79,7 @@ fun RegisterContent(
             }
 
             PillSegmented(
-                options = listOf(Role.SELLER to "I'm a Seller", Role.RESELLER to "I'm a Reseller"),
+                options = listOf(Role.SELLER to "I'm a Seller", Role.CUSTOMER to "I'm a Customer"),
                 selected = state.role,
                 onSelect = onRoleChange,
                 tagFor = { "role-${it.name}" },

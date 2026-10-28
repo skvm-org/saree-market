@@ -17,6 +17,13 @@ interface SessionStore {
     suspend fun clear()
 }
 
+/** A role saved by an older app version: resellers are customers now. Anything unknown means logged out. */
+internal fun roleFromStored(value: String?): Role? = when (value) {
+    null -> null
+    "RESELLER" -> Role.CUSTOMER
+    else -> runCatching { Role.valueOf(value) }.getOrNull()
+}
+
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
 class DataStoreSessionStore(context: Context) : SessionStore {
@@ -29,7 +36,7 @@ class DataStoreSessionStore(context: Context) : SessionStore {
             userId = p[USER_ID] ?: return@map null,
             name = p[NAME] ?: return@map null,
             phone = p[PHONE] ?: return@map null,
-            role = p[ROLE]?.let { runCatching { Role.valueOf(it) }.getOrNull() } ?: return@map null,
+            role = roleFromStored(p[ROLE]) ?: return@map null,
         )
     }
 

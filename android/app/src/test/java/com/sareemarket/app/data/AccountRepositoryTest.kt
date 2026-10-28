@@ -8,7 +8,7 @@ import org.junit.Test
 class AccountRepositoryTest {
 
     private val api = FakeAuthApi()
-    private val store = FakeSessionStore(session(Role.RESELLER))
+    private val store = FakeSessionStore(session(Role.CUSTOMER))
     private val repo = AuthRepository(api, store, testJson)
 
     @Test

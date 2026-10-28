@@ -14,7 +14,7 @@ val testJson = Json {
     explicitNulls = false
 }
 
-val priya = UserDto(id = 7, name = "Priya", phone = "9876543210", role = Role.RESELLER)
+val priya = UserDto(id = 7, name = "Priya", phone = "9876543210", role = Role.CUSTOMER)
 
 class FakeSessionStore(initial: Session? = null) : SessionStore {
     private val current = MutableStateFlow(initial)
@@ -78,4 +78,4 @@ fun httpError(code: Int, body: String = ""): HttpException =
 
 fun networkError(): IOException = IOException("no route to host")
 
-fun session(role: Role = Role.RESELLER) = Session("token-1", 7, "Priya", "9876543210", role)
+fun session(role: Role = Role.CUSTOMER) = Session("token-1", 7, "Priya", "9876543210", role)

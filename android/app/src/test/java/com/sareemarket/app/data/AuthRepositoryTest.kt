@@ -19,7 +19,7 @@ class AuthRepositoryTest {
     fun loginSavesTheSession() = runTest {
         assertTrue(repo.login("9876543210", "password1").isSuccess)
 
-        assertEquals(Session("token-1", 7, "Priya", "9876543210", Role.RESELLER), store.saved)
+        assertEquals(Session("token-1", 7, "Priya", "9876543210", Role.CUSTOMER), store.saved)
     }
 
     @Test

@@ -32,7 +32,7 @@ fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit) {
 
 fun Role.label() = when (this) {
     Role.SELLER -> "Seller"
-    Role.RESELLER -> "Reseller"
+    Role.CUSTOMER -> "Customer"
     Role.ADMIN -> "Admin"
 }
 

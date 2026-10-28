@@ -3,7 +3,7 @@ package com.sareemarket.app.data
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class Role { SELLER, RESELLER, ADMIN }
+enum class Role { SELLER, CUSTOMER, ADMIN }
 
 @Serializable
 data class UserDto(val id: Long, val name: String, val phone: String, val role: Role)
