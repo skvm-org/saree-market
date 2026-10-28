@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.sareemarket.address.AddressService;
 import com.sareemarket.address.dto.AddressDto;
@@ -45,7 +46,10 @@ public class HoldService {
 
 	private final JsonMapper json;
 
-	HoldService(NamedParameterJdbcTemplate jdbc, AddressService addresses, JsonMapper json) {
+	private final TransactionTemplate tx;
+
+	HoldService(NamedParameterJdbcTemplate jdbc, AddressService addresses, JsonMapper json, TransactionTemplate tx) {
+		this.tx = tx;
 		this.jdbc = jdbc;
 		this.addresses = addresses;
 		this.json = json;
@@ -67,6 +71,7 @@ public class HoldService {
 	public CheckoutResultDto checkout(long customerId, CheckoutRequest r) {
 		jdbc.queryForList("SELECT id FROM app_user WHERE id = :c FOR UPDATE", new MapSqlParameterSource("c", customerId),
 				Long.class);
+		releaseLapsed(customerId);
 		AddressDto address = addresses.get(customerId, r.addressId());
 		AddressSnapshotDto snapshot = new AddressSnapshotDto(address.name(), address.phone(), address.line1(),
 				address.line2(), address.city(), address.state(), address.pin());
@@ -127,6 +132,51 @@ public class HoldService {
 			holds.add(create(customerId, p, snapshot, r.note()));
 		}
 		return new CheckoutResultDto(holds, adjustments, skipped);
+	}
+
+	@Transactional
+	public void cancel(long customerId, long holdId) {
+		List<Long> found = jdbc.queryForList("SELECT id FROM payment_hold WHERE id = :h AND customer_id = :c FOR UPDATE",
+				new MapSqlParameterSource("h", holdId).addValue("c", customerId), Long.class);
+		if (found.isEmpty()) {
+			throw new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Payment not found");
+		}
+		release(holdId);
+	}
+
+	/** Releases every lapsed hold, one transaction each so a bad row cannot hold up the rest. Returns how many. */
+	public int expireOverdue() {
+		int released = 0;
+		for (Long id : jdbc.queryForList("SELECT id FROM payment_hold WHERE expires_at <= now() ORDER BY id",
+				new MapSqlParameterSource(), Long.class)) {
+			Integer one = tx.execute(status -> releaseIfLapsed(id) ? 1 : 0);
+			released += one == null ? 0 : one;
+		}
+		return released;
+	}
+
+	/** A customer's own lapsed holds, inside their checkout: a lapsed hold must not block a fresh one. */
+	private void releaseLapsed(long customerId) {
+		for (Long id : jdbc.queryForList("SELECT id FROM payment_hold WHERE customer_id = :c AND expires_at <= now()",
+				new MapSqlParameterSource("c", customerId), Long.class)) {
+			releaseIfLapsed(id);
+		}
+	}
+
+	private boolean releaseIfLapsed(long holdId) {
+		List<Long> locked = jdbc.queryForList(
+				"SELECT id FROM payment_hold WHERE id = :h AND expires_at <= now() FOR UPDATE",
+				new MapSqlParameterSource("h", holdId), Long.class);
+		if (locked.isEmpty()) {
+			return false;
+		}
+		release(holdId);
+		return true;
+	}
+
+	private void release(long holdId) {
+		StockReturn.returnStock(jdbc, "hold_line", "hold_id", holdId);
+		jdbc.update("DELETE FROM payment_hold WHERE id = :h", new MapSqlParameterSource("h", holdId));
 	}
 
 	public List<HoldDto> list(long customerId) {
