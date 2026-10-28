@@ -78,6 +78,17 @@ public class CatalogService {
 				inStock(rs));
 	}
 
+	/** Cards for the given photos in the order asked for; unknown photos and those of disabled sellers are left out. */
+	public List<CatalogItemDto> cardsFor(List<Long> itemIds) {
+		if (itemIds.isEmpty()) {
+			return List.of();
+		}
+		Map<Long, CatalogItemDto> byId = new java.util.HashMap<>();
+		jdbc.query(CARD_COLUMNS + FROM + " WHERE i.id IN (:ids) AND u.enabled", new MapSqlParameterSource("ids", itemIds),
+				card(false)).forEach(c -> byId.put(c.id(), c));
+		return itemIds.stream().map(byId::get).filter(c -> c != null).toList();
+	}
+
 	public PageDto<CatalogItemDto> search(CatalogFilter filter, long viewerId) {
 		MapSqlParameterSource params = new MapSqlParameterSource("viewer", viewerId);
 		String where = where(filter, params);
@@ -256,7 +267,7 @@ public class CatalogService {
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
 							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
-					myBooking(role, userId, itemId));
+					myBooking(role, userId, itemId), inWishlist(role, userId, itemId));
 		});
 		return found.stream()
 			.filter(d -> d != null)
@@ -278,6 +289,15 @@ public class CatalogService {
 							expires == null ? null : expires.toInstant());
 				});
 		return latest.isEmpty() ? null : latest.get(0);
+	}
+
+	private boolean inWishlist(String role, long userId, long itemId) {
+		if (!"CUSTOMER".equals(role)) {
+			return false;
+		}
+		return Boolean.TRUE.equals(jdbc.queryForObject(
+				"SELECT EXISTS (SELECT 1 FROM wishlist_entry WHERE customer_id = :u AND item_id = :i)",
+				new MapSqlParameterSource("u", userId).addValue("i", itemId), Boolean.class));
 	}
 
 	/** How the viewing reseller follows this seller (INSTANT or MUTED), or null: not following, or not a reseller. */
