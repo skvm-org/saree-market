@@ -43,8 +43,8 @@ Never edit applied migrations. New migrations only:
   - `wishlist_entry(customer_id, item_id, added_at, PRIMARY KEY (customer_id, item_id))`
   - `address(id, customer_id, name, phone, line1, line2, city, state, pin, is_default, created_at)`
 - **V12 `orders`**:
-  - `payment_hold(id, customer_id, seller_id, items_total, shipping_fee, grand_total, address_snapshot JSONB, customer_note, proof_attempts, rejection_reason, expires_at, created_at)` and `hold_line(hold_id FK cascade, item_id, title_snapshot, unit_price, quantity)`. A hold is the reservation; the quantities are already subtracted from the items. Not visible to sellers. Deleted when it becomes an order or lapses.
-  - `customer_order(id, customer_id, seller_id, status, items_total, shipping_fee, grand_total, address_snapshot JSONB, customer_note, payment_reference, payment_proof_image, proof_attempts, courier, tracking_number, customer_unread, seller_unread, created_at, updated_at)`
+  - `payment_hold(id, customer_id, seller_id, items_total, shipping_fee, grand_total, address JSONB, customer_note, created_at, expires_at)` (unique per customer and seller) and `hold_line(hold_id FK cascade, item_id FK set null, title, colour, unit_price, quantity)`. A hold is the reservation; the quantities are already subtracted from the items. Not visible to sellers. Deleted when it becomes an order or lapses.
+  - `customer_order(id, customer_id, seller_id, status, items_total, shipping_fee, grand_total, address_snapshot JSONB, customer_note, payment_reference, payment_proof_key, rejection_reason, rejection_count, payment_deadline, cancel_reason, cancelled_by, courier, tracking_number, customer_unread, seller_unread, created_at, updated_at)`
   - `order_line(id, order_id FK cascade, item_id (nullable ON DELETE SET NULL), title_snapshot, unit_price, quantity)`
   - `order_status_history(order_id, status, at)` for the timeline shown to both sides.
   - Indexes: `(seller_id, status, created_at)`, `(customer_id, created_at)`, `payment_hold (expires_at)` for the expiry job, `payment_hold (customer_id)` for the 3-hold cap.
@@ -54,41 +54,41 @@ Lines snapshot title and price so later edits or deletes of a saree do not chang
 
 ## 5. Payment hold and order lifecycle
 
-No order exists before the customer has paid. Checkout creates a **payment hold** (not visible to the seller); submitting proof turns it into an order.
+No order exists before the customer has paid. Checkout creates a **payment hold** (not visible to the seller) per seller and reserves the stock; submitting the UTR turns the hold into an order.
 
 ```
-cart --checkout--> HOLD (2 h, stock reserved) --submit proof--> order PAYMENT_SUBMITTED --seller confirms--> CONFIRMED --> PACKED --> SHIPPED --> DELIVERED
+cart --checkout--> HOLD (2 h, stock reserved) --submit UTR--> order PAYMENT_SUBMITTED --seller confirms--> CONFIRMED --> PACKED --> SHIPPED --> DELIVERED
                      |                                              |
-                     |- customer cancels or 2 h lapse: stock returns |- seller rejects proof (first time): order goes back to a HOLD with 2 h more, customer resubmits
-                                                                     |- seller rejects again, or either side cancels before CONFIRMED/SHIPPED: CANCELLED, stock returns
+                     |- customer cancels or 2 h lapse: stock returns |- seller rejects (first time): PAYMENT_REJECTED, 2 h to resubmit a correct UTR
+                                                                     |- seller rejects again, or 2 h lapse, or either side cancels before SHIPPED: CANCELLED, stock returns
 ```
 
-Order statuses: `PAYMENT_SUBMITTED`, `CONFIRMED`, `PACKED`, `SHIPPED`, `DELIVERED`, `CANCELLED`. There is no `PLACED` or `EXPIRED` order status; a lapsed hold simply disappears (the customer sees "Hold expired, your cart is unchanged").
+Order statuses: `PAYMENT_SUBMITTED`, `PAYMENT_REJECTED`, `CONFIRMED`, `PACKED`, `SHIPPED`, `DELIVERED`, `CANCELLED`. A lapsed hold simply disappears (the cart is unchanged).
 
 | Action | Who | From | To | Stock |
 |---|---|---|---|---|
-| Checkout (address, note) | customer | cart lines for one seller | hold, `expires_at = now+2h` | reserved (decremented) |
-| Cancel hold / lapse (hourly job, also checked on read) | customer / system | hold | removed; lines return to the cart | returned |
-| Submit proof (UTR required, screenshot optional) | customer | hold | order `PAYMENT_SUBMITTED`, hold deleted | unchanged |
+| Checkout (address, note, optional sellerId) | customer | cart lines | hold per seller, `expires_at = now+2h` | reserved (min of wanted and available) |
+| Cancel hold / lapse (job every 5 min, also released at the customer's next checkout) | customer / system | hold | removed | returned |
+| Submit proof (UTR required, screenshot optional) | customer | hold | order `PAYMENT_SUBMITTED`; the order's cart lines are removed | unchanged |
 | Confirm payment | seller | `PAYMENT_SUBMITTED` | `CONFIRMED` | unchanged |
-| Reject proof (reason required) | seller | `PAYMENT_SUBMITTED` | first time: back to a hold with a fresh 2 h and the reason shown; second time: `CANCELLED` | first: unchanged; second: returned |
-| Pack / Ship (courier, tracking optional) / Deliver | seller | in order | next state | unchanged |
-| Cancel | customer | `PAYMENT_SUBMITTED` | `CANCELLED` | returned |
-| Cancel (reason required) | seller | any before `SHIPPED` | `CANCELLED` | returned |
+| Reject (reason required) | seller | `PAYMENT_SUBMITTED` | first time `PAYMENT_REJECTED` with `payment_deadline = now+2h`; second time `CANCELLED` | first: unchanged; second: returned |
+| Resubmit (new UTR, optional screenshot) | customer | `PAYMENT_REJECTED` before the deadline | `PAYMENT_SUBMITTED` | unchanged |
+| Deadline passes (job) | system | `PAYMENT_REJECTED` | `CANCELLED` (`cancelled_by = SYSTEM`) | returned |
+| Pack / Ship (courier and tracking optional) / Deliver | seller | in order | next state | unchanged |
+| Cancel | customer | `PAYMENT_SUBMITTED`, `PAYMENT_REJECTED` | `CANCELLED` | returned |
+| Cancel (reason required) | seller | before `SHIPPED` | `CANCELLED` | returned |
 
 Rules:
-- Checkout is one transaction: lock each item row (ordered by id to avoid deadlocks), re-check `quantity >= requested` and that the seller has a UPI ID, decrement, create one hold per seller. If a line is short the cart is trimmed to what is available and the customer is told ("only 2 left"); nothing is held for the trimmed lines.
-- A customer may have at most **3 active holds** (stops stock hoarding). They can have any number of real orders.
-- A rejected proof converts the order back into a hold with `proof_attempts = 1`; its stock was never returned, so none is re-reserved. A second rejection cancels and returns the stock.
-- Returning stock on cancel or lapse does **not** publish `ItemsRestocked` (no BACK_IN_STOCK spam), same as the booking release.
-- The UTR must be exactly 12 digits and unique across all orders and holds (partial unique index on `payment_reference`), so one real payment cannot back two orders. The screenshot is optional and only a hint; the app cannot verify that money arrived, so the seller screen tells the seller to check their bank or UPI app before confirming, and shows the exact amount expected.
-- Payment proof images go through `ImageStorage`; only the order's customer and seller can fetch them.
-- Money fields are integers; `grand_total = items_total + shipping_fee` is stored, never recomputed.
-- Sellers only see orders from `PAYMENT_SUBMITTED` onward, so "awaiting payment" is not a seller concept.
+- Checkout locks the customer's user row, then the sarees' rows in id order. A short line is reserved at the available quantity and reported as an adjustment; lines that cannot be ordered stay in the cart and are reported. A seller is skipped when it has no UPI ID or is disabled (`NOT_ACCEPTING_ORDERS`), nothing is in stock (`NOTHING_IN_STOCK`) or the customer already has a hold with it (`HOLD_EXISTS`).
+- At most 3 active holds per customer (`409 HOLD_LIMIT`, nothing changes) and one per (customer, seller). An order total above Rs 10,000,000 is refused (`TOTAL_TOO_LARGE`).
+- The UTR is exactly 12 digits and unique among non-cancelled orders (`UTR_IN_USE`); the screenshot is optional, must be a real image, and is visible only to the order's customer and seller.
+- Returning stock on cancel or lapse does not publish `ItemsRestocked`.
+- Orders, holds and proofs of other users answer 404. Illegal transitions answer `409 BAD_STATE`.
+- Unread flags (`customer_unread`, `seller_unread`) and `GET /orders/summary` replace notification-table entries; the Android workers poll the summary.
 
 ## 6. API (all `/api/v1`)
 
-Customer: `GET/PUT/DELETE /cart` (lines), `POST /cart/checkout {addressId, note?}` → holds (one per seller), `GET /holds`, `DELETE /holds/{id}`, `POST /holds/{id}/payment` (multipart: utr, proof?) → the order, `GET/POST/DELETE /wishlist`, `GET/POST/PUT/DELETE /addresses`, `GET /orders/mine`, `GET /orders/{id}`, `POST /orders/{id}/cancel`, `POST /orders/seen`.
+Customer: `GET/PUT/DELETE /cart` (lines), `POST /cart/checkout {addressId, note?, sellerId?}` → `{holds, adjustments, skipped}`, `GET /holds`, `DELETE /holds/{id}`, `POST /holds/{id}/payment` (multipart: utr, proof?) → the order, `GET/POST/DELETE /wishlist`, `GET/POST/PUT/DELETE /addresses`, `GET /orders/mine?state=&page=`, `GET /orders/{id}`, `GET /orders/{id}/proof`, `POST /orders/{id}/payment` (resubmit after a rejection), `POST /orders/{id}/cancel`, `GET /orders/summary`, `POST /orders/seen`.
 
 Seller: `GET /orders/received?state=&page=`, `GET /orders/summary` (to confirm, to pack, to ship), `POST /orders/{id}/confirm-payment | reject-payment | pack | ship | deliver | cancel`, `PUT /seller/profile` gains `upiId`, `shippingFee`.
 
@@ -112,7 +112,7 @@ The `notification` table gains types `PAYMENT_SUBMITTED` (to the seller: a new o
 
 ## 9. Delivery slices (one at a time, stop for review after each)
 
-Slice 1 is built on branch `customer-orders` and is not pushed (a push to `main` deploys). It exposes `GET /cart` and `PUT/DELETE /cart/items/{id}` instead of the single `/cart` resource listed in section 6.
+Slices 1 and 2 are built on branch `customer-orders` and are not pushed (a push to `main` deploys). It exposes `GET /cart` and `PUT/DELETE /cart/items/{id}` instead of the single `/cart` resource listed in section 6.
 
 1. **Backend: roles, quantity, cart, wishlist, addresses.** V6–V8, role rename across `AuthService`, controllers, `SecurityConfig`, quantity in item DTOs and catalog filters, tests.
 2. **Backend: holds and orders.** V9, checkout with locking, payment holds, proof submission, seller actions, hold expiry job, events and notifications, `orders/summary`, tests including concurrent checkout of the last piece.
