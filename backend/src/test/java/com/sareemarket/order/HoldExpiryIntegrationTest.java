@@ -12,10 +12,6 @@ class HoldExpiryIntegrationTest extends OrderTestSupport {
 	@Autowired
 	HoldService holds;
 
-	long holdOf(Customer c) {
-		return jdbc.queryForObject("SELECT id FROM payment_hold WHERE customer_id = ?", Long.class, c.id());
-	}
-
 	@Test
 	void cancelReturnsStockAndDeletesHold() throws Exception {
 		Customer c = customer();

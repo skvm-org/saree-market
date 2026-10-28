@@ -2,7 +2,11 @@ package com.sareemarket.order;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import com.jayway.jsonpath.JsonPath;
 import com.sareemarket.IntegrationTestBase;
@@ -11,6 +15,14 @@ import com.sareemarket.IntegrationTestBase;
 abstract class OrderTestSupport extends IntegrationTestBase {
 
 	static final AtomicInteger SHOPS = new AtomicInteger();
+
+	private static final java.util.concurrent.atomic.AtomicLong UTRS = new java.util.concurrent.atomic.AtomicLong(
+			100_000_000_000L + (long) (Math.random() * 800_000_000_000L));
+
+	/** A 12-digit UTR no other test has used (all tests share one database). */
+	static String newUtr() {
+		return String.valueOf(UTRS.incrementAndGet());
+	}
 
 	record Shop(long id, String name, String token) {
 	}
@@ -62,6 +74,45 @@ abstract class OrderTestSupport extends IntegrationTestBase {
 
 	long holdCount(Customer c) {
 		return jdbc.queryForObject("SELECT count(*) FROM payment_hold WHERE customer_id = ?", Long.class, c.id());
+	}
+
+	long holdOf(Customer c) {
+		return jdbc.queryForObject("SELECT id FROM payment_hold WHERE customer_id = ? ORDER BY id DESC LIMIT 1", Long.class,
+				c.id());
+	}
+
+	static byte[] proofImage() {
+		return com.sareemarket.TestImages.jpeg(200, 300, 7);
+	}
+
+	/** Pays a hold: the UTR and, if proof is not null, a screenshot. A null utr sends none. */
+	ResultActions pay(String token, long holdId, String utr, byte[] proof) throws Exception {
+		return mvc.perform(paymentRequest("/api/v1/holds/{id}/payment", holdId, token, utr, proof));
+	}
+
+	ResultActions repay(String token, long orderId, String utr, byte[] proof) throws Exception {
+		return mvc.perform(paymentRequest("/api/v1/orders/{id}/payment", orderId, token, utr, proof));
+	}
+
+	private MockMultipartHttpServletRequestBuilder paymentRequest(String path, long id, String token, String utr,
+			byte[] proof) {
+		MockMultipartHttpServletRequestBuilder request = multipart(path, id);
+		request.header("Authorization", "Bearer " + token);
+		if (utr != null) {
+			request.param("utr", utr);
+		}
+		if (proof != null) {
+			request.file(new MockMultipartFile("proof", "proof.jpg", "image/jpeg", proof));
+		}
+		return request;
+	}
+
+	/** One saree of `quantity` pieces from the shop, one piece in the customer's cart, checked out and paid; returns the order id. */
+	long paidOrder(Customer c, Shop shop, long item, String utr) throws Exception {
+		inCart(c, item, 1);
+		checkout(c, shop.id()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+		String json = pay(c.token(), holdOf(c), utr, proofImage()).andReturn().getResponse().getContentAsString();
+		return ((Number) JsonPath.read(json, "$.id")).longValue();
 	}
 
 }
