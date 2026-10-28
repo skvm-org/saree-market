@@ -29,6 +29,8 @@ public class Item {
 
 	private Integer priceOverride;
 
+	private int quantity = 1;
+
 	@Enumerated(EnumType.STRING)
 	private ItemStatus status = ItemStatus.AVAILABLE;
 
@@ -73,6 +75,14 @@ public class Item {
 
 	public void setColour(String colour) {
 		this.colour = colour;
+	}
+
+	public int getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(int quantity) {
+		this.quantity = quantity;
 	}
 
 	public Integer getPriceOverride() {

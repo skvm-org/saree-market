@@ -54,7 +54,8 @@ public class CatalogService {
 
 	private static final String CARD_COLUMNS = """
 			SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
-			       COALESCE(i.price_override, c.price) AS price, i.status, c.seller_id, sp.shop_name, i.created_at
+			       COALESCE(i.price_override, c.price) AS price, i.status, i.quantity, c.seller_id, sp.shop_name,
+			       i.created_at
 			""";
 
 	private final NamedParameterJdbcTemplate jdbc;
@@ -73,7 +74,8 @@ public class CatalogService {
 		return (rs, n) -> new CatalogItemDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
 				rs.getString("saree_type"), rs.getString("fabric"), rs.getString("colour"), rs.getInt("price"),
 				ItemStatus.valueOf(rs.getString("status")), rs.getLong("seller_id"), rs.getString("shop_name"),
-				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null);
+				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null, rs.getInt("quantity"),
+				inStock(rs));
 	}
 
 	public PageDto<CatalogItemDto> search(CatalogFilter filter, long viewerId) {
@@ -234,7 +236,7 @@ public class CatalogService {
 		List<ItemDetailDto> found = jdbc.query("""
 				SELECT i.id, i.collection_id, c.title, c.description, t.name AS saree_type, f.name AS fabric,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
-				       i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
+				       i.quantity, i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
 				       sp.whatsapp_number, u.enabled
 				""" + FROM + " WHERE i.id = :id", byId, (rs, n) -> {
 			long sellerId = rs.getLong("seller_id");
@@ -250,7 +252,7 @@ public class CatalogService {
 			return new ItemDetailDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
 					rs.getString("description"), rs.getString("saree_type"), rs.getString("fabric"),
 					rs.getString("colour"), override, rs.getInt("price"), ItemStatus.valueOf(rs.getString("status")),
-					instant(rs, "created_at"),
+					rs.getInt("quantity"), inStock(rs), instant(rs, "created_at"),
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
 							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
@@ -286,6 +288,11 @@ public class CatalogService {
 		List<String> modes = jdbc.queryForList("SELECT notify_mode FROM seller_follow WHERE reseller_id = :r AND seller_id = :s",
 				new MapSqlParameterSource("r", userId).addValue("s", sellerId), String.class);
 		return modes.isEmpty() ? null : modes.get(0);
+	}
+
+	/** Orderable now: marked available by the seller and at least one piece left. */
+	private static boolean inStock(ResultSet rs) throws SQLException {
+		return "AVAILABLE".equals(rs.getString("status")) && rs.getInt("quantity") > 0;
 	}
 
 	private static java.time.Instant instant(ResultSet rs, String column) throws SQLException {

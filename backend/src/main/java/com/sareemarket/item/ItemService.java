@@ -35,6 +35,8 @@ public class ItemService {
 
 	private static final int MAX_COLOUR = 50;
 
+	private static final int MAX_QUANTITY = 10000;
+
 	private static final Logger log = LoggerFactory.getLogger(ItemService.class);
 
 	private final ItemRepository items;
@@ -150,6 +152,15 @@ public class ItemService {
 			}
 			else {
 				errors.put("priceOverride", "must be a whole number above 0");
+			}
+		}
+		if (patch.has("quantity")) {
+			JsonNode node = patch.get("quantity");
+			if (node.isIntegralNumber() && node.canConvertToInt() && node.intValue() >= 0 && node.intValue() <= MAX_QUANTITY) {
+				item.setQuantity(node.intValue());
+			}
+			else {
+				errors.put("quantity", "must be a whole number from 0 to " + MAX_QUANTITY);
 			}
 		}
 		if (patch.has("status")) {

@@ -327,12 +327,6 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	}
 
 
-	ResultActions patchJson(String path, String token, String json) throws Exception {
-		return mvc.perform(patch(path).header("Authorization", "Bearer " + token)
-			.contentType(MediaType.APPLICATION_JSON)
-			.content(json));
-	}
-
 	@Test
 	void sellerCanToggleOneItemAndTheDashboardFollows() throws Exception {
 		String seller = registerSeller();
