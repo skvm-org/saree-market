@@ -116,6 +116,16 @@ class AddressIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void missingPhoneOrPinIs400NotServerError() throws Exception {
+		String customer = registerCustomer();
+		postJson("/api/v1/addresses", customer, """
+				{"name":"a","line1":"x","city":"c","state":"s"}""")
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.fields.phone").exists())
+			.andExpect(jsonPath("$.fields.pin").exists());
+	}
+
+	@Test
 	void otherCustomersAddressIs404ForUpdateAndDelete() throws Exception {
 		String owner = registerCustomer();
 		String other = registerCustomer();
