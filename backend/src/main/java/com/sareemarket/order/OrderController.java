@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sareemarket.common.PageDto;
 import com.sareemarket.order.dto.OrderDto;
+import com.sareemarket.order.dto.OrderSummaryDto;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -40,6 +42,38 @@ class OrderController {
 		return orders.submitPayment(userId(jwt), id, utr, proof);
 	}
 
+	@GetMapping("/orders/mine")
+	@PreAuthorize("hasRole('CUSTOMER')")
+	PageDto<OrderDto> mine(@AuthenticationPrincipal Jwt jwt, @RequestParam(required = false) OrderStatus state,
+			@RequestParam(defaultValue = "0") int page) {
+		return orders.mine(userId(jwt), state, page);
+	}
+
+	@GetMapping("/orders/summary")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
+	OrderSummaryDto summary(@AuthenticationPrincipal Jwt jwt) {
+		return orders.summary(userId(jwt), isSeller(jwt));
+	}
+
+	@PostMapping("/orders/seen")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void seen(@AuthenticationPrincipal Jwt jwt) {
+		orders.markSeen(userId(jwt), isSeller(jwt));
+	}
+
+	@GetMapping("/orders/{id}")
+	@PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
+	OrderDto get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+		return orders.get(userId(jwt), isSeller(jwt), id);
+	}
+
+	@PostMapping("/orders/{id}/cancel")
+	@PreAuthorize("hasRole('CUSTOMER')")
+	OrderDto cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+		return orders.cancelByCustomer(userId(jwt), id);
+	}
+
 	@GetMapping("/orders/{id}/proof")
 	@PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
 	ResponseEntity<Resource> proof(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
@@ -47,6 +81,10 @@ class OrderController {
 			.cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePrivate())
 			.contentType(MediaType.IMAGE_JPEG)
 			.body(orders.proof(userId(jwt), id));
+	}
+
+	static boolean isSeller(Jwt jwt) {
+		return "SELLER".equals(jwt.getClaimAsString("role"));
 	}
 
 	static long userId(Jwt jwt) {

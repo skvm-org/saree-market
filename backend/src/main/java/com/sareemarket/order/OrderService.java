@@ -15,11 +15,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.ImageStorage;
+import com.sareemarket.common.PageDto;
 import com.sareemarket.item.ImageProcessor;
 import com.sareemarket.order.dto.AddressSnapshotDto;
 import com.sareemarket.order.dto.OrderDto;
 import com.sareemarket.order.dto.OrderLineDto;
 import com.sareemarket.order.dto.OrderPartyDto;
+import com.sareemarket.order.dto.OrderSummaryDto;
 import com.sareemarket.order.dto.StatusEntryDto;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -129,6 +131,96 @@ public class OrderService {
 			throw notFound();
 		}
 		return found.get(0);
+	}
+
+	public PageDto<OrderDto> mine(long customerId, OrderStatus state, int page) {
+		return page(Viewer.CUSTOMER, customerId, state, page);
+	}
+
+	/** Detail with history, for the order's customer or seller. */
+	public OrderDto get(long userId, boolean seller, long orderId) {
+		return one(orderId, seller ? Viewer.SELLER : Viewer.CUSTOMER, userId);
+	}
+
+	@Transactional
+	public OrderDto cancelByCustomer(long customerId, long orderId) {
+		OrderStatus status = lock(orderId, Viewer.CUSTOMER, customerId);
+		if (status != OrderStatus.PAYMENT_SUBMITTED && status != OrderStatus.PAYMENT_REJECTED) {
+			throw badState(status);
+		}
+		cancel(orderId, "CUSTOMER", null);
+		return one(orderId, Viewer.CUSTOMER, customerId);
+	}
+
+	public void markSeen(long userId, boolean seller) {
+		jdbc.update("UPDATE customer_order SET " + (seller ? "seller_unread" : "customer_unread") + " = FALSE WHERE "
+				+ (seller ? "seller_id" : "customer_id") + " = :u", new MapSqlParameterSource("u", userId));
+	}
+
+	public OrderSummaryDto summary(long userId, boolean seller) {
+		MapSqlParameterSource params = new MapSqlParameterSource("u", userId);
+		if (!seller) {
+			return new OrderSummaryDto(count("customer_id = :u AND customer_unread", params),
+					holdCount(params), 0, 0, 0, 0);
+		}
+		return new OrderSummaryDto(count("seller_id = :u AND seller_unread", params), 0,
+				count("seller_id = :u AND status = 'PAYMENT_SUBMITTED'", params),
+				count("seller_id = :u AND status = 'CONFIRMED'", params),
+				count("seller_id = :u AND status = 'PACKED'", params),
+				count("seller_id = :u AND status = 'SHIPPED'", params));
+	}
+
+	private int holdCount(MapSqlParameterSource params) {
+		return jdbc.queryForObject("SELECT count(*) FROM payment_hold WHERE customer_id = :u AND expires_at > now()", params,
+				Integer.class);
+	}
+
+	private int count(String where, MapSqlParameterSource params) {
+		return jdbc.queryForObject("SELECT count(*) FROM customer_order WHERE " + where, params, Integer.class);
+	}
+
+	PageDto<OrderDto> page(Viewer viewer, long userId, OrderStatus state, int page) {
+		String owner = viewer == Viewer.CUSTOMER ? "o.customer_id" : "o.seller_id";
+		MapSqlParameterSource params = new MapSqlParameterSource("u", userId).addValue("limit", PAGE_SIZE)
+			.addValue("offset", (long) Math.max(page, 0) * PAGE_SIZE);
+		String where = " WHERE " + owner + " = :u";
+		if (state != null) {
+			where += " AND o.status = :state";
+			params.addValue("state", state.name());
+		}
+		Long total = jdbc.queryForObject("SELECT count(*) FROM customer_order o" + where, params, Long.class);
+		String order = viewer == Viewer.SELLER
+				? " ORDER BY (o.status = 'PAYMENT_SUBMITTED') DESC, o.created_at DESC, o.id DESC"
+				: " ORDER BY o.created_at DESC, o.id DESC";
+		List<OrderDto> items = jdbc.query(SELECT + where + order + " LIMIT :limit OFFSET :offset", params,
+				(rs, n) -> map(rs, viewer, false));
+		return PageDto.of(items, Math.max(page, 0), PAGE_SIZE, total == null ? 0 : total);
+	}
+
+	/** Locks the viewer's own order and returns its status; someone else's order is a 404. */
+	OrderStatus lock(long orderId, Viewer viewer, long userId) {
+		String owner = viewer == Viewer.CUSTOMER ? "customer_id" : "seller_id";
+		List<String> found = jdbc.queryForList(
+				"SELECT status FROM customer_order WHERE id = :o AND " + owner + " = :u FOR UPDATE",
+				new MapSqlParameterSource("o", orderId).addValue("u", userId), String.class);
+		if (found.isEmpty()) {
+			throw notFound();
+		}
+		return OrderStatus.valueOf(found.get(0));
+	}
+
+	/** Cancels the locked order, puts its stock back on sale and tells the other side. */
+	void cancel(long orderId, String by, String reason) {
+		jdbc.update("""
+				UPDATE customer_order SET status = 'CANCELLED', cancelled_by = :by, cancel_reason = :reason,
+				       customer_unread = :by <> 'CUSTOMER', seller_unread = :by = 'CUSTOMER', updated_at = now()
+				WHERE id = :o""", new MapSqlParameterSource("o", orderId).addValue("by", by).addValue("reason", reason));
+		history(orderId, OrderStatus.CANCELLED);
+		StockReturn.returnStock(jdbc, "order_line", "order_id", orderId);
+	}
+
+	static ApiException badState(OrderStatus status) {
+		return new ApiException(HttpStatus.CONFLICT, "BAD_STATE", "This can't be done to an order that is " + status);
 	}
 
 	void history(long orderId, OrderStatus status) {
