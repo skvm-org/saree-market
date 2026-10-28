@@ -1,11 +1,10 @@
 package com.sareemarket.app.ui
 
 import androidx.lifecycle.SavedStateHandle
-import com.sareemarket.app.data.BookingRepository
-import com.sareemarket.app.data.BookingStatus
+import com.sareemarket.app.data.CartRepository
 import com.sareemarket.app.data.CatalogRepository
-import com.sareemarket.app.data.FakeBookingApi
-import com.sareemarket.app.data.MyBooking
+import com.sareemarket.app.data.FakeShoppingApi
+import com.sareemarket.app.data.WishlistRepository
 import com.sareemarket.app.data.FakeCatalogApi
 import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.detail
@@ -34,7 +33,7 @@ class ItemPagerViewModelTest {
 
     private val catalog = FakeCatalogApi()
     private val collections = FakeCollectionsApi()
-    private val bookingApi = FakeBookingApi()
+    private val shopping = FakeShoppingApi()
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -45,7 +44,7 @@ class ItemPagerViewModelTest {
     private fun vm(openedId: Long) =
         ItemPagerViewModel(
             SavedStateHandle(mapOf("id" to openedId)), CatalogRepository(catalog, collections, fakePhotos(), testJson),
-            BookingRepository(bookingApi, testJson),
+            CartRepository(shopping, testJson), WishlistRepository(shopping, testJson),
         )
 
     @Test
@@ -108,56 +107,61 @@ class ItemPagerViewModelTest {
     }
 
     @Test
-    fun bookingSendsTheNoteThenReloadsThePageSoItShowsTheRequest() {
+    fun addingToTheCartCallsTheRepositoryThenReloadsThePageSoItShowsTheCartQuantity() {
         collections.get = { detail(5, listOf(item(10))) }
-        var booked = false
-        catalog.onItem = { itemDetail(it).copy(myBooking = if (booked) MyBooking(9, BookingStatus.PENDING) else null) }
-        bookingApi.onBook = { id, note -> booked = true; com.sareemarket.app.data.booking(9, itemId = id, note = note) }
+        var inCart = 0
+        catalog.onItem = { itemDetail(it).copy(inCart = inCart) }
+        shopping.onSetLine = { _, q -> inCart = q; retrofit2.Response.success(Unit) }
         val vm = vm(10)
-        assertNull(vm.state.value.details[10]?.value?.myBooking)
+        assertEquals(0, vm.state.value.details[10]?.value?.inCart)
 
-        vm.book(10, "  after 5 pm  ")
+        vm.setCartQuantity(10, 2)
 
-        assertTrue("book 10 after 5 pm" in bookingApi.calls)
-        assertEquals(BookingStatus.PENDING, vm.state.value.details[10]?.value?.myBooking?.status)
-        assertFalse(vm.state.value.bookingBusy)
-        assertNull(vm.state.value.bookingError)
+        assertTrue("setLine 10 2" in shopping.calls)
+        assertEquals(2, vm.state.value.details[10]?.value?.inCart)
+        assertFalse(vm.state.value.shoppingBusy)
+        assertNull(vm.state.value.shoppingError)
     }
 
     @Test
-    fun aBlankNoteIsSentAsNoNote() {
-        collections.get = { detail(5, listOf(item(10))) }
-        val vm = vm(10)
-
-        vm.book(10, "   ")
-
-        assertTrue("book 10 null" in bookingApi.calls)
-    }
-
-    @Test
-    fun aRefusedRequestShowsTheMessageAndStillReloadsThePage() {
+    fun aRefusedAddShowsTheServersMessageAndStillReloadsThePage() {
         collections.get = { detail(5, listOf(item(10))) }
         var loads = 0
         catalog.onItem = { loads++; itemDetail(it) }
-        bookingApi.onBook = { _, _ -> throw httpError(409, """{"code":"NOT_BOOKABLE","message":"This saree is sold out"}""") }
+        shopping.onSetLine = { _, _ -> throw httpError(409, """{"code":"NOT_ENOUGH_STOCK","message":"Only 1 left"}""") }
         val vm = vm(10)
         val before = loads
 
-        vm.book(10, "")
+        vm.setCartQuantity(10, 4)
 
-        assertEquals("This saree is sold out", vm.state.value.bookingError)
-        assertEquals(before + 1, loads) // the saree may have just sold out
-        assertFalse(vm.state.value.bookingBusy)
+        assertEquals("Only 1 left", vm.state.value.shoppingError)
+        assertEquals(before + 1, loads) // the stock may just have changed
+        assertFalse(vm.state.value.shoppingBusy)
     }
 
     @Test
-    fun cancellingCallsTheCancelEndpointForThatRequest() {
+    fun removingFromTheCartCallsTheRepositoryAndReloads() {
         collections.get = { detail(5, listOf(item(10))) }
         val vm = vm(10)
 
-        vm.cancelBooking(10, 9)
+        vm.removeFromCart(10)
 
-        assertTrue("cancel 9" in bookingApi.calls)
-        assertNull(vm.state.value.bookingError)
+        assertTrue("removeLine 10" in shopping.calls)
+        assertNull(vm.state.value.shoppingError)
+    }
+
+    @Test
+    fun wishlistToggleAddsWhenNotSavedAndRemovesWhenSaved() {
+        collections.get = { detail(5, listOf(item(10))) }
+        var saved = false
+        catalog.onItem = { itemDetail(it).copy(inWishlist = saved) }
+        val vm = vm(10)
+
+        saved = true
+        vm.toggleWishlist(10)
+        assertTrue("wish+ 10" in shopping.calls)
+
+        vm.toggleWishlist(10) // the reload showed it saved, so this removes it
+        assertTrue("wish- 10" in shopping.calls)
     }
 }

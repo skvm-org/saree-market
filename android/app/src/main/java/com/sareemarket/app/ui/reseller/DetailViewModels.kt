@@ -3,8 +3,8 @@ package com.sareemarket.app.ui.reseller
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sareemarket.app.data.Booking
-import com.sareemarket.app.data.BookingRepository
+import com.sareemarket.app.data.CartRepository
+import com.sareemarket.app.data.WishlistRepository
 import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CollectionDetail
 import com.sareemarket.app.data.ItemDetail
@@ -49,16 +49,17 @@ data class PagerState(
     val ids: List<Long> = emptyList(),
     val startIndex: Int = 0,
     val details: Map<Long, LoadState<ItemDetail>> = emptyMap(),
-    /** True while a booking request or cancel is on its way. */
-    val bookingBusy: Boolean = false,
-    val bookingError: String? = null,
+    /** True while a cart or wishlist change is on its way. */
+    val shoppingBusy: Boolean = false,
+    val shoppingError: String? = null,
 )
 
 @HiltViewModel
 class ItemPagerViewModel @Inject constructor(
     handle: SavedStateHandle,
     private val repository: CatalogRepository,
-    private val bookings: BookingRepository,
+    private val cart: CartRepository,
+    private val wishlist: WishlistRepository,
 ) : ViewModel() {
 
     private val openedId: Long = checkNotNull(handle["id"])
@@ -95,18 +96,24 @@ class ItemPagerViewModel @Inject constructor(
         },
     )
 
-    /** Asks the seller to hold this photo for the reseller. The page reloads either way, since its status may have changed. */
-    fun book(id: Long, note: String) = booking(id) { bookings.book(id, note.trim().ifEmpty { null }) }
+    /** Puts [quantity] of this photo in the cart (or changes it). The page reloads either way, since its stock may have changed. */
+    fun setCartQuantity(id: Long, quantity: Int) = shopping(id) { cart.setQuantity(id, quantity) }
 
-    fun cancelBooking(id: Long, bookingId: Long) = booking(id) { bookings.cancel(bookingId) }
+    fun removeFromCart(id: Long) = shopping(id) { cart.remove(id) }
 
-    private fun booking(id: Long, call: suspend () -> Result<Booking>) {
-        if (_state.value.bookingBusy) return
-        _state.update { it.copy(bookingBusy = true, bookingError = null) }
+    /** Saves the photo to the wishlist, or takes it off when it is already saved. */
+    fun toggleWishlist(id: Long) {
+        val saved = _state.value.details[id]?.value?.inWishlist ?: return
+        shopping(id) { if (saved) wishlist.remove(id) else wishlist.add(id) }
+    }
+
+    private fun shopping(id: Long, call: suspend () -> Result<Unit>) {
+        if (_state.value.shoppingBusy) return
+        _state.update { it.copy(shoppingBusy = true, shoppingError = null) }
         viewModelScope.launch {
             val error = call().exceptionOrNull()?.message
             fetch(id)
-            _state.update { it.copy(bookingBusy = false, bookingError = error) }
+            _state.update { it.copy(shoppingBusy = false, shoppingError = error) }
         }
     }
 
