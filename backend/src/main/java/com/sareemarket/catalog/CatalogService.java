@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -16,10 +17,12 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sareemarket.catalog.dto.CatalogCollectionDto;
 import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.catalog.dto.ItemDetailDto;
 import com.sareemarket.catalog.dto.ItemDetailDto.SellerContactDto;
 import com.sareemarket.common.ApiException;
+import com.sareemarket.collection.SareeCollectionRepository;
 import com.sareemarket.common.PageDto;
 import com.sareemarket.item.ImageProcessor;
 import com.sareemarket.item.ItemStatus;
@@ -56,9 +59,12 @@ public class CatalogService {
 
 	private final ImageProcessor images;
 
-	CatalogService(NamedParameterJdbcTemplate jdbc, ImageProcessor images) {
+	private final SareeCollectionRepository collections;
+
+	CatalogService(NamedParameterJdbcTemplate jdbc, ImageProcessor images, SareeCollectionRepository collections) {
 		this.jdbc = jdbc;
 		this.images = images;
+		this.collections = collections;
 	}
 
 	private static RowMapper<CatalogItemDto> card(boolean withDistance) {
@@ -77,6 +83,54 @@ public class CatalogService {
 		List<CatalogItemDto> items = jdbc.query(CARD_COLUMNS + FROM + where + " ORDER BY " + filter.sort().orderBy()
 				+ ", i.id DESC LIMIT :limit OFFSET :offset", params, card(false));
 		return PageDto.of(items, filter.page(), PAGE_SIZE, total == null ? 0 : total);
+	}
+
+	/**
+	 * The catalog as the seller posted it: every collection with at least one photo that passes the filters, shown
+	 * whole (all its photos, counts of all of them). Same filters as search(); the sort uses the collection's price.
+	 */
+	public PageDto<CatalogCollectionDto> searchCollections(CatalogFilter filter, long viewerId) {
+		MapSqlParameterSource params = new MapSqlParameterSource("viewer", viewerId);
+		String matching = " WHERE cc.id IN (SELECT i.collection_id " + FROM + where(filter, params) + ")";
+		Long total = jdbc.queryForObject("SELECT count(*) FROM collection cc" + matching, params, Long.class);
+
+		params.addValue("limit", PAGE_SIZE).addValue("offset", (long) filter.page() * PAGE_SIZE);
+		List<CatalogCollectionDto> cards = jdbc.query("""
+				SELECT cc.id, cc.title, tt.name AS saree_type, ff.name AS fabric, cc.price, cc.created_at,
+				       cc.seller_id, sp.shop_name,
+				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
+				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
+				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
+				FROM collection cc
+				JOIN saree_type tt ON tt.id = cc.saree_type_id
+				JOIN fabric ff ON ff.id = cc.fabric_id
+				JOIN seller_profile sp ON sp.user_id = cc.seller_id
+				""" + matching + " ORDER BY " + filter.sort().collectionOrderBy()
+				+ ", cc.id DESC LIMIT :limit OFFSET :offset", params, (rs, n) -> {
+					long items = rs.getLong("item_count");
+					long available = rs.getLong("available");
+					return new CatalogCollectionDto(rs.getLong("id"), rs.getString("title"), rs.getString("saree_type"),
+							rs.getString("fabric"), rs.getInt("price"), instant(rs, "created_at"), items, available,
+							items - available, rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
+							rs.getString("shop_name"));
+				});
+		return PageDto.of(withPreviews(cards), filter.page(), PAGE_SIZE, total == null ? 0 : total);
+	}
+
+	/** The first three photos of each collection, in upload order, like the seller's dashboard card. */
+	private List<CatalogCollectionDto> withPreviews(List<CatalogCollectionDto> cards) {
+		if (cards.isEmpty()) {
+			return cards;
+		}
+		Map<Long, List<Long>> previews = new java.util.HashMap<>();
+		for (Object[] row : collections.previewItems(cards.stream().map(CatalogCollectionDto::id).toList())) {
+			previews.computeIfAbsent(((Number) row[0]).longValue(), k -> new ArrayList<>()).add(((Number) row[1]).longValue());
+		}
+		return cards.stream()
+			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.sareeType(), c.fabric(), c.price(), c.createdAt(),
+					c.itemCount(), c.availableCount(), c.soldOutCount(), c.coverItemId(),
+					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName()))
+			.toList();
 	}
 
 	/**

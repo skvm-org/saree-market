@@ -9,8 +9,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface CatalogApi {
-    @GET("api/v1/catalog")
-    suspend fun catalog(
+    /** The same filters, answered with whole collections as the sellers posted them. */
+    @GET("api/v1/catalog/collections")
+    suspend fun catalogCollections(
         @Query("q") q: String?,
         @Query("typeIds") typeIds: List<Long>?,
         @Query("fabricIds") fabricIds: List<Long>?,
@@ -23,7 +24,7 @@ interface CatalogApi {
         @Query("sort") sort: String,
         @Query("page") page: Int,
         @Query("following") following: Boolean? = null,
-    ): CatalogPage
+    ): CollectionPage
 
     /** Photo search: the picture plus the same optional filters. Results come back closest first. */
     @Multipart

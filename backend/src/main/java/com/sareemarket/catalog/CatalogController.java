@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.sareemarket.catalog.dto.CatalogCollectionDto;
 import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.catalog.dto.ItemDetailDto;
 import com.sareemarket.common.PageDto;
@@ -33,6 +34,14 @@ class CatalogController {
 	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
 	PageDto<CatalogItemDto> search(@AuthenticationPrincipal Jwt jwt, @Valid @ModelAttribute CatalogFilter filter) {
 		return service.search(filter, Long.parseLong(jwt.getSubject()));
+	}
+
+	/** The same filters, but the results are whole collections, as the sellers posted them. */
+	@GetMapping("/catalog/collections")
+	@PreAuthorize("hasAnyRole('RESELLER', 'ADMIN')")
+	PageDto<CatalogCollectionDto> collections(@AuthenticationPrincipal Jwt jwt,
+			@Valid @ModelAttribute CatalogFilter filter) {
+		return service.searchCollections(filter, Long.parseLong(jwt.getSubject()));
 	}
 
 	/** Multipart: the "image" part plus the same optional filters as GET /catalog (as form fields or in the URL). */

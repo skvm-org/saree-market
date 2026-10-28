@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogSort
+import com.sareemarket.app.data.CollectionSummary
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.ui.reseller.CatalogContent
 import com.sareemarket.app.ui.reseller.CatalogState
@@ -34,6 +35,12 @@ class CatalogScreenTest {
     private val available = CatalogItem(1, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
     private val soldOut = available.copy(id = 2, price = 3200, status = ItemStatus.SOLD_OUT, shopName = "Kanchi Weaves")
 
+    private val diwali = CollectionSummary(
+        5, "Diwali soft silks", "Soft silk", "Pure silk", 125000, 18, 15, 3, coverItemId = 1,
+        previewItemIds = listOf(1, 2, 3), shopName = "Lakshmi Silks", sellerId = 1,
+    )
+    private val summer = diwali.copy(id = 6, title = "Summer cottons", price = 3200, availableCount = 8, soldOutCount = 0, itemCount = 8, shopName = "Kanchi Weaves")
+
     private fun show(
         state: CatalogState,
         text: String = "",
@@ -41,42 +48,44 @@ class CatalogScreenTest {
         onFilters: () -> Unit = {},
         onSort: (CatalogSort) -> Unit = {},
         onOpen: (Long) -> Unit = {},
+        onOpenCollection: (Long) -> Unit = {},
         onClear: () -> Unit = {},
         onRetry: () -> Unit = {},
         onPhoto: () -> Unit = {},
         onClearPhoto: () -> Unit = {},
         onTab: (Boolean) -> Unit = {},
     ) = compose.setContent {
-        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto) }
+        SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto, onOpenCollection = onOpenCollection) }
     }
 
     @Test
-    fun cardsShowPriceTypeFabricShopAndAvailability() {
-        show(CatalogState(items = listOf(available, soldOut), totalItems = 148, loading = false))
+    fun collectionCardsShowTitlePriceTypeFabricShopAndStock() {
+        show(CatalogState(collections = listOf(diwali, summer), totalItems = 148, loading = false))
 
+        compose.onNodeWithText("Diwali soft silks").assertExists()
         compose.onNodeWithText("₹1,25,000").assertExists()
         compose.onAllNodesWithText("Soft silk · Pure silk").assertCountEquals(2) // one per card
         compose.onNodeWithText("Lakshmi Silks").assertExists()
         compose.onNodeWithText("Kanchi Weaves").assertExists()
-        compose.onNodeWithText("Sold out").assertExists()
-        compose.onAllNodesWithText("Available").assertCountEquals(0) // the default view is all available, so only the exception is badged
+        compose.onNodeWithText("15 available · 3 sold out").assertExists()
+        compose.onNodeWithText("8 available").assertExists()
         compose.onNodeWithTag("count").assertExists()
-        compose.onNodeWithText("2 of 148 sarees").assertExists()
+        compose.onNodeWithText("2 of 148 collections").assertExists()
     }
 
     @Test
-    fun tappingACardOpensTheItem() {
+    fun tappingACollectionOpensIt() {
         var opened = 0L
-        show(CatalogState(items = listOf(available), totalItems = 1, loading = false), onOpen = { opened = it })
+        show(CatalogState(collections = listOf(diwali), totalItems = 1, loading = false), onOpenCollection = { opened = it })
 
-        compose.onNodeWithTag("card-1").performClick()
+        compose.onNodeWithTag("collection-5").performClick()
 
-        assertEquals(1L, opened)
+        assertEquals(5L, opened)
     }
 
     @Test
     fun filtersButtonShowsHowManyFiltersAreOn() {
-        show(CatalogState(query = CatalogQuery(typeIds = setOf(1), colour = "red", includeSoldOut = true), items = listOf(available), loading = false))
+        show(CatalogState(query = CatalogQuery(typeIds = setOf(1), colour = "red", includeSoldOut = true), collections = listOf(diwali), loading = false))
 
         compose.onNodeWithText("Filters (3)").assertExists()
     }
@@ -84,7 +93,7 @@ class CatalogScreenTest {
     @Test
     fun filtersButtonOpensTheSheet() {
         var opened = 0
-        show(CatalogState(items = listOf(available), loading = false), onFilters = { opened++ })
+        show(CatalogState(collections = listOf(diwali), loading = false), onFilters = { opened++ })
 
         compose.onNodeWithText("Filters").performClick()
 
@@ -106,7 +115,7 @@ class CatalogScreenTest {
     @Test
     fun sortMenuListsTheThreeOrders() {
         var chosen: CatalogSort? = null
-        show(CatalogState(items = listOf(available), loading = false), onSort = { chosen = it })
+        show(CatalogState(collections = listOf(diwali), loading = false), onSort = { chosen = it })
 
         compose.onNodeWithTag("sort").performClick()
         compose.onNodeWithText("Price: low to high").performClick()
@@ -147,7 +156,7 @@ class CatalogScreenTest {
     @Test
     fun searchByPhotoButtonIsAlwaysThere() {
         var taps = 0
-        show(CatalogState(items = listOf(available), loading = false), onPhoto = { taps++ })
+        show(CatalogState(collections = listOf(diwali), loading = false), onPhoto = { taps++ })
 
         compose.onNodeWithTag("photo-search").performClick()
 
@@ -169,7 +178,7 @@ class CatalogScreenTest {
 
     @Test
     fun normalSearchHasNoBannerAndKeepsTheSortMenu() {
-        show(CatalogState(items = listOf(available), loading = false))
+        show(CatalogState(collections = listOf(diwali), loading = false))
 
         compose.onNodeWithTag("photo-banner").assertDoesNotExist()
         compose.onNodeWithTag("sort").assertExists()
@@ -203,7 +212,7 @@ class CatalogScreenTest {
     @Test
     fun tabsShowHowManySellersAreFollowedAndHowManyExist() {
         show(CatalogState(
-            items = listOf(available), loading = false, followedCount = 3,
+            collections = listOf(diwali), loading = false, followedCount = 3,
             sellers = List(42) { com.sareemarket.app.data.SellerListItem(it.toLong(), "Shop $it", "Erode") },
             query = CatalogQuery(followingOnly = true),
         ))
@@ -215,7 +224,7 @@ class CatalogScreenTest {
     @Test
     fun tappingATabReportsWhichOne() {
         val chosen = mutableListOf<Boolean>()
-        show(CatalogState(items = listOf(available), loading = false, followedCount = 1), onTab = { chosen += it })
+        show(CatalogState(collections = listOf(diwali), loading = false, followedCount = 1), onTab = { chosen += it })
 
         compose.onNodeWithTag("tab-following").performClick()
         compose.onNodeWithTag("tab-all").performClick()
@@ -237,13 +246,13 @@ class CatalogScreenTest {
     @Test
     fun theFirstSareeStartsHighBecauseTheControlsShareOneSearchBarAndOneChipRow() {
         compose.setContent {
-            SareeTheme { CatalogContent(CatalogState(items = listOf(available), totalItems = 1, loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+            SareeTheme { CatalogContent(CatalogState(collections = listOf(diwali), totalItems = 1, loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }
 
         compose.onNodeWithTag("menu").assertDoesNotExist() // resellers have the bottom bar, no side menu
         compose.onNodeWithTag("photo-search").assertExists()
         compose.onNodeWithTag("tab-following").assertExists()
         compose.onNodeWithTag("filters").assertExists()
-        assertTrue(compose.onNodeWithTag("card-1").getUnclippedBoundsInRoot().top < 300.dp)
+        assertTrue(compose.onNodeWithTag("collection-5").getUnclippedBoundsInRoot().top < 300.dp)
     }
 }

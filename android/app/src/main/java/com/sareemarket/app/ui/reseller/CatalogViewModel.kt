@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogRepository
+import com.sareemarket.app.data.CollectionSummary
 import com.sareemarket.app.data.FollowRepository
 import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
@@ -21,7 +22,10 @@ data class CatalogState(
     val query: CatalogQuery = CatalogQuery(),
     /** The picture being searched with (a URI string), or null for a normal catalog search. */
     val imageUri: String? = null,
+    /** Photos matching the picture; only filled during a photo search. */
     val items: List<CatalogItem> = emptyList(),
+    /** Whole collections, as the sellers posted them; what a normal search lists. */
+    val collections: List<CollectionSummary> = emptyList(),
     val totalItems: Long = 0,
     val nextPage: Int = 0,
     val hasMore: Boolean = false,
@@ -36,7 +40,10 @@ data class CatalogState(
     val sellers: List<SellerListItem> = emptyList(),
     /** How many sellers the reseller follows: the number on the Following tab. */
     val followedCount: Int = 0,
-)
+) {
+    /** True when the current search found nothing to list. */
+    val noResults get() = if (imageUri != null) items.isEmpty() else collections.isEmpty()
+}
 
 @HiltViewModel
 class CatalogViewModel @Inject constructor(
@@ -116,7 +123,7 @@ class CatalogViewModel @Inject constructor(
         loadJob = viewModelScope.launch { fetch(0) }
     }
 
-    fun retry() = if (_state.value.items.isEmpty()) reload() else loadNextPage()
+    fun retry() = if (_state.value.noResults) reload() else loadNextPage()
 
     fun loadNextPage() {
         val s = _state.value
@@ -129,30 +136,47 @@ class CatalogViewModel @Inject constructor(
     private fun reload() {
         loadJob?.cancel()
         _state.update {
-            it.copy(items = emptyList(), totalItems = 0, nextPage = 0, hasMore = false, loading = true, loadingMore = false, error = null)
+            it.copy(items = emptyList(), collections = emptyList(), totalItems = 0, nextPage = 0, hasMore = false, loading = true, loadingMore = false, error = null)
         }
         loadJob = viewModelScope.launch { fetch(0) }
     }
 
     private suspend fun fetch(page: Int) {
         val photo = _state.value.imageUri
-        val result = if (photo != null) repository.imageSearch(_state.value.query, photo, page) else repository.catalog(_state.value.query, page)
-        result.fold(
-            onSuccess = { result ->
-                _state.update {
-                    it.copy(
-                        // distinctBy: photos uploaded while scrolling shift the pages, so one can show up twice.
-                        items = if (page == 0) result.items else (it.items + result.items).distinctBy { c -> c.id },
-                        totalItems = result.totalItems,
-                        nextPage = page + 1,
-                        hasMore = page + 1 < result.totalPages,
-                        loading = false,
-                        loadingMore = false,
-                        refreshing = false,
-                    )
-                }
-            },
-            onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, refreshing = false, error = e.message) } },
-        )
+        if (photo != null) {
+            repository.imageSearch(_state.value.query, photo, page).fold(
+                onSuccess = { result ->
+                    // distinctBy: photos uploaded while scrolling shift the pages, so one can show up twice.
+                    val all = if (page == 0) result.items else (_state.value.items + result.items).distinctBy { c -> c.id }
+                    showPage(page, result.totalItems, result.totalPages) { it.copy(items = all) }
+                },
+                onFailure = ::fail,
+            )
+        } else {
+            repository.collections(_state.value.query, page).fold(
+                onSuccess = { result ->
+                    val all = if (page == 0) result.items else (_state.value.collections + result.items).distinctBy { c -> c.id }
+                    showPage(page, result.totalItems, result.totalPages) { it.copy(collections = all) }
+                },
+                onFailure = ::fail,
+            )
+        }
+    }
+
+    private fun showPage(page: Int, total: Long, totalPages: Int, withResults: (CatalogState) -> CatalogState) {
+        _state.update {
+            withResults(it).copy(
+                totalItems = total,
+                nextPage = page + 1,
+                hasMore = page + 1 < totalPages,
+                loading = false,
+                loadingMore = false,
+                refreshing = false,
+            )
+        }
+    }
+
+    private fun fail(e: Throwable) {
+        _state.update { it.copy(loading = false, loadingMore = false, refreshing = false, error = e.message) }
     }
 }

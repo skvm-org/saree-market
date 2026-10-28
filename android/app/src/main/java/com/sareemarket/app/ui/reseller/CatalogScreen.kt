@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
-import com.sareemarket.app.ui.theme.GRID_MIN_CELL
+import com.sareemarket.app.ui.seller.CollectionCard
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import com.sareemarket.app.data.CatalogQuery
@@ -120,12 +120,15 @@ import kotlinx.coroutines.delay
 
 private const val SEARCH_DELAY_MS = 300L
 
+/** A phone gets one collection card per row; a tablet or landscape gets several. */
+private val COLLECTION_CARD_MIN = 320.dp
+
 /** How close to the end of the list the reseller scrolls before the next page is fetched. */
 private const val LOAD_MORE_AHEAD = 6
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogScreen(onOpenItem: (Long) -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
+fun CatalogScreen(onOpenItem: (Long) -> Unit, onOpenCollection: (Long) -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf(state.query.q) }
     var showFilters by remember { mutableStateOf(false) }
@@ -155,6 +158,7 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, viewModel: CatalogViewModel = hilt
         onOpenFilters = { showFilters = true },
         onSort = { viewModel.apply(state.query.copy(sort = it)) },
         onOpenItem = onOpenItem,
+        onOpenCollection = onOpenCollection,
         onLoadMore = viewModel::loadNextPage,
         onRetry = viewModel::retry,
         onClearFilters = viewModel::clearFilters,
@@ -208,6 +212,7 @@ fun CatalogContent(
     onClearPhoto: () -> Unit,
     onRefresh: () -> Unit = {},
     onQueryChange: (CatalogQuery) -> Unit = {},
+    onOpenCollection: (Long) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -222,11 +227,11 @@ fun CatalogContent(
             val results: @Composable BoxScope.() -> Unit = {
         when {
             state.loading -> SkeletonGrid()
-            state.items.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+            state.noResults && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                 PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
             }
-            state.items.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
+            state.noResults -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     when {
                         state.imageUri != null -> "No similar sarees found.\nTry a clearer photo, or fewer filters."
@@ -247,7 +252,7 @@ fun CatalogContent(
                 }
             }
             else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenItem, onLoadMore, onRetry)
+                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenCollection, onLoadMore, onRetry)
             }
         }
             }
@@ -338,20 +343,20 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
             }
         }
     }
-    if (state.imageUri == null && !state.loading && state.items.isNotEmpty()) {
+    if (state.imageUri == null && !state.loading && state.collections.isNotEmpty()) {
         Row(Modifier.fillMaxWidth().padding(bottom = Spacing.sm), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             Text(
-                if (state.query.followingOnly) "New from sellers you follow" else "All sarees",
+                if (state.query.followingOnly) "New from sellers you follow" else "All collections",
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                "${state.items.size} of ${state.totalItems} sarees",
+                "${state.collections.size} of ${state.totalItems} collections",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("count"),
             )
         }
-    } else if (!state.loading && state.items.isNotEmpty()) {
+    } else if (state.imageUri != null && !state.loading && state.items.isNotEmpty()) {
         Text(
             "${state.items.size} of ${state.totalItems} sarees",
             style = MaterialTheme.typography.bodySmall,
@@ -442,22 +447,22 @@ private fun PhotoSourceButton(label: String, icon: androidx.compose.ui.graphics.
 }
 
 @Composable
-private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit) {
+private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit) {
     val grid = rememberLazyGridState()
-    LaunchedEffect(grid, state.items.size) {
+    LaunchedEffect(grid, state.collections.size) {
         snapshotFlow { grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.collect { last ->
-            if (last != null && last >= state.items.size - LOAD_MORE_AHEAD) onLoadMore()
+            if (last != null && last >= state.collections.size - LOAD_MORE_AHEAD) onLoadMore()
         }
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
+        columns = GridCells.Adaptive(minSize = COLLECTION_CARD_MIN),
         state = grid,
         contentPadding = PaddingValues(bottom = Spacing.lg),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         modifier = Modifier.fillMaxSize().testTag("results"),
     ) {
-        items(state.items, key = { it.id }) { Box(Modifier.animateItem()) { CatalogCard(it, onClick = { onOpenItem(it.id) }) } }
+        items(state.collections, key = { it.id }) { Box(Modifier.animateItem()) { CollectionCard(it, onClick = { onOpenCollection(it.id) }) } }
         if (state.loadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() }
@@ -469,37 +474,6 @@ private fun ResultsGrid(state: CatalogState, onOpenItem: (Long) -> Unit, onLoadM
                     Text("Could not load more. ${state.error}", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                     TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Try again") }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
-    val soldOut = item.status == ItemStatus.SOLD_OUT
-    Surface(
-        shape = CardShape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = CardBorder,
-        modifier = Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("card-${item.id}"),
-    ) {
-        Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Box {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: item.collectionTitle, modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
-                // The catalog lists what is available by default, so only the exception gets a badge.
-                if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
-            }
-            Text(
-                formatRupees(item.price),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                textDecoration = if (soldOut) TextDecoration.LineThrough else null,
-                modifier = Modifier.padding(horizontal = Spacing.xs),
-            )
-            Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = Spacing.xs))
-            Row(Modifier.padding(horizontal = Spacing.xs).padding(bottom = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Icon(Icons.Filled.Storefront, contentDescription = null, tint = SareeColors.SlateNeutral, modifier = Modifier.size(14.dp))
-                Text(item.shopName, style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

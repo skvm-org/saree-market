@@ -23,6 +23,9 @@ data class CollectionSummary(
     val previewItemIds: List<Long> = emptyList(),
     /** ISO-8601 instant the collection was created. */
     val createdAt: String? = null,
+    /** Who sells it; set only on the reseller catalog, where cards come from many shops. */
+    val sellerId: Long? = null,
+    val shopName: String? = null,
 )
 
 @Serializable

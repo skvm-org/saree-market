@@ -83,7 +83,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             val transition = this
             NavHost(navController = nav, startDestination = TAB_CATALOG) {
                 composable(TAB_CATALOG) {
-                    ProvideSharedScopes(transition, this) { CatalogScreen(onOpenItem = { nav.navigate("item/$it") }) }
+                    ProvideSharedScopes(transition, this) { CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onOpenCollection = { nav.navigate("collection/$it") }) }
                 }
                 composable(TAB_SELLERS) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })

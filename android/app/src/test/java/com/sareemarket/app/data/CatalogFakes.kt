@@ -2,7 +2,7 @@ package com.sareemarket.app.data
 
 import kotlinx.coroutines.CompletableDeferred
 
-/** What the app sent in one GET /catalog call. */
+/** What the app sent in one GET /catalog/collections call. */
 data class CatalogCall(
     val q: String?, val typeIds: List<Long>?, val fabricIds: List<Long>?, val colour: String?,
     val minPrice: Int?, val maxPrice: Int?, val sellerId: Long?, val status: String, val since: Int?,
@@ -24,6 +24,11 @@ fun page(number: Int, totalPages: Int, perPage: Int = 2, total: Long = totalPage
     page = number, pageSize = perPage, totalItems = total, totalPages = totalPages,
 )
 
+fun collectionPage(number: Int, totalPages: Int, perPage: Int = 2, total: Long = totalPages.toLong() * perPage) = CollectionPage(
+    items = (0 until perPage).map { summary(number * 100L + it).copy(shopName = "Lakshmi Silks", sellerId = 1) },
+    page = number, pageSize = perPage, totalItems = total, totalPages = totalPages,
+)
+
 val lakshmi = SellerContact(1, "Lakshmi Silks", "Chinnalapatti", "9876543210", "9876543211")
 
 fun itemDetail(id: Long = 10, seller: SellerContact = lakshmi) = ItemDetail(
@@ -32,7 +37,7 @@ fun itemDetail(id: Long = 10, seller: SellerContact = lakshmi) = ItemDetail(
 
 class FakeCatalogApi : CatalogApi {
     val calls = mutableListOf<CatalogCall>()
-    var onCatalog: (CatalogCall) -> CatalogPage = { page(it.page, totalPages = 3) }
+    var onCollections: (CatalogCall) -> CollectionPage = { collectionPage(it.page, totalPages = 3) }
     var sellers = listOf(SellerListItem(1, "Lakshmi Silks", "Chinnalapatti"))
     var onItem: (Long) -> ItemDetail = { itemDetail(it) }
     var onSeller: (Long) -> SellerPage = { SellerPage(it, "Lakshmi Silks", "Chinnalapatti", "9876543210", null, collections = listOf(summary())) }
@@ -43,14 +48,14 @@ class FakeCatalogApi : CatalogApi {
     /** When set, a search for q == "slow" waits for this before answering, to test late answers. */
     var gate: CompletableDeferred<Unit>? = null
 
-    override suspend fun catalog(
+    override suspend fun catalogCollections(
         q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?, minPrice: Int?, maxPrice: Int?,
         sellerId: Long?, status: String, since: Int?, sort: String, page: Int, following: Boolean?,
-    ): CatalogPage {
+    ): CollectionPage {
         val call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, sort, page, following)
         calls += call
         if (q == "slow") gate?.await()
-        return onCatalog(call)
+        return onCollections(call)
     }
 
     override suspend fun imageSearch(

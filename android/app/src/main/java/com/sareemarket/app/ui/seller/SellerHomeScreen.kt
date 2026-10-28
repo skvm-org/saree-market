@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -40,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -211,11 +214,13 @@ private fun StatTile(label: String, value: Long, numberColor: androidx.compose.u
 @Composable
 internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
     Surface(
-        onClick = onClick,
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         border = CardBorder,
-        modifier = Modifier.fillMaxWidth().testTag("collection-${collection.id}"),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "Open collection", role = Role.Button, onClick = onClick)
+            .testTag("collection-${collection.id}"),
     ) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -226,6 +231,13 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // Only the reseller catalog fills this in; a seller's own dashboard is all one shop.
+                    collection.shopName?.let {
+                        Row(Modifier.padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Icon(Icons.Filled.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(18.dp))
+                            Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
                 Text(formatRupees(collection.price), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer)
             }

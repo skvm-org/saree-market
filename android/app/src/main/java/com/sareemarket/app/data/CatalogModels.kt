@@ -27,6 +27,16 @@ data class CatalogPage(
     val totalPages: Int,
 )
 
+/** One page of collections from GET /catalog/collections. */
+@Serializable
+data class CollectionPage(
+    val items: List<CollectionSummary>,
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+)
+
 @Serializable
 data class SellerContact(
     val id: Long,

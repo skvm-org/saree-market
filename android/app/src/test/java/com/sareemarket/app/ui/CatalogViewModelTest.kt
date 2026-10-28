@@ -11,7 +11,8 @@ import com.sareemarket.app.data.FakeCollectionsApi
 import com.sareemarket.app.data.httpError
 import com.sareemarket.app.data.networkError
 import com.sareemarket.app.data.page
-import com.sareemarket.app.data.card
+import com.sareemarket.app.data.collectionPage
+import com.sareemarket.app.data.summary
 import com.sareemarket.app.data.fakePhotos
 import com.sareemarket.app.data.testJson
 import com.sareemarket.app.ui.reseller.CatalogViewModel
@@ -44,7 +45,8 @@ class CatalogViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun ids() = vm.state.value.items.map { it.id }
+    // A photo search lists photos; a normal search lists collections.
+    private fun ids() = vm.state.value.let { s -> if (s.imageUri != null) s.items.map { it.id } else s.collections.map { it.id } }
 
     @Test
     fun opensWithTheFirstPageAndTheFilterChoices() {
@@ -135,42 +137,43 @@ class CatalogViewModelTest {
     @Test
     fun failedFirstLoadShowsTheErrorAndRetryRecovers() {
         var fail = true
-        api.onCatalog = { if (fail) throw networkError() else page(it.page, 1) }
+        api.onCollections = { if (fail) throw networkError() else collectionPage(it.page, 1) }
 
         val failing = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson), follows)
-        assertTrue(failing.state.value.items.isEmpty())
+        assertTrue(failing.state.value.collections.isEmpty())
         assertNotNull(failing.state.value.error)
         assertFalse(failing.state.value.loading)
 
         fail = false
         failing.retry()
-        assertEquals(2, failing.state.value.items.size)
+        assertEquals(2, failing.state.value.collections.size)
         assertNull(failing.state.value.error)
     }
 
     @Test
     fun failedNextPageKeepsTheListAndRetryLoadsIt() {
-        assertEquals(2, vm.state.value.items.size)
-        api.onCatalog = { throw httpError(500) }
+        assertEquals(2, vm.state.value.collections.size)
+        api.onCollections = { throw httpError(500) }
 
         vm.loadNextPage()
-        assertEquals(2, vm.state.value.items.size)
+        assertEquals(2, vm.state.value.collections.size)
         assertNotNull(vm.state.value.error)
         assertFalse(vm.state.value.loadingMore)
 
-        api.onCatalog = { page(it.page, 3) }
+        api.onCollections = { collectionPage(it.page, 3) }
         vm.retry()
-        assertEquals(4, vm.state.value.items.size)
+        assertEquals(4, vm.state.value.collections.size)
         assertNull(vm.state.value.error)
     }
 
     @Test
     fun emptyResultsAreNotAnError() {
-        api.onCatalog = { page(0, totalPages = 0, perPage = 0, total = 0) }
+        api.onCollections = { collectionPage(0, totalPages = 0, perPage = 0, total = 0) }
 
         vm.apply(CatalogQuery(colour = "nothing"))
 
-        assertTrue(vm.state.value.items.isEmpty())
+        assertTrue(vm.state.value.collections.isEmpty())
+        assertTrue(vm.state.value.noResults)
         assertNull(vm.state.value.error)
         assertFalse(vm.state.value.hasMore)
         assertEquals(1, vm.state.value.query.activeFilterCount)
@@ -225,7 +228,8 @@ class CatalogViewModelTest {
         assertNull(vm.state.value.imageUri)
         assertEquals(catalogCalls + 1, api.calls.size)
         assertEquals(0, api.calls.last().page)
-        assertNull(vm.state.value.items.first().distance)
+        assertTrue(vm.state.value.items.isEmpty()) // the photo matches are gone
+        assertEquals(listOf(0L, 1L), ids()) // back to collections
     }
 
     @Test
@@ -271,12 +275,12 @@ class CatalogViewModelTest {
     @Test
     fun aPhotoShiftedByNewUploadsIsNotListedTwice() {
         // A seller uploaded while the reseller scrolled, so page 2 repeats the last photo of page 1.
-        api.onCatalog = { if (it.page == 0) page(0, 3) else page(1, 3).copy(items = listOf(card(1), card(100))) }
+        api.onCollections = { if (it.page == 0) collectionPage(0, 3) else collectionPage(1, 3).copy(items = listOf(summary(1), summary(100))) }
         val fresh = CatalogViewModel(CatalogRepository(api, FakeCollectionsApi(), fakePhotos(), testJson), follows)
 
         fresh.loadNextPage()
 
-        assertEquals(listOf(0L, 1L, 100L), fresh.state.value.items.map { it.id })
+        assertEquals(listOf(0L, 1L, 100L), fresh.state.value.collections.map { it.id })
     }
 
     @Test

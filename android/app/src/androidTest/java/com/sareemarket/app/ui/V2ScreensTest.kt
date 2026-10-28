@@ -86,7 +86,8 @@ class V2ScreensTest {
             SareeTheme {
                 CatalogContent(
                     CatalogState(
-                        items = listOf(item), totalItems = 1, loading = false, reference = reference,
+                        collections = listOf(com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", "Soft silk", "Pure silk", 125000, 18, 15, 3)),
+                        totalItems = 1, loading = false, reference = reference,
                         query = com.sareemarket.app.data.CatalogQuery(typeIds = setOf(1), colour = "maroon"),
                     ),
                     "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onQueryChange = { applied = it },

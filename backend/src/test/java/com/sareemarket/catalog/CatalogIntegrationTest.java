@@ -383,4 +383,103 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		getWith("/api/v1/items/" + i, adminToken()).andExpect(status().isOk());
 	}
 
+	List<Long> collectionIds(String token, long sellerId, String query) throws Exception {
+		String json = getWith("/api/v1/catalog/collections?sellerId=" + sellerId + (query.isEmpty() ? "" : "&" + query), token)
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		List<Number> ids = JsonPath.read(json, "$.items[*].id");
+		return ids.stream().map(Number::longValue).toList();
+	}
+
+	@Test
+	void collectionListIsForResellersAndAdminsOnly() throws Exception {
+		getWith("/api/v1/catalog/collections", registerReseller()).andExpect(status().isOk());
+		getWith("/api/v1/catalog/collections", adminToken()).andExpect(status().isOk());
+		getWith("/api/v1/catalog/collections", registerSeller()).andExpect(status().isForbidden());
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/catalog/collections"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void aCollectionCardShowsTheWholeCollectionAsTheSellerPostedIt() throws Exception {
+		String reseller = registerReseller();
+		long s = seller("Lakshmi Silks");
+		long c = collection(s, "Diwali soft silks", 3, 1, 4500, "festive");
+		long first = item(c, s, "maroon");
+		long second = item(c, s, "peacock blue");
+		long third = item(c, s, "gold", null, "SOLD_OUT", 0);
+		item(c, s, "green");
+
+		// Only the "gold" photo matches, but the card still describes all four photos in upload order.
+		getWith("/api/v1/catalog/collections?sellerId=" + s + "&colour=gold&status=ALL", reseller)
+			.andExpect(jsonPath("$.items.length()").value(1))
+			.andExpect(jsonPath("$.items[0].id").value(c))
+			.andExpect(jsonPath("$.items[0].title").value("Diwali soft silks"))
+			.andExpect(jsonPath("$.items[0].sareeType").value("Soft silk"))
+			.andExpect(jsonPath("$.items[0].fabric").value("Pure silk"))
+			.andExpect(jsonPath("$.items[0].price").value(4500))
+			.andExpect(jsonPath("$.items[0].shopName").value("Lakshmi Silks"))
+			.andExpect(jsonPath("$.items[0].sellerId").value(s))
+			.andExpect(jsonPath("$.items[0].itemCount").value(4))
+			.andExpect(jsonPath("$.items[0].availableCount").value(3))
+			.andExpect(jsonPath("$.items[0].soldOutCount").value(1))
+			.andExpect(jsonPath("$.items[0].coverItemId").value(first))
+			.andExpect(jsonPath("$.items[0].previewItemIds[0]").value(first))
+			.andExpect(jsonPath("$.items[0].previewItemIds[1]").value(second))
+			.andExpect(jsonPath("$.items[0].previewItemIds[2]").value(third))
+			.andExpect(jsonPath("$.items[0].previewItemIds.length()").value(3));
+	}
+
+	@Test
+	void aCollectionIsListedOnceNoMatterHowManyPhotosMatch() throws Exception {
+		String reseller = registerReseller();
+		long s = seller("Shop");
+		long c = collection(s, "Reds", 1, 1, 1000, null);
+		item(c, s, "red");
+		item(c, s, "red");
+		item(c, s, "red");
+
+		assertThat(collectionIds(reseller, s, "colour=red")).containsExactly(c);
+		getWith("/api/v1/catalog/collections?sellerId=" + s + "&colour=red", reseller)
+			.andExpect(jsonPath("$.totalItems").value(1));
+	}
+
+	@Test
+	void collectionsFollowTheSameFiltersAsPhotos() throws Exception {
+		String reseller = registerReseller();
+		long s = seller("Shop");
+		String tag = word();
+		long silk = collection(s, "Silk " + tag, 3, 1, 5000, null);
+		long cotton = collection(s, "Cotton " + tag, 4, 3, 900, null);
+		long soldOutOnly = collection(s, "Gone " + tag, 1, 1, 2000, null);
+		item(silk, s, "maroon");
+		item(cotton, s, "white");
+		item(soldOutOnly, s, "red", null, "SOLD_OUT", 0);
+
+		assertThat(collectionIds(reseller, s, "q=" + tag)).containsExactlyInAnyOrder(silk, cotton); // sold out hidden by default
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&status=ALL")).containsExactlyInAnyOrder(silk, cotton, soldOutOnly);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&typeIds=3")).containsExactly(silk);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&fabricIds=3")).containsExactly(cotton);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&maxPrice=1000")).containsExactly(cotton);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&sort=PRICE_ASC")).containsExactly(cotton, silk);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&sort=PRICE_DESC")).containsExactly(silk, cotton);
+	}
+
+	@Test
+	void newestCollectionComesFirstAndADisabledSellersCollectionsAreHidden() throws Exception {
+		String reseller = registerReseller();
+		long s = seller("Shop");
+		long older = collection(s, "Older", 1, 1, 1000, null);
+		item(older, s, "red", null, "AVAILABLE", 3);
+		long newer = collection(s, "Newer", 1, 1, 1000, null);
+		item(newer, s, "red", null, "AVAILABLE", 0);
+
+		assertThat(collectionIds(reseller, s, "")).containsExactly(newer, older);
+
+		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", s);
+		assertThat(collectionIds(reseller, s, "")).isEmpty();
+	}
+
 }

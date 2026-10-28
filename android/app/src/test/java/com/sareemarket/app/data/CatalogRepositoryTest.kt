@@ -12,7 +12,7 @@ class CatalogRepositoryTest {
 
     @Test
     fun emptyQuerySendsOnlyTheDefaults() = runTest {
-        repo.catalog(CatalogQuery(), page = 0)
+        repo.collections(CatalogQuery(), page = 0)
 
         val call = api.calls.single()
         assertNull(call.q)
@@ -35,7 +35,7 @@ class CatalogRepositoryTest {
             sort = CatalogSort.PRICE_DESC,
         )
 
-        repo.catalog(query, page = 2)
+        repo.collections(query, page = 2)
 
         assertEquals(
             CatalogCall("soft silk", listOf(1, 3), listOf(2), "blue", 1000, 3000, 9, "ALL", 30, "PRICE_DESC", 2),
@@ -45,7 +45,7 @@ class CatalogRepositoryTest {
 
     @Test
     fun blankTextIsLeftOut() = runTest {
-        repo.catalog(CatalogQuery(q = "   ", colour = ""), page = 0)
+        repo.collections(CatalogQuery(q = "   ", colour = ""), page = 0)
 
         assertNull(api.calls.single().q)
         assertNull(api.calls.single().colour)
@@ -53,16 +53,16 @@ class CatalogRepositoryTest {
 
     @Test
     fun offlineBecomesANetworkError() = runTest {
-        api.onCatalog = { throw networkError() }
+        api.onCollections = { throw networkError() }
 
-        assertEquals("NETWORK", (repo.catalog(CatalogQuery(), 0).exceptionOrNull() as ApiFailure).code)
+        assertEquals("NETWORK", (repo.collections(CatalogQuery(), 0).exceptionOrNull() as ApiFailure).code)
     }
 
     @Test
     fun serverMessageIsKept() = runTest {
-        api.onCatalog = { throw httpError(403, """{"code":"FORBIDDEN","message":"You do not have access to this"}""") }
+        api.onCollections = { throw httpError(403, """{"code":"FORBIDDEN","message":"You do not have access to this"}""") }
 
-        assertEquals("You do not have access to this", repo.catalog(CatalogQuery(), 0).exceptionOrNull()?.message)
+        assertEquals("You do not have access to this", repo.collections(CatalogQuery(), 0).exceptionOrNull()?.message)
     }
 
     @Test

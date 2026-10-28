@@ -72,7 +72,7 @@ notification    id, reseller_id, seller_id, collection_id, type, item_count, rea
 - Edit collection fields; edit item colour and price override; delete an item or a whole collection (deletes image files too)
 
 ### 3. Reseller: catalog search
-- Results grid of item thumbnails with price, saree type, fabric, seller shop name, availability badge
+- Results are whole collections, as the seller posted them: a card per collection with title, price, saree type, fabric, seller shop name, a strip of its first photos and how many are available. A collection is listed when at least one of its photos matches the filters; tapping it opens the collection page. Photo (image) search still lists single photos, closest first
 - Filters (combinable):
   - Keyword (full-text over title, description, colour)
   - Saree type (multi-select)
@@ -82,7 +82,7 @@ notification    id, reseller_id, seller_id, collection_id, type, item_count, rea
   - Seller (select)
   - Availability: Available only (default) / include sold out
   - Uploaded: last 7 days / last 30 days / any time
-- Sort: newest (default), price low–high, price high–low
+- Sort: newest (default), price low–high, price high–low (by the collection price)
 - Paginated, 24 per page
 - Item detail: large photo, all fields, collection name, seller shop name, market location, **Call** (`tel:`) and **WhatsApp** (`https://wa.me/<number>`) buttons. These are plain links, not an integration.
 - Seller page: shop details and all their collections
@@ -149,7 +149,8 @@ With ~100 sellers posting daily and ~15 resellers, notifying everyone of everyth
 | PATCH | /items/{id} (colour, priceOverride, status) | Seller (own) |
 | PATCH | /collections/{id}/items/status (bulk status) | Seller (own) |
 | DELETE | /items/{id} | Seller (own) |
-| GET | /catalog?q=&typeIds=&fabricIds=&colour=&minPrice=&maxPrice=&sellerId=&status=&since=&sort=&page= | Reseller, Admin |
+| GET | /catalog?q=&typeIds=&fabricIds=&colour=&minPrice=&maxPrice=&sellerId=&status=&since=&sort=&page= (single photos) | Reseller, Admin |
+| GET | /catalog/collections (same filters; whole collections) | Reseller, Admin |
 | POST | /catalog/image-search (multipart image + same filter params) | Reseller, Admin |
 | GET | /items/{id} | Reseller, Admin, owning Seller |
 | GET | /images/{itemId}/full, /images/{itemId}/thumb | Logged-in users |
@@ -175,7 +176,7 @@ Layouts come from `docs/design/stitch/v2/code.html` (one `screen-*` section each
 | Seller home (`screen-seller-dashboard`) | /seller | Seller | Dashboard: collections with available / sold-out counts |
 | New upload (`screen-new-collection`) | /seller/collections/new | Seller | Create collection with multi-photo upload and progress |
 | Batch detail (`screen-collection-detail`) | /seller/collections/:id | Seller | Grid with availability toggles, edit, add photos |
-| Catalog, Filters, Lens search (`screen-catalog`, `screen-filters`, `screen-img-search`) | /catalog | Reseller | Keyword box, filters, image search, results grid |
+| Catalog, Filters, Lens search (`screen-catalog`, `screen-filters`, `screen-img-search`) | /catalog | Reseller | Keyword box, filters, image search, collection cards |
 | Saree detail (`screen-detail`) | /items/:id | Reseller | Item detail with Call and WhatsApp buttons |
 | Seller profile (`screen-seller-page`) | /sellers/:id | Reseller | Seller page with collections and Follow button |
 | My sellers (`screen-my-sellers`) | /my-sellers | Reseller | Followed sellers, mute, unfollow |

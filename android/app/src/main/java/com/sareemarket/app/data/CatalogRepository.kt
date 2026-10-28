@@ -11,8 +11,8 @@ class CatalogRepository @Inject constructor(
     private val photos: PhotoSource,
     private val json: Json,
 ) {
-    suspend fun catalog(query: CatalogQuery, page: Int): Result<CatalogPage> = apiCall(json) {
-        api.catalog(
+    suspend fun collections(query: CatalogQuery, page: Int): Result<CollectionPage> = apiCall(json) {
+        api.catalogCollections(
             q = query.q.trim().ifEmpty { null },
             typeIds = query.typeIds.sorted().ifEmpty { null },
             fabricIds = query.fabricIds.sorted().ifEmpty { null },

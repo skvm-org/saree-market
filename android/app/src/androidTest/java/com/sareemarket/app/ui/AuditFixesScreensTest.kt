@@ -15,7 +15,7 @@ import com.sareemarket.app.data.FollowItem
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.ui.components.SareeTextField
-import com.sareemarket.app.ui.reseller.CatalogCard
+import com.sareemarket.app.ui.seller.CollectionCard
 import com.sareemarket.app.ui.reseller.MySellersContent
 import com.sareemarket.app.ui.reseller.MySellersState
 import com.sareemarket.app.ui.theme.SareeTheme
@@ -76,10 +76,10 @@ class AuditFixesScreensTest {
     }
 
     @Test
-    fun catalogCardsAreAnnouncedAsButtons() {
-        val item = CatalogItem(1, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
-        compose.setContent { SareeTheme { CatalogCard(item, onClick = {}) } }
+    fun collectionCardsAreAnnouncedAsButtons() {
+        val collection = com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", "Soft silk", "Pure silk", 125000, 18, 15, 3)
+        compose.setContent { SareeTheme { CollectionCard(collection, onClick = {}) } }
 
-        compose.onNodeWithTag("card-1").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        compose.onNodeWithTag("collection-5").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
     }
 }
