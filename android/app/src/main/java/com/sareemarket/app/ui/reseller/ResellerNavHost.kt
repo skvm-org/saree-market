@@ -71,13 +71,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
     }
 
     val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS
-    val openTab: (String) -> Unit = { tab ->
-        nav.navigate(tab) {
-            popUpTo(TAB_CATALOG) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
+    val openTab: (String) -> Unit = { tab -> nav.openTab(tab) }
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
@@ -122,7 +116,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     HoldScreen(
                         onBack = { nav.popBackStack() },
                         onPaid = { orderId -> nav.navigate("order/$orderId") { popUpTo("hold/{id}") { inclusive = true } } },
-                        onClosed = { openTab(TAB_CART) },
+                        onClosed = { nav.closeHold() },
                     )
                 }
                 composable("order/{id}", arguments = id) {
