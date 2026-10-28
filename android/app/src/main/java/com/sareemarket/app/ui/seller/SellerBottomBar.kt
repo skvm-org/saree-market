@@ -3,8 +3,11 @@ package com.sareemarket.app.ui.seller
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -20,25 +23,33 @@ import com.sareemarket.app.ui.profile.ROUTE_PROFILE
 internal const val SELLER_HOME = "home"
 internal const val SELLER_NEW = "new"
 internal const val SELLER_SHOP = "shop"
+internal const val SELLER_REQUESTS = "requests"
 
 private data class SellerTab(val route: String, val label: String, val icon: ImageVector)
 
 private val sellerTabs = listOf(
     SellerTab(SELLER_HOME, "Collections", Icons.Filled.PhotoLibrary),
+    SellerTab(SELLER_REQUESTS, "Requests", Icons.Filled.Inbox),
     SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
     SellerTab(SELLER_SHOP, "Shop", Icons.Filled.Storefront),
     SellerTab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
 )
 
-/** Where a seller works from: their collections, a new upload, the shop's details, and their own profile. */
+/** Where a seller works from: collections, booking requests (with the number waiting), a new upload, the shop and the profile. */
 @Composable
-fun SellerBottomBar(current: String?, onSelect: (String) -> Unit) {
+fun SellerBottomBar(current: String?, pending: Long = 0, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         sellerTabs.forEach { tab ->
             NavigationBarItem(
                 selected = current == tab.route,
                 onClick = { onSelect(tab.route) },
-                icon = { Icon(tab.icon, contentDescription = null) },
+                icon = {
+                    BadgedBox(badge = {
+                        if (tab.route == SELLER_REQUESTS && pending > 0) {
+                            Badge(Modifier.testTag("requests-badge")) { Text(if (pending > 99) "99+" else pending.toString()) }
+                        }
+                    }) { Icon(tab.icon, contentDescription = null) }
+                },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onPrimary,

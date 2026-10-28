@@ -43,6 +43,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
     val nav = rememberNavController()
     val shell: ResellerShellViewModel = hiltViewModel()
     val unread by shell.unread.collectAsStateWithLifecycle()
+    val bookingUnread by shell.bookingUnread.collectAsStateWithLifecycle()
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val id = listOf(navArgument("id") { type = NavType.LongType })
 
@@ -88,6 +89,9 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                 composable(TAB_SELLERS) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
                 }
+                composable(TAB_BOOKINGS) {
+                    BookingsScreen(onOpenItem = { nav.navigate("item/$it") })
+                }
                 composable(TAB_ALERTS) {
                     NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
                 }
@@ -113,7 +117,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = route, unread = unread, onSelect = openTab)
+            ResellerBottomBar(current = route, unread = unread, bookingUnread = bookingUnread, onSelect = openTab)
         }
     }
 }

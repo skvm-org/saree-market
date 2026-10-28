@@ -3,6 +3,8 @@ package com.sareemarket.app.ui.reseller
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sareemarket.app.data.Booking
+import com.sareemarket.app.data.BookingRepository
 import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CollectionDetail
 import com.sareemarket.app.data.ItemDetail
@@ -47,10 +49,17 @@ data class PagerState(
     val ids: List<Long> = emptyList(),
     val startIndex: Int = 0,
     val details: Map<Long, LoadState<ItemDetail>> = emptyMap(),
+    /** True while a booking request or cancel is on its way. */
+    val bookingBusy: Boolean = false,
+    val bookingError: String? = null,
 )
 
 @HiltViewModel
-class ItemPagerViewModel @Inject constructor(handle: SavedStateHandle, private val repository: CatalogRepository) : ViewModel() {
+class ItemPagerViewModel @Inject constructor(
+    handle: SavedStateHandle,
+    private val repository: CatalogRepository,
+    private val bookings: BookingRepository,
+) : ViewModel() {
 
     private val openedId: Long = checkNotNull(handle["id"])
 
@@ -85,6 +94,21 @@ class ItemPagerViewModel @Inject constructor(handle: SavedStateHandle, private v
             null
         },
     )
+
+    /** Asks the seller to hold this photo for the reseller. The page reloads either way, since its status may have changed. */
+    fun book(id: Long, note: String) = booking(id) { bookings.book(id, note.trim().ifEmpty { null }) }
+
+    fun cancelBooking(id: Long, bookingId: Long) = booking(id) { bookings.cancel(bookingId) }
+
+    private fun booking(id: Long, call: suspend () -> Result<Booking>) {
+        if (_state.value.bookingBusy) return
+        _state.update { it.copy(bookingBusy = true, bookingError = null) }
+        viewModelScope.launch {
+            val error = call().exceptionOrNull()?.message
+            fetch(id)
+            _state.update { it.copy(bookingBusy = false, bookingError = error) }
+        }
+    }
 
     fun retry(id: Long) {
         _state.update { it.copy(details = it.details - id) }

@@ -36,4 +36,13 @@ class TimeAgoTest {
     fun aTimeInTheFutureIsJustNow() {
         assertEquals("just now", ago("2026-10-25T12:05:00Z"))
     }
+
+    @Test
+    fun aHoldShowsHowLongItHasLeft() {
+        assertEquals("ends in 40 min", com.sareemarket.app.ui.timeLeft("2026-10-25T12:40:00Z", now))
+        assertEquals("ends in 5 h", com.sareemarket.app.ui.timeLeft("2026-10-25T17:00:00Z", now))
+        assertEquals("ends in 24 h", com.sareemarket.app.ui.timeLeft("2026-10-26T12:00:00Z", now))
+        assertEquals("ended", com.sareemarket.app.ui.timeLeft("2026-10-25T12:00:00Z", now))
+        assertEquals("ended", com.sareemarket.app.ui.timeLeft("2026-10-25T09:00:00Z", now))
+    }
 }

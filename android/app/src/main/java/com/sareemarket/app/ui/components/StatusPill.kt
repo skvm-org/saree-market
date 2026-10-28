@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.ui.theme.PillShape
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -44,8 +45,17 @@ fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
     }
 }
 
+/** The pill for a saree's stock status. */
+@Composable
+fun ItemStatusPill(status: ItemStatus, modifier: Modifier = Modifier) = when (status) {
+    ItemStatus.AVAILABLE -> StatusPill("Available", SareeColors.Available, modifier)
+    ItemStatus.ON_HOLD -> StatusPill("On hold", SareeColors.OnHold, modifier)
+    ItemStatus.SOLD_OUT -> StatusPill("Sold out", SareeColors.SlateNeutral, modifier)
+}
+
 private fun readableOn(status: Color) = when (status) {
     SareeColors.Available -> SareeColors.AvailableText
+    SareeColors.OnHold -> SareeColors.OnHoldText
     SareeColors.SlateNeutral -> SareeColors.SlateText
     else -> status
 }

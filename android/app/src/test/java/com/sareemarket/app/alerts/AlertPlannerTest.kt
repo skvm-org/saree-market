@@ -1,5 +1,7 @@
 package com.sareemarket.app.alerts
 
+import org.junit.Assert.assertNull
+import com.sareemarket.app.data.BookingSummary
 import com.sareemarket.app.data.NotificationType
 import com.sareemarket.app.data.note
 import java.time.Instant
@@ -56,5 +58,24 @@ class AlertPlannerTest {
         assertEquals(Instant.parse("2026-10-25T10:20:00Z"), AlertPlanner.newest(fresh))
         // after remembering it, the same notifications are not announced again
         assertTrue(AlertPlanner.fresh(fresh, AlertPlanner.newest(fresh)).isEmpty())
+    }
+
+    @Test
+    fun aSellerIsToldHowManyNewRequestsCameSinceTheLastCheck() {
+        assertEquals("1 new booking request", AlertPlanner.bookingText(2, 0, BookingSummary(pending = 3)))
+        assertEquals("3 new booking requests", AlertPlanner.bookingText(0, 0, BookingSummary(pending = 3)))
+    }
+
+    @Test
+    fun aResellerIsToldAboutNewAnswers() {
+        assertEquals("A seller answered your booking request", AlertPlanner.bookingText(0, 0, BookingSummary(unread = 1)))
+        assertEquals("2 booking requests have answers", AlertPlanner.bookingText(0, 0, BookingSummary(unread = 2)))
+    }
+
+    @Test
+    fun noNewBookingNewsMeansNoAlert() {
+        assertNull(AlertPlanner.bookingText(3, 0, BookingSummary(pending = 3)))
+        assertNull(AlertPlanner.bookingText(3, 2, BookingSummary(pending = 1, unread = 0))) // counts went down: answered or seen in the app
+        assertNull(AlertPlanner.bookingText(0, 0, BookingSummary()))
     }
 }

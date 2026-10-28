@@ -1,5 +1,5 @@
 package com.sareemarket.catalog;
 
 public enum StatusFilter {
-	AVAILABLE, SOLD_OUT, ALL
+	AVAILABLE, ON_HOLD, SOLD_OUT, ALL
 }

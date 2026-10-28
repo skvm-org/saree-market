@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import com.sareemarket.app.ui.components.ItemStatusPill
 import com.sareemarket.app.ui.components.sharedPhoto
 import com.sareemarket.app.ui.components.SkeletonGrid
 import androidx.compose.foundation.layout.BoxScope
@@ -538,7 +539,7 @@ private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
                 )
                 Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (soldOut) StatusPill("Sold out", SareeColors.SlateNeutral)
+                if (item.status != ItemStatus.AVAILABLE) ItemStatusPill(item.status)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.align(Alignment.CenterVertically))
         }

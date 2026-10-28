@@ -78,6 +78,7 @@ import com.sareemarket.app.data.ItemDetail
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.ui.components.PrimaryButton
+import com.sareemarket.app.ui.components.ItemStatusPill
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
 import com.sareemarket.app.ui.components.StatusPill
@@ -190,6 +191,9 @@ fun ItemDetailScreen(
                 ItemDetailContent(
                     detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error,
                     pageLabel = if (state.ids.size > 1) "${page + 1} / ${state.ids.size}" else null,
+                    booking = BookingUi(state.bookingBusy, state.bookingError),
+                    onBook = { viewModel.book(id, it) },
+                    onCancelBooking = { viewModel.cancelBooking(id, it) },
                 ) { follow.toggle(detail.seller.id, mode) }
             } else if (load?.error != null) {
                 Column(Modifier.fillMaxSize().padding(Spacing.margin), Arrangement.Center, Alignment.CenterHorizontally) {
@@ -228,6 +232,9 @@ fun ItemDetailContent(
     followMode: NotifyMode?,
     followError: String?,
     pageLabel: String? = null,
+    booking: BookingUi = BookingUi(),
+    onBook: (String) -> Unit = {},
+    onCancelBooking: (Long) -> Unit = {},
     onToggleFollow: () -> Unit,
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
@@ -259,11 +266,7 @@ fun ItemDetailContent(
                 ) {
                     Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 }
-                StatusPill(
-                    if (soldOut) "Sold out" else "Available",
-                    if (soldOut) SareeColors.SlateNeutral else SareeColors.Available,
-                    Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"),
-                )
+                ItemStatusPill(detail.status, Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"))
                 pageLabel?.let {
                     Text(
                         it,
@@ -343,9 +346,13 @@ fun ItemDetailContent(
                 Spacer(Modifier.height(Spacing.sm))
             }
         }
-        // Always within reach: the whole point of the page is to contact the seller.
+        // Always within reach: the whole point of the page is to book it or contact the seller.
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 6.dp) {
-            Box(Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs)) {
+            Column(
+                Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                BookingPanel(detail, booking, onBook, onCancelBooking)
                 ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
             }
         }

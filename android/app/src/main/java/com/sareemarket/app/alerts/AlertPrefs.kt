@@ -26,11 +26,23 @@ class AlertPrefs @Inject constructor(@ApplicationContext context: Context) {
         store.edit { it[LAST] = time.toEpochMilli() }
     }
 
+    /** What the last booking check saw: (requests waiting, answers unseen). */
+    suspend fun bookingMarks(): Pair<Long, Long> = store.data.first().let { (it[PENDING_MARK] ?: 0L) to (it[UNREAD_MARK] ?: 0L) }
+
+    suspend fun setBookingMarks(pending: Long, unread: Long) {
+        store.edit {
+            it[PENDING_MARK] = pending
+            it[UNREAD_MARK] = unread
+        }
+    }
+
     suspend fun clear() {
         store.edit { it.clear() }
     }
 
     private companion object {
         val LAST = longPreferencesKey("last_notified")
+        val PENDING_MARK = longPreferencesKey("booking_pending")
+        val UNREAD_MARK = longPreferencesKey("booking_unread")
     }
 }

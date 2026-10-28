@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.alerts.NewCollectionAlerts
 import com.sareemarket.app.data.AuthRepository
+import com.sareemarket.app.data.BookingRepository
 import com.sareemarket.app.data.NotificationRepository
 import com.sareemarket.app.data.Session
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ class AppViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val alerts: NewCollectionAlerts,
     private val notifications: NotificationRepository,
+    private val bookings: BookingRepository,
 ) : ViewModel() {
 
     val state: StateFlow<AppState> = repository.session
@@ -43,6 +45,7 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             alerts.cancel()
             notifications.reset()
+            bookings.reset()
             repository.logout()
         }
     }

@@ -174,4 +174,36 @@ class FollowAndAlertsScreensTest {
 
         assertEquals(listOf("sellers", "alerts", "catalog"), picked)
     }
+
+    @Test
+    fun theBookingsTabCarriesTheNumberOfAnswersNotYetSeen() {
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 0, bookingUnread = 3) {} } }
+
+        compose.onNodeWithTag("booking-badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("3", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("badge", useUnmergedTree = true).assertDoesNotExist() // the bell has none
+    }
+
+    @Test
+    fun noBookingBadgeWhenEverythingWasSeen() {
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 2, bookingUnread = 0) {} } }
+
+        compose.onNodeWithTag("booking-badge", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("badge", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun theSellersRequestsTabCarriesTheWaitingCount() {
+        compose.setContent { SareeTheme { com.sareemarket.app.ui.seller.SellerBottomBar(current = "home", pending = 120) {} } }
+
+        compose.onNodeWithTag("requests-badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("99+", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun noRequestsBadgeWhenNothingWaits() {
+        compose.setContent { SareeTheme { com.sareemarket.app.ui.seller.SellerBottomBar(current = "home", pending = 0) {} } }
+
+        compose.onNodeWithTag("requests-badge", useUnmergedTree = true).assertDoesNotExist()
+    }
 }

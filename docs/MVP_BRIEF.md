@@ -153,6 +153,11 @@ With ~100 sellers posting daily and ~15 resellers, notifying everyone of everyth
 | GET | /catalog/collections (same filters; whole collections) | Reseller, Admin |
 | POST | /catalog/image-search (multipart image + same filter params) | Reseller, Admin |
 | GET | /items/{id} | Reseller, Admin, owning Seller |
+| POST | /items/{id}/bookings (optional note) | Reseller |
+| GET | /bookings/mine, /bookings/received (status=OPEN or HISTORY, page) | Reseller, Seller |
+| POST | /bookings/{id}/accept, /reject, /extend, /sold | Seller (own) |
+| POST | /bookings/{id}/cancel, /bookings/seen | Reseller |
+| GET | /bookings/summary | Seller, Reseller |
 | GET | /images/{itemId}/full, /images/{itemId}/thumb | Logged-in users |
 | GET | /reference/saree-types, /reference/fabrics | Logged-in users |
 | PUT/DELETE | /follows/{sellerId} (PUT body: notifyMode) | Reseller |
@@ -202,9 +207,19 @@ Each slice: plan → build → unit + integration tests → summary and how to t
 
 After the MVP: Angular web app (`frontend/`) with the admin screens.
 
+## Add-on: booking requests (hold a saree)
+
+Added after the MVP. A reseller asks a seller to hold one saree; nothing is bought or paid in the app, and there are still no quantities (one photo = one saree).
+- Reseller taps **Book this saree** on an item (optional note, 300 characters). The request is `PENDING`. A reseller has at most 10 open requests and one per saree
+- Seller sees requests (oldest first), and can **accept** (the saree goes `ON_HOLD` for 24 hours, then back to `AVAILABLE` by itself), **reject**, **extend** a hold, or mark it **sold** (the saree becomes `SOLD_OUT`). Other pending requests on a saree that sells out are closed. The seller picks one request; the others wait and can be accepted if the hold is released
+- Reseller can cancel; unanswered requests lapse after 72 hours; a saree on hold can still be requested by others, who queue behind it
+- Seller sees counts: received, pending, on hold, responded, sold, rejected, expired. Reseller sees a badge for status changes. Both reach the app through the same 15-minute check as new-collection alerts, until push notifications exist
+- A seller sees the requesting reseller's name and phone, only for requests sent to them
+- Held items are not "available": the default catalog hides them, `status=ON_HOLD` or `ALL` shows them, and cards show "N on hold"
+
 ## Out of scope (later add-ons)
 
-Orders, payments, UPI, stock quantities and reservations, customer-facing storefronts, reseller markup, WhatsApp API, SMS / OTP, push / WhatsApp / email notification channels, daily digest mode, message broker, AWS / S3, AI quick-fill, similarity search with embeddings, ratings, disputes, admin approval of sellers.
+Orders, payments, UPI, stock quantities, customer-facing storefronts, reseller markup, WhatsApp API, SMS / OTP, push / WhatsApp / email notification channels, daily digest mode, message broker, AWS / S3, AI quick-fill, similarity search with embeddings, ratings, disputes, admin approval of sellers.
 
 ## Done means
 

@@ -23,39 +23,58 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** The 15-minute background check for new collections from followed sellers, and the notification it shows. */
+/**
+ * The 15-minute background checks and the Android notifications they show: new collections from followed sellers
+ * (resellers), and booking requests or their answers (both roles).
+ */
 @Singleton
 class NewCollectionAlerts @Inject constructor(
     @ApplicationContext private val context: Context,
     private val prefs: AlertPrefs,
 ) {
-    /** Schedules the check. It starts counting from now, so old news is not announced. Safe to call again. */
+    /** Schedules the checks for a reseller. They start counting from now, so old news is not announced. Safe to call again. */
     suspend fun schedule() {
         if (prefs.lastNotified() == null) prefs.setLastNotified(Instant.now())
-        val request = PeriodicWorkRequestBuilder<NewCollectionsWorker>(INTERVAL_MINUTES, TimeUnit.MINUTES)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+        enqueue<NewCollectionsWorker>(WORK_NAME)
+        enqueue<BookingAlertsWorker>(BOOKING_WORK_NAME)
     }
 
-    /** Stops the check and forgets the last alert. Called on log out. */
+    /** A seller has no followers to hear from; only booking requests are checked. */
+    suspend fun scheduleForSeller() {
+        enqueue<BookingAlertsWorker>(BOOKING_WORK_NAME)
+    }
+
+    private inline fun <reified W : androidx.work.ListenableWorker> enqueue(name: String) {
+        val request = PeriodicWorkRequestBuilder<W>(INTERVAL_MINUTES, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.KEEP, request)
+    }
+
+    /** Stops the checks and forgets the last alerts. Called on log out. */
     suspend fun cancel() {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        WorkManager.getInstance(context).cancelUniqueWork(BOOKING_WORK_NAME)
         prefs.clear()
     }
 
-    /** Shows one Android notification. Does nothing when the reseller has not allowed notifications. */
-    fun show(text: String) {
+    /** Shows one Android notification about new collections. Does nothing when notifications are not allowed. */
+    fun show(text: String) = notify(text, CHANNEL_ID, "New collections", NOTIFICATION_ID)
+
+    /** The same, for booking requests and their answers; a separate channel and id so the two never replace each other. */
+    fun showBooking(text: String) = notify(text, BOOKING_CHANNEL_ID, "Booking requests", BOOKING_NOTIFICATION_ID)
+
+    private fun notify(text: String, channelId: String, channelName: String, id: Int) {
         val allowed = android.os.Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         if (!allowed || !NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(CHANNEL_ID, "New collections", NotificationManager.IMPORTANCE_DEFAULT))
+            .createNotificationChannel(NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_saree)
             .setContentTitle("Saree Market")
             .setContentText(text)
@@ -63,13 +82,16 @@ class NewCollectionAlerts @Inject constructor(
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
     }
 
     private companion object {
         const val WORK_NAME = "new-collection-alerts"
         const val CHANNEL_ID = "new_collections"
         const val NOTIFICATION_ID = 1
+        const val BOOKING_WORK_NAME = "booking-alerts"
+        const val BOOKING_CHANNEL_ID = "booking_requests"
+        const val BOOKING_NOTIFICATION_ID = 2
         const val INTERVAL_MINUTES = 15L // the shortest period WorkManager allows
     }
 }

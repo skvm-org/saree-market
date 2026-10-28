@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +72,22 @@ public abstract class IntegrationTestBase {
 
 	protected ResultActions getWith(String path, String token) throws Exception {
 		return mvc.perform(get(path).header("Authorization", "Bearer " + token));
+	}
+
+	protected ResultActions postWith(String path, String token) throws Exception {
+		return mvc.perform(post(path).header("Authorization", "Bearer " + token));
+	}
+
+	protected ResultActions postJson(String path, String token, String json) throws Exception {
+		return mvc.perform(post(path).header("Authorization", "Bearer " + token)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(json));
+	}
+
+	/** The user id a token was issued for (its "sub" claim). */
+	protected static long userId(String token) {
+		String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[1]));
+		return Long.parseLong(JsonPath.read(payload, "$.sub"));
 	}
 
 }

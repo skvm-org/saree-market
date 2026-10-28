@@ -14,6 +14,7 @@ object ShareText {
         detail.colour?.let { append(it).append(" · ") }
         append(formatRupees(detail.price))
         if (detail.status == ItemStatus.SOLD_OUT) append(" (sold out)")
+        if (detail.status == ItemStatus.ON_HOLD) append(" (on hold)")
         appendLine()
         append(detail.seller.shopName).append(", ").append(detail.seller.marketLocation)
     }
