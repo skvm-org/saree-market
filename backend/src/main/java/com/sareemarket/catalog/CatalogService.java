@@ -267,7 +267,7 @@ public class CatalogService {
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
 							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
-					myBooking(role, userId, itemId), inWishlist(role, userId, itemId));
+					myBooking(role, userId, itemId), inWishlist(role, userId, itemId), inCart(role, userId, itemId));
 		});
 		return found.stream()
 			.filter(d -> d != null)
@@ -289,6 +289,16 @@ public class CatalogService {
 							expires == null ? null : expires.toInstant());
 				});
 		return latest.isEmpty() ? null : latest.get(0);
+	}
+
+	/** How many of this saree the viewing customer has in their cart; 0 for anyone else. */
+	private int inCart(String role, long userId, long itemId) {
+		if (!"CUSTOMER".equals(role)) {
+			return 0;
+		}
+		List<Integer> found = jdbc.queryForList("SELECT quantity FROM cart_line WHERE customer_id = :u AND item_id = :i",
+				new MapSqlParameterSource("u", userId).addValue("i", itemId), Integer.class);
+		return found.isEmpty() ? 0 : found.get(0);
 	}
 
 	private boolean inWishlist(String role, long userId, long itemId) {

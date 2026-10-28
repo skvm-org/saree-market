@@ -8,7 +8,7 @@ import com.sareemarket.item.ItemStatus;
 public record ItemDetailDto(Long id, Long collectionId, String collectionTitle, String collectionDescription,
 		String sareeType, String fabric, String colour, Integer priceOverride, int price, ItemStatus status,
 		int quantity, boolean inStock,
-		Instant createdAt, SellerContactDto seller, MyBookingDto myBooking, boolean inWishlist) {
+		Instant createdAt, SellerContactDto seller, MyBookingDto myBooking, boolean inWishlist, int inCart) {
 
 	/** The viewing reseller's latest booking request for this photo, or null if they never asked (or are not a reseller). */
 	public record MyBookingDto(Long id, BookingStatus status, Instant holdExpiresAt) {
