@@ -35,19 +35,20 @@ Kept as is: follow sellers, new-collection notifications, search and filters, im
 
 Never edit applied migrations. New migrations only:
 
-- **V6 `roles_and_quantity`**: drop the `app_user.role` CHECK (look up its name in `pg_constraint`, as V5 did for item status) and re-add `('SELLER','CUSTOMER','ADMIN')`; `UPDATE app_user SET role='CUSTOMER' WHERE role='RESELLER'`. Add `item.quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 0)`; backfill `quantity = 0` where `status` is `SOLD_OUT` or `ON_HOLD`, else 1. Keep `item.status` column for now (see slice 5).
-- **V7 `seller_payment_and_shipping`**: `seller_profile` gains `upi_id VARCHAR(100)`, `shipping_fee INTEGER NOT NULL DEFAULT 0 CHECK (>= 0)`. A seller without a `upi_id` cannot be ordered from (the product shows "Not accepting orders yet").
-- **V8 `cart_wishlist_address`**:
+- **V6 `customer_role`**: drop the `app_user.role` CHECK (look up its name in `pg_constraint`, as V5 did for item status) and re-add `('SELLER','CUSTOMER','ADMIN')`; `UPDATE app_user SET role='CUSTOMER' WHERE role='RESELLER'`.
+- **V7 `item_quantity`**: add `item.quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 0 AND quantity <= 10000)`; backfill `quantity = 0` where `status` is `SOLD_OUT` or `ON_HOLD`, else 1. Keep `item.status` column for now (see slice 5).
+- **V8 `seller_payment_settings`**: `seller_profile` gains `upi_id VARCHAR(100)`, `shipping_fee INTEGER NOT NULL DEFAULT 0 CHECK (>= 0)`. A seller without a `upi_id` cannot be ordered from (the product shows "Not accepting orders yet").
+- **V9 `address`, V10 `wishlist`, V11 `cart`** (one migration each):
   - `cart_line(customer_id, item_id, quantity CHECK > 0, added_at, PRIMARY KEY (customer_id, item_id))`
   - `wishlist_entry(customer_id, item_id, added_at, PRIMARY KEY (customer_id, item_id))`
   - `address(id, customer_id, name, phone, line1, line2, city, state, pin, is_default, created_at)`
-- **V9 `orders`**:
+- **V12 `orders`**:
   - `payment_hold(id, customer_id, seller_id, items_total, shipping_fee, grand_total, address_snapshot JSONB, customer_note, proof_attempts, rejection_reason, expires_at, created_at)` and `hold_line(hold_id FK cascade, item_id, title_snapshot, unit_price, quantity)`. A hold is the reservation; the quantities are already subtracted from the items. Not visible to sellers. Deleted when it becomes an order or lapses.
   - `customer_order(id, customer_id, seller_id, status, items_total, shipping_fee, grand_total, address_snapshot JSONB, customer_note, payment_reference, payment_proof_image, proof_attempts, courier, tracking_number, customer_unread, seller_unread, created_at, updated_at)`
   - `order_line(id, order_id FK cascade, item_id (nullable ON DELETE SET NULL), title_snapshot, unit_price, quantity)`
   - `order_status_history(order_id, status, at)` for the timeline shown to both sides.
   - Indexes: `(seller_id, status, created_at)`, `(customer_id, created_at)`, `payment_hold (expires_at)` for the expiry job, `payment_hold (customer_id)` for the 3-hold cap.
-- **V10 `drop_bookings`** (last slice): migrate then drop `booking_request`. Open `PENDING`/`ACCEPTED` requests are closed with a notification text ("Booking was replaced by orders, add the saree to your cart") before the table goes.
+- **V13 `drop_bookings`** (last slice): migrate then drop `booking_request`. Open `PENDING`/`ACCEPTED` requests are closed with a notification text ("Booking was replaced by orders, add the saree to your cart") before the table goes.
 
 Lines snapshot title and price so later edits or deletes of a saree do not change a placed order.
 
@@ -110,6 +111,8 @@ The `notification` table gains types `PAYMENT_SUBMITTED` (to the seller: a new o
 - Role-aware startup: persisted role `RESELLER` from older sessions is mapped to `CUSTOMER` on decode so a logged-in friend is not crashed or logged out. kotlinx.serialization does not coerce unknown enum values, so the new APK must accept both strings, and the server keeps accepting the old status aliases (section 6).
 
 ## 9. Delivery slices (one at a time, stop for review after each)
+
+Slice 1 is built on branch `customer-orders` and is not pushed (a push to `main` deploys). It exposes `GET /cart` and `PUT/DELETE /cart/items/{id}` instead of the single `/cart` resource listed in section 6.
 
 1. **Backend: roles, quantity, cart, wishlist, addresses.** V6–V8, role rename across `AuthService`, controllers, `SecurityConfig`, quantity in item DTOs and catalog filters, tests.
 2. **Backend: holds and orders.** V9, checkout with locking, payment holds, proof submission, seller actions, hold expiry job, events and notifications, `orders/summary`, tests including concurrent checkout of the last piece.
