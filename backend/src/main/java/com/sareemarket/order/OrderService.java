@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sareemarket.common.ApiException;
@@ -47,7 +48,11 @@ public class OrderService {
 
 	private final ImageStorage storage;
 
-	OrderService(NamedParameterJdbcTemplate jdbc, JsonMapper json, ImageProcessor images, ImageStorage storage) {
+	private final TransactionTemplate tx;
+
+	OrderService(NamedParameterJdbcTemplate jdbc, JsonMapper json, ImageProcessor images, ImageStorage storage,
+			TransactionTemplate tx) {
+		this.tx = tx;
 		this.jdbc = jdbc;
 		this.json = json;
 		this.images = images;
@@ -150,6 +155,147 @@ public class OrderService {
 		}
 		cancel(orderId, "CUSTOMER", null);
 		return one(orderId, Viewer.CUSTOMER, customerId);
+	}
+
+	public PageDto<OrderDto> received(long sellerId, OrderStatus state, int page) {
+		return page(Viewer.SELLER, sellerId, state, page);
+	}
+
+	@Transactional
+	public OrderDto confirmPayment(long sellerId, long orderId) {
+		return advance(sellerId, orderId, OrderStatus.PAYMENT_SUBMITTED, OrderStatus.CONFIRMED, "", new MapSqlParameterSource());
+	}
+
+	@Transactional
+	public OrderDto pack(long sellerId, long orderId) {
+		return advance(sellerId, orderId, OrderStatus.CONFIRMED, OrderStatus.PACKED, "", new MapSqlParameterSource());
+	}
+
+	@Transactional
+	public OrderDto ship(long sellerId, long orderId, String courier, String trackingNumber) {
+		return advance(sellerId, orderId, OrderStatus.PACKED, OrderStatus.SHIPPED,
+				", courier = :courier, tracking_number = :tracking", new MapSqlParameterSource()
+					.addValue("courier", blankToNull(courier))
+					.addValue("tracking", blankToNull(trackingNumber)));
+	}
+
+	@Transactional
+	public OrderDto deliver(long sellerId, long orderId) {
+		return advance(sellerId, orderId, OrderStatus.SHIPPED, OrderStatus.DELIVERED, "", new MapSqlParameterSource());
+	}
+
+	/** The first rejection gives the customer two hours to send a correct UTR; the second cancels the order. */
+	@Transactional
+	public OrderDto rejectPayment(long sellerId, long orderId, String reason) {
+		OrderStatus status = lock(orderId, Viewer.SELLER, sellerId);
+		if (status != OrderStatus.PAYMENT_SUBMITTED) {
+			throw badState(status);
+		}
+		Integer rejections = jdbc.queryForObject("SELECT rejection_count FROM customer_order WHERE id = :o",
+				new MapSqlParameterSource("o", orderId), Integer.class);
+		if (rejections > 0) {
+			cancel(orderId, "SELLER", reason.strip());
+		}
+		else {
+			setStatus(orderId, OrderStatus.PAYMENT_REJECTED,
+					", rejection_count = 1, rejection_reason = :reason, payment_deadline = now() + make_interval(hours => 2)",
+					new MapSqlParameterSource().addValue("reason", reason.strip()));
+		}
+		return one(orderId, Viewer.SELLER, sellerId);
+	}
+
+	@Transactional
+	public OrderDto cancelBySeller(long sellerId, long orderId, String reason) {
+		if (reason == null || reason.isBlank()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid",
+					java.util.Map.of("reason", "tell the customer why"));
+		}
+		OrderStatus status = lock(orderId, Viewer.SELLER, sellerId);
+		if (status == OrderStatus.SHIPPED || status == OrderStatus.DELIVERED || status == OrderStatus.CANCELLED) {
+			throw badState(status);
+		}
+		cancel(orderId, "SELLER", reason.strip());
+		return one(orderId, Viewer.SELLER, sellerId);
+	}
+
+	/** The customer sends a corrected UTR (and optionally a new screenshot) after a rejection. */
+	@Transactional
+	public OrderDto resubmitPayment(long customerId, long orderId, String utr, MultipartFile proof) {
+		checkUtr(utr);
+		byte[] image = proofBytes(proof);
+		OrderStatus status = lock(orderId, Viewer.CUSTOMER, customerId);
+		if (status != OrderStatus.PAYMENT_REJECTED) {
+			throw badState(status);
+		}
+		MapSqlParameterSource params = new MapSqlParameterSource("o", orderId);
+		Boolean lapsed = jdbc.queryForObject("SELECT payment_deadline <= now() FROM customer_order WHERE id = :o", params,
+				Boolean.class);
+		if (Boolean.TRUE.equals(lapsed)) {
+			throw new ApiException(HttpStatus.CONFLICT, "HOLD_EXPIRED",
+					"This payment window has ended; contact the seller if you already paid");
+		}
+		String oldKey = jdbc.queryForObject("SELECT payment_proof_key FROM customer_order WHERE id = :o", params, String.class);
+		String key = image == null ? null : saveProof(orderId, image);
+		try {
+			jdbc.update("UPDATE customer_order SET payment_reference = :utr, payment_proof_key = :key WHERE id = :o",
+					params.addValue("utr", utr).addValue("key", key));
+		}
+		catch (DuplicateKeyException e) {
+			if (key != null) {
+				storage.delete(key);
+			}
+			throw new ApiException(HttpStatus.CONFLICT, "UTR_IN_USE", "That UTR is already used on another order");
+		}
+		jdbc.update("""
+				UPDATE customer_order SET status = 'PAYMENT_SUBMITTED', payment_deadline = NULL, seller_unread = TRUE,
+				       customer_unread = FALSE, updated_at = now() WHERE id = :o""", params);
+		history(orderId, OrderStatus.PAYMENT_SUBMITTED);
+		if (oldKey != null) {
+			storage.delete(oldKey);
+		}
+		return one(orderId, Viewer.CUSTOMER, customerId);
+	}
+
+	/** Cancels rejected-payment orders whose two hours ran out, one transaction each. Returns how many. */
+	public int expireRejected() {
+		int cancelled = 0;
+		for (Long id : jdbc.queryForList("""
+				SELECT id FROM customer_order WHERE status = 'PAYMENT_REJECTED' AND payment_deadline <= now() ORDER BY id""",
+				new MapSqlParameterSource(), Long.class)) {
+			Integer one = tx.execute(status -> {
+				List<Long> locked = jdbc.queryForList("""
+						SELECT id FROM customer_order WHERE id = :o AND status = 'PAYMENT_REJECTED'
+						  AND payment_deadline <= now() FOR UPDATE""", new MapSqlParameterSource("o", id), Long.class);
+				if (locked.isEmpty()) {
+					return 0;
+				}
+				cancel(id, "SYSTEM", "The payment window ended");
+				return 1;
+			});
+			cancelled += one == null ? 0 : one;
+		}
+		return cancelled;
+	}
+
+	private OrderDto advance(long sellerId, long orderId, OrderStatus from, OrderStatus to, String extraSet,
+			MapSqlParameterSource extra) {
+		OrderStatus status = lock(orderId, Viewer.SELLER, sellerId);
+		if (status != from) {
+			throw badState(status);
+		}
+		setStatus(orderId, to, extraSet, extra);
+		return one(orderId, Viewer.SELLER, sellerId);
+	}
+
+	/** Moves the locked order on, tells the customer, and clears the seller's own unread flag. extraSet is code, never input. */
+	private void setStatus(long orderId, OrderStatus to, String extraSet, MapSqlParameterSource params) {
+		jdbc.update("UPDATE customer_order SET status = :to, customer_unread = TRUE, seller_unread = FALSE, updated_at = now() "
+				+ extraSet + " WHERE id = :o", params.addValue("o", orderId).addValue("to", to.name()));
+		history(orderId, to);
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.strip();
 	}
 
 	public void markSeen(long userId, boolean seller) {
