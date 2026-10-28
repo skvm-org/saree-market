@@ -146,50 +146,55 @@ class FollowAndAlertsScreensTest {
     // ----- Bottom bar
 
     @Test
-    fun bottomBarShowsTheUnreadNumberOnAlerts() {
-        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 5) {} } }
+    fun theCartTabCarriesTheNumberOfSareesInIt() {
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", cartCount = 5, orderBadge = 0) {} } }
 
-        compose.onNodeWithTag("badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("cart-badge", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("5", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("orders-badge", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
-    fun noBadgeWhenNothingIsUnreadAndBigNumbersAreCapped() {
-        var unread by androidx.compose.runtime.mutableLongStateOf(0)
-        compose.setContent { SareeTheme { ResellerBottomBar(current = "alerts", unread = unread) {} } }
-        compose.onNodeWithTag("badge", useUnmergedTree = true).assertDoesNotExist()
+    fun theOrdersTabCarriesUpdatesAndPaymentsInProgress() {
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", cartCount = 0, orderBadge = 3) {} } }
 
-        unread = 250
+        compose.onNodeWithTag("orders-badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("3", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("cart-badge", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun noBadgesWhenNothingIsGoingOnAndBigNumbersAreCapped() {
+        var cart by androidx.compose.runtime.mutableLongStateOf(0)
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "orders", cartCount = cart, orderBadge = 0) {} } }
+        compose.onNodeWithTag("cart-badge", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("orders-badge", useUnmergedTree = true).assertDoesNotExist()
+
+        cart = 250
         compose.onNodeWithText("99+", useUnmergedTree = true).assertExists()
     }
 
     @Test
     fun tabsReportWhereToGo() {
         val picked = mutableListOf<String>()
-        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 0) { picked += it } } }
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", cartCount = 0, orderBadge = 0) { picked += it } } }
 
-        compose.onNodeWithTag("tab-sellers").performClick()
-        compose.onNodeWithTag("tab-alerts").performClick()
+        compose.onNodeWithTag("tab-wishlist").performClick()
+        compose.onNodeWithTag("tab-cart").performClick()
+        compose.onNodeWithTag("tab-orders").performClick()
+        compose.onNodeWithTag("tab-profile").performClick()
         compose.onNodeWithTag("tab-catalog").performClick()
 
-        assertEquals(listOf("sellers", "alerts", "catalog"), picked)
+        assertEquals(listOf("wishlist", "cart", "orders", "profile", "catalog"), picked)
     }
 
     @Test
-    fun theBookingsTabCarriesTheNumberOfAnswersNotYetSeen() {
-        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 0, bookingUnread = 3) {} } }
+    fun theOldSellersAndAlertsTabsAreGone() {
+        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", cartCount = 0, orderBadge = 0) {} } }
 
-        compose.onNodeWithTag("booking-badge", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("3", useUnmergedTree = true).assertExists()
-        compose.onNodeWithTag("badge", useUnmergedTree = true).assertDoesNotExist() // the bell has none
-    }
-
-    @Test
-    fun noBookingBadgeWhenEverythingWasSeen() {
-        compose.setContent { SareeTheme { ResellerBottomBar(current = "catalog", unread = 2, bookingUnread = 0) {} } }
-
-        compose.onNodeWithTag("booking-badge", useUnmergedTree = true).assertDoesNotExist()
-        compose.onNodeWithTag("badge", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("tab-sellers").assertDoesNotExist()
+        compose.onNodeWithTag("tab-alerts").assertDoesNotExist()
+        compose.onNodeWithTag("tab-bookings").assertDoesNotExist()
     }
 
     @Test

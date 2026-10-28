@@ -73,6 +73,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -129,7 +133,14 @@ private const val LOAD_MORE_AHEAD = 6
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogScreen(onOpenItem: (Long) -> Unit, onOpenCollection: (Long) -> Unit, viewModel: CatalogViewModel = hiltViewModel()) {
+fun CatalogScreen(
+    onOpenItem: (Long) -> Unit,
+    onOpenCollection: (Long) -> Unit,
+    alertsUnread: Long = 0,
+    onOpenSellers: () -> Unit = {},
+    onOpenAlerts: () -> Unit = {},
+    viewModel: CatalogViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var text by remember { mutableStateOf(state.query.q) }
     var showFilters by remember { mutableStateOf(false) }
@@ -168,6 +179,9 @@ fun CatalogScreen(onOpenItem: (Long) -> Unit, onOpenCollection: (Long) -> Unit, 
         onClearPhoto = viewModel::clearImage,
         onRefresh = viewModel::refresh,
         onQueryChange = viewModel::apply,
+        alertsUnread = alertsUnread,
+        onOpenSellers = onOpenSellers,
+        onOpenAlerts = onOpenAlerts,
     )
     if (showPhotoChoice) {
         PhotoSourceDialog(
@@ -214,12 +228,16 @@ fun CatalogContent(
     onRefresh: () -> Unit = {},
     onQueryChange: (CatalogQuery) -> Unit = {},
     onOpenCollection: (Long) -> Unit = {},
+    alertsUnread: Long = 0,
+    onOpenSellers: () -> Unit = {},
+    onOpenAlerts: () -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             // On a wide screen (landscape, tablet) the controls move to a side panel, so the sarees get the height.
             val wide = maxWidth >= WIDE_LAYOUT
             val controls: @Composable ColumnScope.() -> Unit = {
+                CatalogHeader(alertsUnread, onOpenSellers, onOpenAlerts)
                 SearchField(searchText, onSearchText, onPhotoSearch)
                 FilterChips(state, onFollowingTab, onOpenFilters, onSort)
                 ActiveFilterRow(state, onQueryChange)
@@ -281,6 +299,22 @@ private val WIDE_LAYOUT = 600.dp
 private val CONTROLS_PANEL = 320.dp
 
 /** The one search bar, with the camera at the end, so the sarees start high on the screen. */
+/** The page title, with the two places that used to be tabs: the sellers the customer follows, and the bell. */
+@Composable
+internal fun CatalogHeader(alertsUnread: Long, onOpenSellers: () -> Unit, onOpenAlerts: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Saree Market", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).testTag("catalog-title"))
+        IconButton(onClick = onOpenSellers, modifier = Modifier.size(MinTouchTarget).testTag("open-sellers")) {
+            Icon(Icons.Filled.Person, contentDescription = "My sellers")
+        }
+        IconButton(onClick = onOpenAlerts, modifier = Modifier.size(MinTouchTarget).testTag("open-alerts")) {
+            BadgedBox(badge = {
+                if (alertsUnread > 0) Badge(Modifier.testTag("badge")) { Text(if (alertsUnread > 99) "99+" else alertsUnread.toString()) }
+            }) { Icon(Icons.Filled.Notifications, contentDescription = "Alerts") }
+        }
+    }
+}
+
 @Composable
 private fun SearchField(text: String, onText: (String) -> Unit, onPhotoSearch: () -> Unit) {
     OutlinedTextField(

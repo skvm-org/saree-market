@@ -43,7 +43,8 @@ fun ResellerNavHost(onLogout: () -> Unit) {
     val nav = rememberNavController()
     val shell: ResellerShellViewModel = hiltViewModel()
     val unread by shell.unread.collectAsStateWithLifecycle()
-    val bookingUnread by shell.bookingUnread.collectAsStateWithLifecycle()
+    val cartCount by shell.cartCount.collectAsStateWithLifecycle()
+    val orderBadge by shell.orderBadge.collectAsStateWithLifecycle()
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
     val id = listOf(navArgument("id") { type = NavType.LongType })
 
@@ -69,7 +70,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
         }
     }
 
-    val showBar = route in TABS
+    val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS
     val openTab: (String) -> Unit = { tab ->
         nav.navigate(tab) {
             popUpTo(TAB_CATALOG) { saveState = true }
@@ -84,16 +85,48 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             val transition = this
             NavHost(navController = nav, startDestination = TAB_CATALOG) {
                 composable(TAB_CATALOG) {
-                    ProvideSharedScopes(transition, this) { CatalogScreen(onOpenItem = { nav.navigate("item/$it") }, onOpenCollection = { nav.navigate("collection/$it") }) }
+                    ProvideSharedScopes(transition, this) {
+                        CatalogScreen(
+                            onOpenItem = { nav.navigate("item/$it") },
+                            onOpenCollection = { nav.navigate("collection/$it") },
+                            alertsUnread = unread,
+                            onOpenSellers = { nav.navigate(ROUTE_SELLERS) },
+                            onOpenAlerts = { nav.navigate(ROUTE_ALERTS) },
+                        )
+                    }
                 }
-                composable(TAB_SELLERS) {
+                composable(TAB_WISHLIST) {
+                    WishlistScreen(onOpenItem = { nav.navigate("item/$it") })
+                }
+                composable(TAB_CART) {
+                    CartScreen(
+                        onOpenItem = { nav.navigate("item/$it") },
+                        onOpenHold = { nav.navigate("hold/$it") },
+                        onAddAddress = { nav.navigate("addresses") },
+                        onDiscover = { openTab(TAB_CATALOG) },
+                    )
+                }
+                composable(TAB_ORDERS) {
+                    OrdersScreen(onOpenOrder = { nav.navigate("order/$it") }, onOpenHold = { nav.navigate("hold/$it") })
+                }
+                composable(ROUTE_SELLERS) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
                 }
-                composable(TAB_BOOKINGS) {
-                    BookingsScreen(onOpenItem = { nav.navigate("item/$it") })
-                }
-                composable(TAB_ALERTS) {
+                composable(ROUTE_ALERTS) {
                     NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
+                }
+                composable("addresses") {
+                    AddressesScreen(onBack = { nav.popBackStack() })
+                }
+                composable("hold/{id}", arguments = id) {
+                    HoldScreen(
+                        onBack = { nav.popBackStack() },
+                        onPaid = { orderId -> nav.navigate("order/$orderId") { popUpTo("hold/{id}") { inclusive = true } } },
+                        onClosed = { openTab(TAB_CART) },
+                    )
+                }
+                composable("order/{id}", arguments = id) {
+                    OrderDetailScreen(onBack = { nav.popBackStack() })
                 }
                 composable("item/{id}", arguments = id) {
                     ProvideSharedScopes(transition, this) {
@@ -117,7 +150,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = route, unread = unread, bookingUnread = bookingUnread, onSelect = openTab)
+            ResellerBottomBar(current = route, cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
         }
     }
 }
