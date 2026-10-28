@@ -60,7 +60,7 @@ class HoldViewModel @Inject constructor(
                 onSuccess = { list ->
                     val hold = list.firstOrNull { it.id == holdId }
                     _state.update {
-                        if (hold == null) it.copy(loading = false, expired = true, error = "This payment window has ended.")
+                        if (hold == null) it.copy(loading = false, expired = true, error = "This payment is no longer open. If you sent your UTR, check My orders.")
                         else it.copy(loading = false, hold = hold)
                     }
                 },

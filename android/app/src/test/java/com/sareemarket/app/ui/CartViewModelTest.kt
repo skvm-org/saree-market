@@ -59,6 +59,16 @@ class CartViewModelTest {
     }
 
     @Test
+    fun sellersWithAnOpenPaymentAreMarkedWithTheirHold() {
+        shopping.cart = { cartOf(cartSeller(1), cartSeller(2)) }
+        orderApi.holds = { listOf(hold(9)) } // the fake hold belongs to seller 1
+
+        val vm = vm()
+
+        assertEquals(mapOf(1L to 9L), vm.state.value.holdBySeller)
+    }
+
+    @Test
     fun settingAQuantityShowsTheNewTotals() {
         var qty = 1
         shopping.cart = { cartOf(cartSeller(1, listOf(cartLine(10, quantity = qty)))) }

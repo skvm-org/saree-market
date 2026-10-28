@@ -87,7 +87,13 @@ private const val TICK_MS = 30_000L
 
 /** Pay the seller by UPI, then enter the UTR (and optionally a screenshot) here to turn the hold into an order. */
 @Composable
-fun HoldScreen(onBack: () -> Unit, onPaid: (Long) -> Unit, onClosed: () -> Unit, viewModel: HoldViewModel = hiltViewModel()) {
+fun HoldScreen(
+    onBack: () -> Unit,
+    onPaid: (Long) -> Unit,
+    onClosed: () -> Unit,
+    onOpenOrders: () -> Unit = {},
+    viewModel: HoldViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -130,6 +136,7 @@ fun HoldScreen(onBack: () -> Unit, onPaid: (Long) -> Unit, onClosed: () -> Unit,
         onCancel = viewModel::cancel,
         onBack = onBack,
         onBackToCart = onClosed,
+        onOpenOrders = onOpenOrders,
         onRetry = viewModel::load,
     )
 }
@@ -149,6 +156,7 @@ fun HoldContent(
     onBack: () -> Unit,
     onBackToCart: () -> Unit,
     onRetry: () -> Unit,
+    onOpenOrders: () -> Unit = {},
 ) {
     var confirmingCancel by remember { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -159,7 +167,10 @@ fun HoldContent(
                 state.loading -> SkeletonRows()
                 hold == null -> Column(Modifier.fillMaxWidth().padding(top = Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Text(state.error ?: "Something went wrong.", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.testTag("hold-error"))
-                    if (state.expired) PrimaryButton("Back to cart", onClick = onBackToCart, modifier = Modifier.testTag("back-to-cart"))
+                    if (state.expired) {
+                        PrimaryButton("My orders", onClick = onOpenOrders, modifier = Modifier.testTag("see-orders"))
+                        OutlinedButton(onClick = onBackToCart, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("back-to-cart")) { Text("Back to cart") }
+                    }
                     else PrimaryButton("Retry", onClick = onRetry)
                 }
                 else -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("hold"), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -170,6 +181,13 @@ fun HoldContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("hold-breakdown"),
                     )
+                    // What is actually held: a short line is reserved at the available quantity, so this may differ from the cart.
+                    hold.lines.forEachIndexed { index, line ->
+                        Row(Modifier.testTag("hold-line-$index")) {
+                            Text("${line.quantity} × ${line.title}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            Text(formatRupees(line.unitPrice * line.quantity), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                     val left = if (state.expired) "" else timeRemaining(hold.expiresAt, now)
                     if (state.expired || left.isEmpty()) {
                         Text("This payment window has ended.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("hold-ended"))

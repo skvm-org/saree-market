@@ -60,6 +60,18 @@ class OrdersViewModelTest {
     }
 
     @Test
+    fun theBadgeIsClearedEvenWhenTheUnreadOrderIsOnALaterPage() = kotlinx.coroutines.test.runTest {
+        api.summary = { com.sareemarket.app.data.OrderSummary(unread = 1) }
+        api.onMine = { _, page -> orderPage(page, totalPages = 2) } // no unread row on the first page
+        val repo = OrderRepository(api, FakePhotoSource(), testJson)
+        repo.refreshSummary()
+
+        OrdersViewModel(repo)
+
+        assertTrue("seen" in api.calls)
+    }
+
+    @Test
     fun scrollingLoadsTheNextPageAndStopsAtTheEnd() {
         api.onMine = { _, page -> orderPage(page, totalPages = 2) }
         val vm = vm()

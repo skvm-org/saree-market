@@ -17,10 +17,10 @@ internal fun NavController.openTab(tab: String) {
 }
 
 /**
- * The customer released a hold (or it ended): drop the hold screen for good, then show the cart. Leaving it on the stack
+ * The customer released a hold (or it ended): drop the hold screen for good, then show [then] (the cart, or their orders). Leaving it on the stack
  * would let a tab switch restore it, and its "released" state would send the customer straight back here.
  */
-internal fun NavController.closeHold() {
+internal fun NavController.closeHold(then: String = TAB_CART) {
     popBackStack()
-    openTab(TAB_CART)
+    openTab(then)
 }

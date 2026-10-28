@@ -39,6 +39,8 @@ data class CartState(
     val checkout: CheckoutUi? = null,
     /** A hold was just made: the screen opens it, then calls [CartViewModel.holdOpened]. */
     val openHoldId: Long? = null,
+    /** Sellers the customer is already paying: seller id to the hold's id. Their sarees are reserved, so Pay would clash. */
+    val holdBySeller: Map<Long, Long> = emptyMap(),
 )
 
 /** The customer's cart, grouped by seller, and the step from a seller's group to a payment hold. */
@@ -60,11 +62,16 @@ class CartViewModel @Inject constructor(
     fun reload() {
         _state.update { it.copy(loading = it.cart.sellers.isEmpty(), error = null) }
         viewModelScope.launch {
+            loadHolds()
             cart.refresh().fold(
                 onSuccess = { _state.update { it.copy(loading = false, refreshing = false) } },
                 onFailure = { e -> _state.update { it.copy(loading = false, refreshing = false, error = e.message) } },
             )
         }
+    }
+
+    private suspend fun loadHolds() {
+        orders.holds().onSuccess { list -> _state.update { it.copy(holdBySeller = list.associate { h -> h.sellerId to h.id }) } }
     }
 
     fun pullRefresh() {

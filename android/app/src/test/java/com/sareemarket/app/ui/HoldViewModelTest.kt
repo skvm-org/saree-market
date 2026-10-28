@@ -65,7 +65,7 @@ class HoldViewModelTest {
 
         assertNull(vm.state.value.hold)
         assertTrue(vm.state.value.expired)
-        assertNotNull(vm.state.value.error)
+        assertTrue(vm.state.value.error!!.contains("check My orders"))
     }
 
     @Test

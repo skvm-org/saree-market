@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.AddressSnapshot
@@ -120,9 +121,28 @@ class HoldScreenTest {
     }
 
     @Test
-    fun aMissingHoldShowsTheEndedMessage() {
-        show(HoldState(loading = false, expired = true, error = "This payment window has ended."))
+    fun aMissingHoldShowsTheMessageAndPointsToMyOrders() {
+        var orders = false
+        compose.setContent {
+            SareeTheme {
+                HoldContent(
+                    HoldState(loading = false, expired = true, error = "This payment is no longer open. If you sent your UTR, check My orders."),
+                    now, null, {}, {}, {}, {}, {}, {}, {}, {}, { backToCart = true }, {}, onOpenOrders = { orders = true },
+                )
+            }
+        }
 
         compose.onNodeWithTag("hold-error").assertIsDisplayed()
+        compose.onNodeWithTag("see-orders").performClick()
+        assertEquals(true, orders)
+        compose.onNodeWithTag("back-to-cart").performClick()
+        assertEquals(true, backToCart)
+    }
+
+    @Test
+    fun showsWhatIsActuallyHeld() {
+        show(HoldState(hold = hold.copy(lines = listOf(OrderLine(10, "Diwali silks", "maroon", 800, 2))), loading = false))
+
+        compose.onNodeWithText("2 × Diwali silks").assertIsDisplayed()
     }
 }

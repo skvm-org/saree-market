@@ -117,6 +117,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                         onBack = { nav.popBackStack() },
                         onPaid = { orderId -> nav.navigate("order/$orderId") { popUpTo("hold/{id}") { inclusive = true } } },
                         onClosed = { nav.closeHold() },
+                        onOpenOrders = { nav.closeHold(TAB_ORDERS) },
                     )
                 }
                 composable("order/{id}", arguments = id) {

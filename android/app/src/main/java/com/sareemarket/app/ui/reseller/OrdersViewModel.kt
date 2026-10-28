@@ -73,7 +73,8 @@ class OrdersViewModel @Inject constructor(private val repository: OrderRepositor
                     )
                 }
                 // The badge clears once the list is on screen; the rows keep their dots until the next visit.
-                if (page == 0 && result.items.any { it.unread }) repository.markSeen()
+                // The unread order may sit on a later page, so the server's own count decides too.
+                if (page == 0 && (result.items.any { it.unread } || repository.summary.value.unread > 0)) repository.markSeen()
             },
             onFailure = { e -> _state.update { it.copy(loading = false, loadingMore = false, refreshing = false, error = e.message) } },
         )

@@ -98,7 +98,7 @@ fun CartScreen(
     }
     CartContent(
         state, onOpenItem, onDiscover, viewModel::setQuantity, viewModel::remove, viewModel::startCheckout,
-        viewModel::reload, viewModel::pullRefresh,
+        viewModel::reload, viewModel::pullRefresh, onOpenHold,
     )
     state.checkout?.let { ui ->
         CheckoutSheet(ui, viewModel::selectAddress, onAddAddress, viewModel::onNote, viewModel::confirmCheckout, viewModel::dismissCheckout)
@@ -115,6 +115,7 @@ fun CartContent(
     onPay: (Long) -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
+    onOpenHold: (Long) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin)) {
@@ -145,7 +146,7 @@ fun CartContent(
                         ) {
                             state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) } }
                             items(state.cart.sellers, key = { it.sellerId }) { seller ->
-                                SellerGroup(seller, state.busyItemId, onOpenItem, onSetQuantity, onRemove, onPay)
+                                SellerGroup(seller, state.busyItemId, state.holdBySeller[seller.sellerId], onOpenItem, onSetQuantity, onRemove, onPay, onOpenHold)
                             }
                         }
                     }
@@ -159,10 +160,12 @@ fun CartContent(
 private fun SellerGroup(
     seller: CartSeller,
     busyItemId: Long?,
+    holdId: Long?,
     onOpenItem: (Long) -> Unit,
     onSetQuantity: (Long, Int) -> Unit,
     onRemove: (Long) -> Unit,
     onPay: (Long) -> Unit,
+    onOpenHold: (Long) -> Unit,
 ) {
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth().testTag("seller-${seller.sellerId}")) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -177,6 +180,11 @@ private fun SellerGroup(
                 Text(formatRupees(seller.grandTotal), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("total-${seller.sellerId}"))
             }
             when {
+                // These sarees are already reserved for the customer's open payment, which is why the cart may show them short.
+                holdId != null -> Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text("Payment in progress", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("in-progress-${seller.sellerId}"))
+                    PrimaryButton("Continue payment", onClick = { onOpenHold(holdId) }, modifier = Modifier.fillMaxWidth().testTag("continue-hold-${seller.sellerId}"))
+                }
                 !seller.acceptsOrders -> Text(
                     "Not accepting orders yet",
                     style = MaterialTheme.typography.bodyMedium,

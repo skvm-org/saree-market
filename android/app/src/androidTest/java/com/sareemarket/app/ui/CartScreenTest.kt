@@ -101,6 +101,25 @@ class CartScreenTest {
     }
 
     @Test
+    fun aSellerWithAnOpenPaymentOffersToContinueInsteadOfPay() {
+        var held: Long? = null
+        compose.setContent {
+            SareeTheme {
+                CartContent(
+                    cart(seller(1, listOf(line(10, inStock = false)))).copy(holdBySeller = mapOf(1L to 42L)),
+                    {}, {}, { _, _ -> }, {}, {}, {}, {}, onOpenHold = { held = it },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("in-progress-1").assertIsDisplayed()
+        compose.onNodeWithTag("pay-1").assertDoesNotExist()
+        compose.onNodeWithTag("nothing-in-stock-1").assertDoesNotExist()
+        compose.onNodeWithTag("continue-hold-1").performClick()
+        assertEquals(42L, held)
+    }
+
+    @Test
     fun payStartsCheckoutForThatSeller() {
         show(cart(seller(7, listOf(line(10)))))
 
