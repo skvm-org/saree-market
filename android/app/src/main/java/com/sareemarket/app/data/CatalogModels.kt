@@ -16,6 +16,9 @@ data class CatalogItem(
     val shopName: String,
     /** How far this photo is from the searched picture (0 is identical); only set by a photo search. */
     val distance: Int? = null,
+    /** Pieces the seller has left; [inStock] is false when none, or the seller marked it sold out or on hold. */
+    val quantity: Int = 1,
+    val inStock: Boolean = true,
 )
 
 @Serializable
@@ -65,6 +68,11 @@ data class ItemDetail(
     val createdAt: String? = null,
     /** This reseller's latest booking request for the photo, or null if they never asked. */
     val myBooking: MyBooking? = null,
+    val quantity: Int = 1,
+    val inStock: Boolean = true,
+    val inWishlist: Boolean = false,
+    /** How many of this saree are in the viewing customer's cart. */
+    val inCart: Int = 0,
 )
 
 @Serializable
