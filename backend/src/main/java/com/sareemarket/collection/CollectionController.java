@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.sareemarket.collection.dto.BulkStatusRequest;
 import com.sareemarket.collection.dto.CollectionDetailDto;
+import com.sareemarket.common.ApiException;
 import com.sareemarket.collection.dto.CollectionSummaryDto;
 import com.sareemarket.collection.dto.CreateCollectionForm;
 import com.sareemarket.collection.dto.UpdateCollectionRequest;
@@ -83,8 +84,27 @@ class CollectionController {
 	@PreAuthorize("hasRole('SELLER')")
 	@ResponseStatus(HttpStatus.CREATED)
 	CollectionDetailDto addPhotos(@AuthenticationPrincipal Jwt jwt, @PathVariable long id,
-			@RequestParam(name = "files", required = false) List<MultipartFile> files) {
-		return service.addPhotos(userId(jwt), id, files);
+			@RequestParam(name = "files", required = false) List<MultipartFile> files,
+			@RequestParam(name = "quantity", required = false) String quantity) {
+		return service.addPhotos(userId(jwt), id, files, parseQuantity(quantity));
+	}
+
+	/** Absent means 1; anything but a whole number from 0 to 10000 is a validation error. */
+	private static int parseQuantity(String value) {
+		if (value == null || value.isBlank()) {
+			return 1;
+		}
+		try {
+			int quantity = Integer.parseInt(value.strip());
+			if (quantity >= 0 && quantity <= 10000) {
+				return quantity;
+			}
+		}
+		catch (NumberFormatException e) {
+			// falls through to the error below
+		}
+		throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid",
+				java.util.Map.of("quantity", "must be a whole number from 0 to 10000"));
 	}
 
 	private static long userId(Jwt jwt) {

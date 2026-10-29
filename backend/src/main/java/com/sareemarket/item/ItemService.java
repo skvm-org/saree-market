@@ -72,7 +72,7 @@ public class ItemService {
 	}
 
 	/** Writes the files and the item rows. Call inside a transaction; every key written is added to storedKeys. */
-	public void store(Long collectionId, Long sellerId, List<ProcessedImage> images, List<String> storedKeys) {
+	public void store(Long collectionId, Long sellerId, List<ProcessedImage> images, int quantity, List<String> storedKeys) {
 		List<Item> rows = new ArrayList<>();
 		for (ProcessedImage image : images) {
 			String base = sellerId + "/" + UUID.randomUUID();
@@ -82,7 +82,9 @@ public class ItemService {
 			storedKeys.add(full);
 			storage.save(thumb, image.thumb());
 			storedKeys.add(thumb);
-			rows.add(new Item(collectionId, sellerId, full, thumb, image.hash()));
+			Item row = new Item(collectionId, sellerId, full, thumb, image.hash());
+			row.setQuantity(quantity);
+			rows.add(row);
 		}
 		items.saveAll(rows);
 	}

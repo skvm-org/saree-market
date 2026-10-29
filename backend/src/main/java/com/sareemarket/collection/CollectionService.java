@@ -55,16 +55,17 @@ public class CollectionService {
 	public CollectionDetailDto create(long sellerId, CreateCollectionForm form) {
 		checkReferences(form.sareeTypeId(), form.fabricId());
 		List<ProcessedImage> images = items.process(form.files());
-		Long id = saveWithPhotos(sellerId, images, () -> collections.save(new SareeCollection(sellerId,
+		int quantity = form.quantity() == null ? 1 : form.quantity();
+		Long id = saveWithPhotos(sellerId, images, quantity, () -> collections.save(new SareeCollection(sellerId,
 				form.title().strip(), form.sareeTypeId(), form.fabricId(), form.price(), blankToNull(form.description()))),
 				collectionId -> new CollectionPublished(sellerId, collectionId, images.size()));
 		return detail(id);
 	}
 
-	public CollectionDetailDto addPhotos(long sellerId, long collectionId, List<MultipartFile> files) {
+	public CollectionDetailDto addPhotos(long sellerId, long collectionId, List<MultipartFile> files, int quantity) {
 		SareeCollection collection = owned(collectionId, sellerId);
 		List<ProcessedImage> images = items.process(files);
-		saveWithPhotos(sellerId, images, () -> collection,
+		saveWithPhotos(sellerId, images, quantity, () -> collection,
 				id -> new ItemsAdded(sellerId, id, images.size()));
 		return detail(collectionId);
 	}
@@ -115,13 +116,13 @@ public class CollectionService {
 	 * Saves the collection row and its photos together. If anything fails, the rows roll back and the files
 	 * already written are removed, so a failed upload leaves nothing behind.
 	 */
-	private Long saveWithPhotos(long sellerId, List<ProcessedImage> images,
+	private Long saveWithPhotos(long sellerId, List<ProcessedImage> images, int quantity,
 			java.util.function.Supplier<SareeCollection> collection, java.util.function.LongFunction<Object> event) {
 		List<String> storedKeys = new ArrayList<>();
 		try {
 			return tx.execute(status -> {
 				Long id = collection.get().getId();
-				items.store(id, sellerId, images, storedKeys);
+				items.store(id, sellerId, images, quantity, storedKeys);
 				// Delivered to followers only if this transaction commits.
 				events.publishEvent(event.apply(id));
 				return id;
