@@ -70,6 +70,38 @@ class CollectionDetailViewModelTest {
     }
 
     @Test
+    fun savingAnItemSendsTheQuantityOnlyWhenGiven() {
+        var sent: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap()
+        api.onUpdateItem = { id, patch -> sent = patch; item(id) }
+
+        vm.saveItem(10, "maroon", "") {}
+        assertFalse("quantity" in sent)
+
+        vm.saveItem(10, "maroon", "", "4") {}
+        assertEquals(kotlinx.serialization.json.JsonPrimitive(4), sent.getValue("quantity"))
+    }
+
+    @Test
+    fun zeroIsAValidQuantity() {
+        var saved = false
+        vm.saveItem(10, "maroon", "", "0") { saved = true }
+
+        assertTrue(saved)
+    }
+
+    @Test
+    fun aBadQuantityIsRejectedOnTheDevice() {
+        for (bad in listOf("", "10001", "abc", "-1")) {
+            var saved = false
+            vm.saveItem(10, "maroon", "", bad) { saved = true }
+
+            assertFalse("$bad should be refused", saved)
+            assertNotNull(vm.state.value.fieldErrors["quantity"])
+        }
+        assertFalse("updateItem" in api.calls)
+    }
+
+    @Test
     fun zeroPriceIsRejectedOnTheDeviceAndEmptyMeansNoOverride() {
         var saved = false
         vm.saveItem(10, "red", "0") { saved = true }

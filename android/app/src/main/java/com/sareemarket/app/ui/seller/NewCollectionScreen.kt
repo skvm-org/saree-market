@@ -137,6 +137,7 @@ fun NewCollectionContent(
                             onFabric = viewModel::onFabric,
                             onPrice = viewModel::onPrice,
                             onDescription = viewModel::onDescription,
+                            onQuantity = viewModel::onQuantity,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.Top) {
                             Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(18.dp))

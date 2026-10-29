@@ -141,13 +141,19 @@ class CollectionDetailViewModel @Inject constructor(
         run(onSaved, { repository.update(id, fields.toForm()) }) { d -> _state.update { it.copy(detail = d) } }
     }
 
-    fun saveItem(itemId: Long, colour: String, priceOverride: String, onSaved: () -> Unit) {
+    /** [quantity] is null when the seller did not touch the count, so it is not sent and cannot overwrite a sale. */
+    fun saveItem(itemId: Long, colour: String, priceOverride: String, quantity: String? = null, onSaved: () -> Unit) {
         val price = priceOverride.toIntOrNull()
         if (priceOverride.isNotEmpty() && (price ?: 0) < 1) {
             _state.update { it.copy(fieldErrors = mapOf("priceOverride" to "Enter a price above 0, or leave empty")) }
             return
         }
-        run(onSaved, { repository.updateItem(itemId, colour.trim(), price) }) { item ->
+        val pieces = quantity?.toIntOrNull()
+        if (quantity != null && pieces !in 0..MAX_QUANTITY) {
+            _state.update { it.copy(fieldErrors = mapOf("quantity" to "Enter 0 to 10,000")) }
+            return
+        }
+        run(onSaved, { repository.updateItem(itemId, colour.trim(), price, pieces) }) { item ->
             _state.update { s -> s.copy(detail = s.detail?.let { d -> d.copy(items = d.items.map { if (it.id == item.id) item else it }) }) }
         }
     }

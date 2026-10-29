@@ -275,7 +275,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
             ModalBottomSheet(onDismissRequest = { editingItem = null; viewModel.clearError() }, containerColor = MaterialTheme.colorScheme.surface) {
                 EditItemSheet(
                     item, detailForSheets.price, state,
-                    onSave = { colour, price -> viewModel.saveItem(item.id, colour, price) { editingItem = null } },
+                    onSave = { colour, price, quantity -> viewModel.saveItem(item.id, colour, price, quantity) { editingItem = null } },
                     onDelete = { viewModel.deleteItem(item.id) { editingItem = null } },
                 )
             }
@@ -363,8 +363,8 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                 Text(
                     when {
                         held -> "On hold"
-                        soldOut -> "Out of stock"
-                        else -> "In stock"
+                        soldOut || item.quantity == 0 -> "Out of stock"
+                        else -> "${item.quantity} in stock"
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = when {
@@ -374,8 +374,8 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                     },
                 )
                 if (held) {
-                    // The hold is answered from the Requests tab, so there is no stock checkbox to flip here.
-                    Text("See Requests", style = MaterialTheme.typography.labelMedium, color = SareeColors.OnHoldText, modifier = Modifier.padding(end = Spacing.md).testTag("held-${item.id}"))
+                    // A booking holds this saree, so there is no stock checkbox to flip here.
+                    Text("Booking in progress", style = MaterialTheme.typography.labelMedium, color = SareeColors.OnHoldText, modifier = Modifier.padding(end = Spacing.md).testTag("held-${item.id}"))
                 } else {
                     Checkbox(
                         checked = !soldOut,
@@ -413,9 +413,10 @@ private fun EditCollectionSheet(detail: CollectionDetail, state: DetailState, on
 }
 
 @Composable
-private fun EditItemSheet(item: Item, collectionPrice: Int, state: DetailState, onSave: (String, String) -> Unit, onDelete: () -> Unit) {
+internal fun EditItemSheet(item: Item, collectionPrice: Int, state: DetailState, onSave: (String, String, String?) -> Unit, onDelete: () -> Unit) {
     var colour by remember(item.id) { mutableStateOf(item.colour.orEmpty()) }
     var price by remember(item.id) { mutableStateOf(item.priceOverride?.toString().orEmpty()) }
+    var quantity by remember(item.id) { mutableStateOf(item.quantity.toString()) }
     var confirming by remember { mutableStateOf(false) }
     Column(Modifier.imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Text("Edit photo", style = MaterialTheme.typography.headlineSmall)
@@ -426,9 +427,18 @@ private fun EditItemSheet(item: Item, collectionPrice: Int, state: DetailState, 
                 tag = "priceOverride", prefix = "₹", keyboardType = KeyboardType.Number, error = state.fieldErrors["priceOverride"],
             )
             Text("Leave empty to use the collection price, ${formatRupees(collectionPrice)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SareeTextField(
+                quantity, { quantity = com.sareemarket.app.ui.auth.digitsOnly(it, MAX_QUANTITY_DIGITS) }, "Pieces in stock",
+                tag = "item-quantity", keyboardType = KeyboardType.Number, error = state.fieldErrors["quantity"],
+            )
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
-        PrimaryButton("Save", onClick = { onSave(colour, price) }, loading = state.busy, modifier = Modifier.testTag("save"))
+        PrimaryButton(
+            "Save",
+            onClick = { onSave(colour, price, quantity.takeIf { it != item.quantity.toString() }) },
+            loading = state.busy,
+            modifier = Modifier.testTag("save"),
+        )
         SecondaryButton("Delete this photo", onClick = { confirming = true })
     }
     if (confirming) {

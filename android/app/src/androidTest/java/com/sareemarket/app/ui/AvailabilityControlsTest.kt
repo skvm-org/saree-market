@@ -29,7 +29,7 @@ class AvailabilityControlsTest {
     fun availableCardShowsInStockWithTheSwitchOn() {
         compose.setContent { SareeTheme { ItemCard(item(ItemStatus.AVAILABLE), {}, {}) } }
 
-        compose.onNodeWithText("In stock").assertExists()
+        compose.onNodeWithText("1 in stock").assertExists()
         compose.onNodeWithTag("stock-3").assertIsOn()
     }
 

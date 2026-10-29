@@ -44,6 +44,7 @@ class NewCollectionViewModel @Inject constructor(
                 fabricId = draft[KEY_FABRIC],
                 price = draft[KEY_PRICE] ?: "",
                 description = draft[KEY_DESCRIPTION] ?: "",
+                quantity = draft[KEY_QUANTITY] ?: "1",
             ),
         ),
     )
@@ -70,6 +71,7 @@ class NewCollectionViewModel @Inject constructor(
             draft[KEY_FABRIC] = it.fabricId
             draft[KEY_PRICE] = it.price
             draft[KEY_DESCRIPTION] = it.description
+            draft[KEY_QUANTITY] = it.quantity
         }
     }
 
@@ -78,6 +80,7 @@ class NewCollectionViewModel @Inject constructor(
     fun onFabric(id: Long) = edit("fabricId") { it.copy(fabricId = id) }
     fun onPrice(v: String) = edit("price") { it.copy(price = digitsOnly(v, MAX_PRICE_DIGITS)) }
     fun onDescription(v: String) = edit { it.copy(description = v) }
+    fun onQuantity(v: String) = edit("quantity") { it.copy(quantity = digitsOnly(v, MAX_QUANTITY_DIGITS)) }
 
     /** Adds newly picked photos, skipping repeats and stopping at 30. */
     fun onPhotosPicked(uris: List<String>) = _state.update {
@@ -102,7 +105,7 @@ class NewCollectionViewModel @Inject constructor(
         }
         _state.update { it.copy(uploading = true, progress = 0f, error = null, fieldErrors = emptyMap()) }
         viewModelScope.launch {
-            val result = repository.create(s.fields.toForm(), s.photos) { p -> _state.update { it.copy(progress = p) } }
+            val result = repository.create(s.fields.toForm(), s.photos, s.fields.quantity.toInt()) { p -> _state.update { it.copy(progress = p) } }
             _state.update {
                 result.fold(
                     onSuccess = { created -> it.copy(uploading = false, createdId = created.id) },
@@ -121,5 +124,6 @@ class NewCollectionViewModel @Inject constructor(
         const val KEY_FABRIC = "fabricId"
         const val KEY_PRICE = "price"
         const val KEY_DESCRIPTION = "description"
+        const val KEY_QUANTITY = "quantity"
     }
 }

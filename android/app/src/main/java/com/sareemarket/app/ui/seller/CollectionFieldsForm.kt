@@ -43,6 +43,8 @@ fun CollectionFieldsForm(
     onFabric: (Long) -> Unit,
     onPrice: (String) -> Unit,
     onDescription: (String) -> Unit,
+    /** Set on the create form only: how many pieces of each saree the seller has. */
+    onQuantity: ((String) -> Unit)? = null,
 ) {
     FormColumn(Modifier.fillMaxWidth()) {
         SareeTextField(fields.title, onTitle, "Collection title", tag = "title", error = errors["title"])
@@ -54,6 +56,13 @@ fun CollectionFieldsForm(
             fields.price, onPrice, "Price per saree", tag = "price", prefix = "₹",
             keyboardType = KeyboardType.Number, error = errors["price"],
         )
+        if (onQuantity != null) {
+            SareeTextField(
+                fields.quantity, onQuantity, "Pieces of each saree", tag = "quantity",
+                keyboardType = KeyboardType.Number, error = errors["quantity"],
+            )
+            Text("You can change each saree's count later.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Description (optional)", style = MaterialTheme.typography.labelMedium)
             OutlinedTextField(
