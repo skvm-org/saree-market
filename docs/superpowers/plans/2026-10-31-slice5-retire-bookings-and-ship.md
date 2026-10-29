@@ -4,7 +4,7 @@
 
 **Goal:** Delete the booking feature from the backend and the app, rewrite the product brief and `CLAUDE.md` for the customer-orders product, then put the branch live: merge, deploy to the shared RDS and EC2, rotate `JWT_SECRET`, and hand friends a new APK.
 
-**Architecture:** Tasks 1–4 are local and reversible (code, docs, rehearsal). Task 5 is the release and touches shared systems (GitHub, the production database, the live server, friends' phones); **each of its steps that changes something outside this machine stops and asks first.** The booking removal is one forward-only Flyway migration (`V13`) rehearsed against a database built the way production was (V1–V12 with realistic booking data) before anything is merged.
+**Architecture:** Tasks 1–4 are local and reversible (code, docs, rehearsal). Task 5 is the release and touches shared systems (GitHub, the production database, the live server, friends' phones); **each of its steps that changes something outside this machine stops and asks first.** The deploy applies migrations V6 to V13 in one go (production is still at V5). `MigrationFromProductionTest` rehearses exactly that on a database shaped like production's (resellers, held sarees, open bookings, follows, notifications) and `MigrationV13Test` rehearses V13 alone, before anything is merged.
 
 **Tech Stack:** Spring Boot 4.1 + Flyway + PostgreSQL (Testcontainers), Kotlin/Compose app, GitHub Actions (Backend CI → Deploy over SSH to EC2), Docker Hub, RDS.
 
@@ -109,7 +109,8 @@
 
 **Before anything:** show the user this checklist and wait for their confirmation of the two things only they can do or decide:
 1. **RDS snapshot** of the production database (AWS console or `aws rds create-db-snapshot`), taken and visible as `available`. This is the rollback.
-2. **Friends warned**: their current app stops working the moment the deploy finishes; they will need the new APK.
+2. **Friends warned**: their current app stops working the moment the deploy finishes; they will need the new APK. **Sellers too:** an old seller app still logs in and works, but it cannot see or process orders, and orders waiting on it would sit unconfirmed. Tell sellers to update and to set a UPI ID (Shop tab) and each saree's count when restocking (sarees that were sold out now have 0 pieces, so "Mark all available" alone does not put them back on sale).
+3. **What the snapshot does not cover:** photos and payment screenshots live in the `uploads` volume on the EC2 host, not in RDS. After a restore, files uploaded since the snapshot are orphans (harmless, but the snapshot is not a full restore point).
 
 - [ ] **Step 1 (ask first): open the PR** `customer-orders` → `main` with `gh pr create`; body: what changed in five lines, the migration warning (V6 renames the role, V13 drops bookings), the rollback note; no attribution lines. Wait for the PR's **Backend CI** run to pass (`gh pr checks --watch`).
 - [ ] **Step 2 (ask first): rotate `JWT_SECRET`.** Generate 48 random bytes (`openssl rand -base64 48`), set it with `gh secret set JWT_SECRET` (read from stdin; never print or store it). Effect: every existing login becomes a 401 and the app returns to the login screen.

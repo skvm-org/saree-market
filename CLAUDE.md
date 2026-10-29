@@ -91,7 +91,7 @@ Required skills must be installed before work starts. If one is missing when nee
 | Skill | Use for | When |
 | --- | --- | --- |
 | **Android design** (Material 3 + Android conventions) | Navigation, back behaviour, touch targets, system feedback | While writing any Android UI: Material 3 components, predictable back stack and system back, touch targets ≥ 48 dp, bottom sheets for filters, edge-to-edge with insets handled |
-| **Ponytail** (`/ponytail-review`, `/ponytail-audit`) | Remove boilerplate and over-engineering in backend code | Once, on the whole backend, when the MVP is complete (after slice 8). Not after each slice. Apply its delete-list unless it removes validation, security or a required test |
+| **Ponytail** (`/ponytail-review`, `/ponytail-audit`) | Remove boilerplate and over-engineering in backend code | Once, on the whole backend, when the MVP is complete (after slice 9). Not after each slice. Apply its delete-list unless it removes validation, security or a required test |
 
 **Precedence when they disagree:** `DESIGN.md` wins on tokens, colours and type; Material 3 / Android conventions win on navigation, back behaviour and touch targets (48 dp, not DESIGN.md's 44 px); the Stitch screens decide layout and content.
 

@@ -174,7 +174,6 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 | Method | Path | Who |
 | --- | --- | --- |
 | POST | /auth/register, /auth/login | Anyone |
-| GET/PUT | /sellers/me | Seller |
 | GET | /sellers, /sellers/{id} | Customer, Admin |
 | POST | /collections (multipart: fields, optional quantity, files) | Seller |
 | GET/PUT/DELETE | /collections/{id} | Seller (own); GET also Customer |
@@ -214,7 +213,7 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 | POST/PUT | /admin/saree-types, /admin/fabrics | Admin |
 | GET | /admin/users?q=&role=&page=, /admin/saree-types, /admin/fabrics (all, including deactivated) | Admin |
 | PATCH | /admin/users/{id}/enabled | Admin |
-| PATCH | /auth/me (name) | Logged-in users |
+| GET/PATCH | /auth/me (PATCH: name) | Logged-in users |
 | PUT | /auth/me/password | Logged-in users |
 | GET/PUT | /seller/profile (shopName, marketLocation, contactPhone, whatsappNumber, upiId, shippingFee) | Seller (own) |
 

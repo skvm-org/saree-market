@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,12 +45,9 @@ public class ItemService {
 
 	private final ApplicationEventPublisher events;
 
-	private final NamedParameterJdbcTemplate jdbc;
-
 	ItemService(ItemRepository items, SareeCollectionRepository collections, ImageProcessor processor,
-			ImageStorage storage, ApplicationEventPublisher events, NamedParameterJdbcTemplate jdbc) {
+			ImageStorage storage, ApplicationEventPublisher events) {
 		this.events = events;
-		this.jdbc = jdbc;
 		this.items = items;
 		this.collections = collections;
 		this.processor = processor;
