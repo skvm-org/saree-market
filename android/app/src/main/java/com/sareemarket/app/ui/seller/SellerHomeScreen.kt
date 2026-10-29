@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.heightIn
+import com.sareemarket.app.ui.theme.MinTouchTarget
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -70,6 +72,8 @@ fun SellerHomeScreen(
     location: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
+    toConfirm: Long = 0,
+    onOpenOrders: () -> Unit = {},
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,7 +82,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders)
 }
 
 @Composable
@@ -90,7 +94,10 @@ fun SellerHomeContent(
     onRetry: () -> Unit,
     onRefresh: () -> Unit = {},
     location: String = "",
+    toConfirm: Long = 0,
+    onOpenOrders: () -> Unit = {},
 ) {
+    val grid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     // On a wide screen the Add tab is enough, and a floating button would sit on top of a card.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     Scaffold(
@@ -103,6 +110,8 @@ fun SellerHomeContent(
                 shape = CircleShape,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New collection", style = MaterialTheme.typography.labelLarge) },
+                // Shrinks to a plus once the list scrolls, so it stops covering the cards.
+                expanded = grid.firstVisibleItemIndex == 0,
                 modifier = Modifier.testTag("new-collection"),
             )
         },
@@ -133,12 +142,27 @@ fun SellerHomeContent(
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                                 // One column on a phone; two or three on a wide screen.
                                 LazyVerticalGrid(
+                                    state = grid,
                                     columns = GridCells.Adaptive(minSize = 340.dp),
                                     horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                                     contentPadding = PaddingValues(top = Spacing.md, bottom = 96.dp),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
+                                    if (toConfirm > 0) item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Surface(
+                                            onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg, border = CardBorder,
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("confirm-banner"),
+                                        ) {
+                                            Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    if (toConfirm == 1L) "1 payment to confirm" else "$toConfirm payments to confirm",
+                                                    style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                                                )
+                                                Text("Open orders", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer)
+                                            }
+                                        }
+                                    }
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                                             Text("Active collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)

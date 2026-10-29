@@ -23,14 +23,15 @@ import com.sareemarket.app.ui.theme.Spacing
 
 /** Pill badge from DESIGN.md: tinted background, solid dot, label. */
 @Composable
-fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
+fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier, onPhoto: Boolean = false) {
     // The pill eases between its colours when an item flips between available and sold out.
     val color by animateColorAsState(target, label = "pill")
     // The dot and tint use the status colour; the words use a darker version so they pass contrast on the tint.
     val textColor by animateColorAsState(readableOn(target), label = "pill-text")
     Surface(
         shape = PillShape,
-        color = color.copy(alpha = 0.10f),
+        // On a photo the tint alone is see-through and the picture shows through the label, so back it with a solid fill.
+        color = if (onPhoto) MaterialTheme.colorScheme.surfaceContainerLowest else color.copy(alpha = 0.10f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.25f)),
         modifier = modifier,
     ) {
@@ -47,9 +48,9 @@ fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
 
 /** The pill for a saree's stock status. */
 @Composable
-fun ItemStatusPill(status: ItemStatus, modifier: Modifier = Modifier) = when (status) {
-    ItemStatus.AVAILABLE -> StatusPill("Available", SareeColors.Available, modifier)
-    ItemStatus.SOLD_OUT -> StatusPill("Sold out", SareeColors.SlateNeutral, modifier)
+fun ItemStatusPill(status: ItemStatus, modifier: Modifier = Modifier, onPhoto: Boolean = false) = when (status) {
+    ItemStatus.AVAILABLE -> StatusPill("Available", SareeColors.Available, modifier, onPhoto)
+    ItemStatus.SOLD_OUT -> StatusPill("Sold out", SareeColors.SlateNeutral, modifier, onPhoto)
 }
 
 private fun readableOn(status: Color) = when (status) {

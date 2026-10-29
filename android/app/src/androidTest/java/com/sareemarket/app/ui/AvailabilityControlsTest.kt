@@ -57,7 +57,7 @@ class AvailabilityControlsTest {
     fun chipsShowCountsAndReportTheChosenFilter() {
         var chosen: ItemFilter? = null
         compose.setContent {
-            SareeTheme { StockControls(22, 18, 4, ItemFilter.ALL, busy = false, onFilter = { chosen = it }, onMarkAll = {}) }
+            SareeTheme { StockControls(22, 18, 4, ItemFilter.ALL, onFilter = { chosen = it }) }
         }
 
         compose.onNodeWithText("All 22").assertExists()
@@ -68,32 +68,8 @@ class AvailabilityControlsTest {
     }
 
     @Test
-    fun markAllButtonFlipsToMarkAllAvailableWhenNothingIsInStock() {
-        var marked: ItemStatus? = null
-        compose.setContent {
-            SareeTheme { StockControls(4, 0, 4, ItemFilter.ALL, busy = false, onFilter = {}, onMarkAll = { marked = it }) }
-        }
-
-        compose.onNodeWithText("Mark all available").performClick()
-
-        assertEquals(ItemStatus.AVAILABLE, marked)
-    }
-
-    @Test
-    fun markAllSoldOutIsOfferedWhileSomethingIsInStock() {
-        var marked: ItemStatus? = null
-        compose.setContent {
-            SareeTheme { StockControls(4, 2, 2, ItemFilter.ALL, busy = false, onFilter = {}, onMarkAll = { marked = it }) }
-        }
-
-        compose.onNodeWithText("Mark all sold out").performClick()
-
-        assertEquals(ItemStatus.SOLD_OUT, marked)
-    }
-
-    @Test
     fun thereIsNoOnHoldChipOrPill() {
-        compose.setContent { SareeTheme { StockControls(10, 8, 2, ItemFilter.ALL, busy = false, onFilter = {}, onMarkAll = {}) } }
+        compose.setContent { SareeTheme { StockControls(10, 8, 2, ItemFilter.ALL, onFilter = {}) } }
 
         compose.onNodeWithTag("chip-on-hold").assertDoesNotExist()
         compose.onNodeWithText("On hold", substring = true).assertDoesNotExist()

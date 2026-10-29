@@ -33,6 +33,26 @@ class SellerHomeScreenTest {
     }
 
     @Test
+    fun paymentsToConfirmShowABannerThatOpensOrders() {
+        var opened = false
+        compose.setContent {
+            SareeTheme { SellerHomeContent(SellerHomeState.Loaded(listOf(diwali)), "Lakshmi", {}, {}, {}, toConfirm = 2, onOpenOrders = { opened = true }) }
+        }
+
+        compose.onNodeWithText("2 payments to confirm").assertExists()
+        compose.onNodeWithTag("confirm-banner").performClick()
+
+        assert(opened)
+    }
+
+    @Test
+    fun noBannerWhenNothingWaits() {
+        show(SellerHomeState.Loaded(listOf(diwali)))
+
+        compose.onNodeWithTag("confirm-banner").assertDoesNotExist()
+    }
+
+    @Test
     fun emptyDashboardInvitesTheSellerToUpload() {
         show(SellerHomeState.Loaded(emptyList()))
 

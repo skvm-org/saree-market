@@ -81,6 +81,8 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                     location = shop?.marketLocation.orEmpty(),
                     onNewCollection = { nav.navigate(SELLER_NEW) },
                     onOpen = { id -> nav.navigate("collection/$id") },
+                    toConfirm = pending,
+                    onOpenOrders = { nav.navigate(SELLER_ORDERS) { popUpTo(HOME); launchSingleTop = true } },
                 )
             }
             composable(SELLER_NEW) {
