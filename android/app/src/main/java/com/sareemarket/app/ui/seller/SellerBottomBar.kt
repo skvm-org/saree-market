@@ -23,19 +23,19 @@ import com.sareemarket.app.ui.profile.ROUTE_PROFILE
 internal const val SELLER_HOME = "home"
 internal const val SELLER_NEW = "new"
 internal const val SELLER_SHOP = "shop"
-internal const val SELLER_REQUESTS = "requests"
+internal const val SELLER_ORDERS = "orders"
 
 private data class SellerTab(val route: String, val label: String, val icon: ImageVector)
 
 private val sellerTabs = listOf(
     SellerTab(SELLER_HOME, "Collections", Icons.Filled.PhotoLibrary),
-    SellerTab(SELLER_REQUESTS, "Requests", Icons.Filled.Inbox),
+    SellerTab(SELLER_ORDERS, "Orders", Icons.Filled.Inbox),
     SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
     SellerTab(SELLER_SHOP, "Shop", Icons.Filled.Storefront),
     SellerTab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
 )
 
-/** Where a seller works from: collections, booking requests (with the number waiting), a new upload, the shop and the profile. */
+/** Where a seller works from: collections, orders (with the number waiting for confirmation), a new upload, the shop and the profile. */
 @Composable
 fun SellerBottomBar(current: String?, pending: Long = 0, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
@@ -45,8 +45,8 @@ fun SellerBottomBar(current: String?, pending: Long = 0, onSelect: (String) -> U
                 onClick = { onSelect(tab.route) },
                 icon = {
                     BadgedBox(badge = {
-                        if (tab.route == SELLER_REQUESTS && pending > 0) {
-                            Badge(Modifier.testTag("requests-badge")) { Text(if (pending > 99) "99+" else pending.toString()) }
+                        if (tab.route == SELLER_ORDERS && pending > 0) {
+                            Badge(Modifier.testTag("orders-badge")) { Text(if (pending > 99) "99+" else pending.toString()) }
                         }
                     }) { Icon(tab.icon, contentDescription = null) }
                 },

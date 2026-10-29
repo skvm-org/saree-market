@@ -37,7 +37,7 @@ import com.sareemarket.app.ui.profile.accountRoutes
 private const val HOME = SELLER_HOME
 private const val SHOP = SELLER_SHOP
 
-/** How often the number on the Requests tab is refreshed while the app is open. */
+/** How often the number on the Orders tab is refreshed while the app is open. */
 private const val PENDING_POLL_MS = 60_000L
 
 @Composable
@@ -47,7 +47,8 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
     val shell: SellerShellViewModel = hiltViewModel()
     val shop by shell.shop.collectAsStateWithLifecycle()
     val pending by shell.pending.collectAsStateWithLifecycle()
-    LaunchedEffect(route) { if (route == HOME) shell.reload() }
+    // The shop is read again whenever a screen that shows it comes back, so a UPI ID just saved clears the banner.
+    LaunchedEffect(route) { if (route == HOME || route == SELLER_ORDERS) shell.reload() }
     // The badge: refresh the waiting requests every minute, but only while the app is on screen.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
@@ -69,7 +70,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
             askForPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    val showBar = route == HOME || route == SELLER_REQUESTS || route == SHOP || route == ROUTE_PROFILE
+    val showBar = route == HOME || route == SELLER_ORDERS || route == SHOP || route == ROUTE_PROFILE
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
@@ -91,7 +92,10 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
             composable("collection/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
                 CollectionDetailScreen(onBack = { nav.popBackStack() })
             }
-            composable(SELLER_REQUESTS) { RequestsScreen(onOpenCollection = { id -> nav.navigate("collection/$id") }) }
+            composable(SELLER_ORDERS) {
+                // Until the shop has loaded the banner stays away, so it does not flash for a shop that does have a UPI ID.
+                SellerOrdersScreen(onOpenSettings = { nav.navigate(SHOP) }, hasUpiId = shop?.upiId?.isNotBlank() ?: true)
+            }
             composable(SHOP) { ShopDetailsScreen(onBack = { nav.popBackStack() }) }
             accountRoutes(nav, onLogout)
         }

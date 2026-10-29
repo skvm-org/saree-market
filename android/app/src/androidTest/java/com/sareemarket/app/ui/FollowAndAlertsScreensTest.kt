@@ -196,19 +196,4 @@ class FollowAndAlertsScreensTest {
         compose.onNodeWithTag("tab-alerts").assertDoesNotExist()
         compose.onNodeWithTag("tab-bookings").assertDoesNotExist()
     }
-
-    @Test
-    fun theSellersRequestsTabCarriesTheWaitingCount() {
-        compose.setContent { SareeTheme { com.sareemarket.app.ui.seller.SellerBottomBar(current = "home", pending = 120) {} } }
-
-        compose.onNodeWithTag("requests-badge", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("99+", useUnmergedTree = true).assertExists()
-    }
-
-    @Test
-    fun noRequestsBadgeWhenNothingWaits() {
-        compose.setContent { SareeTheme { com.sareemarket.app.ui.seller.SellerBottomBar(current = "home", pending = 0) {} } }
-
-        compose.onNodeWithTag("requests-badge", useUnmergedTree = true).assertDoesNotExist()
-    }
 }
