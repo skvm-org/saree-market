@@ -26,12 +26,10 @@ data class CollectionSummary(
     /** Who sells it; set only on the reseller catalog, where cards come from many shops. */
     val sellerId: Long? = null,
     val shopName: String? = null,
-    /** Sarees held for a reseller by an accepted booking request. */
-    val onHoldCount: Long = 0,
 )
 
 @Serializable
-enum class ItemStatus { AVAILABLE, ON_HOLD, SOLD_OUT }
+enum class ItemStatus { AVAILABLE, SOLD_OUT }
 
 @Serializable
 data class Item(
@@ -40,8 +38,8 @@ data class Item(
     val priceOverride: Int? = null,
     val effectivePrice: Int,
     val status: ItemStatus,
-    /** Pending or accepted booking requests on this photo; only the owning seller is told. */
-    val openRequests: Int = 0,
+    /** Pieces the seller has left. 0 means out of stock. */
+    val quantity: Int = 1,
 )
 
 @Serializable

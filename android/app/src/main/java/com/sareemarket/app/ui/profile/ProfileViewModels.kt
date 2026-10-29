@@ -150,6 +150,10 @@ data class ShopDetailsUiState(
     val marketLocation: String = "",
     val contactPhone: String = "",
     val whatsapp: String = "",
+    /** Where customers pay this shop; empty clears it. */
+    val upiId: String = "",
+    /** Whole rupees as typed; empty means free shipping. */
+    val shippingFee: String = "",
     val saving: Boolean = false,
     val saved: Boolean = false,
     val fieldErrors: Map<String, String> = emptyMap(),
@@ -157,7 +161,7 @@ data class ShopDetailsUiState(
     /** The details as last loaded or saved, so Save only turns on once something differs. */
     val initial: List<String> = emptyList(),
 ) {
-    val current get() = listOf(shopName.trim(), marketLocation.trim(), contactPhone, whatsapp)
+    val current get() = listOf(shopName.trim(), marketLocation.trim(), contactPhone, whatsapp, upiId.trim(), shippingFee)
     val dirty get() = current != initial
 }
 
@@ -165,6 +169,13 @@ const val FIELD_SHOP = "shopName"
 const val FIELD_MARKET = "marketLocation"
 const val FIELD_CONTACT = "contactPhone"
 const val FIELD_WHATSAPP = "whatsapp"
+const val FIELD_UPI = "upiId"
+const val FIELD_FEE = "shippingFee"
+
+/** Same rule as the server: name@bank. */
+private val UPI_PATTERN = Regex("[A-Za-z0-9._-]{2,64}@[A-Za-z]{2,32}")
+
+private const val MAX_SHIPPING_FEE = 10_000
 
 @HiltViewModel
 class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
@@ -188,7 +199,12 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
                             marketLocation = d.marketLocation,
                             contactPhone = d.contactPhone,
                             whatsapp = d.whatsappNumber.orEmpty(),
-                            initial = listOf(d.shopName.trim(), d.marketLocation.trim(), d.contactPhone, d.whatsappNumber.orEmpty()),
+                            upiId = d.upiId.orEmpty(),
+                            shippingFee = d.shippingFee.toString(),
+                            initial = listOf(
+                                d.shopName.trim(), d.marketLocation.trim(), d.contactPhone, d.whatsappNumber.orEmpty(),
+                                d.upiId.orEmpty().trim(), d.shippingFee.toString(),
+                            ),
                         )
                     }
                 }
@@ -200,6 +216,8 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
     fun onMarketLocation(v: String) = edit { it.copy(marketLocation = v.take(150)) }
     fun onContactPhone(v: String) = edit { it.copy(contactPhone = digitsOnly(v, PHONE_LENGTH)) }
     fun onWhatsapp(v: String) = edit { it.copy(whatsapp = digitsOnly(v, PHONE_LENGTH)) }
+    fun onUpiId(v: String) = edit { it.copy(upiId = v.take(100)) }
+    fun onShippingFee(v: String) = edit { it.copy(shippingFee = digitsOnly(v, 5)) }
 
     private fun edit(change: (ShopDetailsUiState) -> ShopDetailsUiState) =
         _state.update { change(it).copy(saved = false, error = null, fieldErrors = emptyMap()) }
@@ -209,6 +227,8 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
         if (s.marketLocation.isBlank()) put(FIELD_MARKET, "Enter your market and location")
         if (s.contactPhone.length != PHONE_LENGTH) put(FIELD_CONTACT, "Enter a 10-digit mobile number")
         if (s.whatsapp.isNotEmpty() && s.whatsapp.length != PHONE_LENGTH) put(FIELD_WHATSAPP, "Enter a 10-digit mobile number, or leave empty")
+        if (s.upiId.isNotBlank() && !UPI_PATTERN.matches(s.upiId.trim())) put(FIELD_UPI, "Enter your UPI ID, like name@bank, or leave empty")
+        if ((s.shippingFee.toIntOrNull() ?: 0) > MAX_SHIPPING_FEE) put(FIELD_FEE, "Enter a fee from 0 to 10,000")
     }
 
     /** Checks one field when the user leaves it, so a mistake shows before they reach the button. */
@@ -228,7 +248,11 @@ class ShopDetailsViewModel @Inject constructor(private val repository: AuthRepos
         }
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
-            val details = ShopDetails(s.shopName.trim(), s.marketLocation.trim(), s.contactPhone, s.whatsapp.ifEmpty { null })
+            // An empty UPI ID goes as "", which the server reads as "clear it"; leaving it out would mean "keep it".
+            val details = ShopDetails(
+                s.shopName.trim(), s.marketLocation.trim(), s.contactPhone, s.whatsapp.ifEmpty { null },
+                upiId = s.upiId.trim(), shippingFee = s.shippingFee.toIntOrNull() ?: 0,
+            )
             val result = repository.updateShopDetails(details)
             _state.update {
                 it.copy(

@@ -20,7 +20,7 @@ class UserAdminServiceTest {
 
 	@Test
 	void disablesAndReEnablesAUser() {
-		AppUser user = new AppUser("9000000000", "hash", "Priya", Role.RESELLER);
+		AppUser user = new AppUser("9000000000", "hash", "Priya", Role.CUSTOMER);
 		when(users.findById(3L)).thenReturn(Optional.of(user));
 
 		service.setEnabled(3, false);

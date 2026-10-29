@@ -46,9 +46,9 @@ public abstract class IntegrationTestBase {
 				 "shopName":"Lakshmi Silks","marketLocation":"Dindigul","contactPhone":"%s"}""".formatted(phone, phone));
 	}
 
-	protected String registerReseller() throws Exception {
+	protected String registerCustomer() throws Exception {
 		return token("""
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(newPhone()));
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(newPhone()));
 	}
 
 	protected String adminToken() throws Exception {
@@ -82,6 +82,39 @@ public abstract class IntegrationTestBase {
 		return mvc.perform(post(path).header("Authorization", "Bearer " + token)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(json));
+	}
+
+	protected ResultActions patchJson(String path, String token, String json) throws Exception {
+		return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(path)
+			.header("Authorization", "Bearer " + token)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(json));
+	}
+
+	protected ResultActions putJson(String path, String token, String json) throws Exception {
+		return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path)
+			.header("Authorization", "Bearer " + token)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(json));
+	}
+
+	protected ResultActions deleteWith(String path, String token) throws Exception {
+		return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(path)
+			.header("Authorization", "Bearer " + token));
+	}
+
+	/** A collection (type 1, fabric 1) owned by the seller; returns its id. */
+	protected long insertCollection(long sellerId, int price) {
+		return jdbc.queryForObject("""
+				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price)
+				VALUES (?, 'Test collection', 1, 1, ?) RETURNING id""", Long.class, sellerId, price);
+	}
+
+	/** One photo row in the given collection; returns its id. */
+	protected long insertItem(long collectionId, long sellerId) {
+		return jdbc.queryForObject("""
+				INSERT INTO item (collection_id, seller_id, image_path, thumb_path, image_hash)
+				VALUES (?, ?, 'a', 'b', 1) RETURNING id""", Long.class, collectionId, sellerId);
 	}
 
 	/** The user id a token was issued for (its "sub" claim). */

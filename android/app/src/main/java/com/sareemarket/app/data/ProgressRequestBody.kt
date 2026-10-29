@@ -49,7 +49,13 @@ fun photoParts(source: PhotoSource, photos: List<String>, onProgress: (Float) ->
     }
 }
 
-/** The picture a reseller searches with, as the multipart part named "image". */
+/** The payment screenshot, as the multipart part named "proof". */
+fun proofPart(source: PhotoSource, photo: String): MultipartBody.Part {
+    val info = source.info(photo)
+    return MultipartBody.Part.createFormData("proof", info.name, PhotoRequestBody(source, photo, info) {})
+}
+
+/** The picture a customer searches with, as the multipart part named "image". */
 fun imagePart(source: PhotoSource, photo: String): MultipartBody.Part {
     val info = source.info(photo)
     return MultipartBody.Part.createFormData("image", info.name, PhotoRequestBody(source, photo, info) {})

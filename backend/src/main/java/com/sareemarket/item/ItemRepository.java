@@ -13,14 +13,13 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 	List<Item> findByCollectionIdOrderById(Long collectionId);
 
 	/**
-	 * Sets every available or sold out item of a collection in one statement; held items belong to a booking
-	 * request and are left alone. Bulk updates skip @UpdateTimestamp, so it is set here.
+	 * Sets every item of a collection to the status in one statement. Bulk updates skip @UpdateTimestamp, so it is set
+	 * here.
 	 */
 	@Modifying
 	@Transactional
 	@Query("update Item i set i.status = :status, i.updatedAt = CURRENT_TIMESTAMP "
-			+ "where i.collectionId = :collectionId and i.status <> :status "
-			+ "and i.status <> com.sareemarket.item.ItemStatus.ON_HOLD")
+			+ "where i.collectionId = :collectionId and i.status <> :status")
 	int setStatusForCollection(@Param("collectionId") Long collectionId, @Param("status") ItemStatus status);
 
 }

@@ -44,6 +44,42 @@ class NewCollectionViewModelTest {
     }
 
     @Test
+    fun theQuantityIsSentWithTheNewCollection() {
+        var sent = ""
+        api.onCreate = { fields, _ -> sent = fields.getValue("quantity"); com.sareemarket.app.data.detail() }
+        fillValid()
+        vm.onQuantity("7")
+
+        vm.submit()
+
+        assertEquals("7", sent)
+    }
+
+    @Test
+    fun quantityDefaultsToOne() {
+        var sent = ""
+        api.onCreate = { fields, _ -> sent = fields.getValue("quantity"); com.sareemarket.app.data.detail() }
+        fillValid()
+
+        vm.submit()
+
+        assertEquals("1", sent)
+    }
+
+    @Test
+    fun aBadQuantityBlocksTheFormBeforeAnyRequest() {
+        fillValid()
+        for (bad in listOf("", "10001")) {
+            vm.onQuantity(bad)
+
+            vm.submit()
+
+            assertNotNull("$bad should be refused", vm.state.value.fieldErrors["quantity"])
+        }
+        assertFalse("create" in api.calls)
+    }
+
+    @Test
     fun loadsTypesAndFabricsForTheDropdowns() {
         assertEquals(api.types, vm.state.value.reference?.sareeTypes)
         assertEquals(api.fabrics, vm.state.value.reference?.fabrics)

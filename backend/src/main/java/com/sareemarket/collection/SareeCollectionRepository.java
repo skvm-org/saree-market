@@ -14,8 +14,7 @@ public interface SareeCollectionRepository extends JpaRepository<SareeCollection
 			select new com.sareemarket.collection.dto.CollectionSummaryDto(
 			    c.id, c.title, t.name, f.name, c.price, c.createdAt,
 			    count(i), count(case when i.status = com.sareemarket.item.ItemStatus.AVAILABLE then 1 end),
-			    count(case when i.status = com.sareemarket.item.ItemStatus.SOLD_OUT then 1 end),
-			    count(case when i.status = com.sareemarket.item.ItemStatus.ON_HOLD then 1 end), min(i.id))
+			    count(case when i.status = com.sareemarket.item.ItemStatus.SOLD_OUT then 1 end), min(i.id))
 			from SareeCollection c
 			join SareeType t on t.id = c.sareeTypeId
 			join Fabric f on f.id = c.fabricId

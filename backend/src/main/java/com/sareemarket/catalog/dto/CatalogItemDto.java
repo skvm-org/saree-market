@@ -10,5 +10,5 @@ import com.sareemarket.item.ItemStatus;
  */
 public record CatalogItemDto(Long id, Long collectionId, String collectionTitle, String sareeType, String fabric,
 		String colour, int price, ItemStatus status, Long sellerId, String shopName, Instant createdAt,
-		Integer distance) {
+		Integer distance, int quantity, boolean inStock) {
 }

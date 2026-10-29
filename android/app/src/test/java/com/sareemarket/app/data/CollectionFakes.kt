@@ -47,12 +47,12 @@ class FakeCollectionsApi : CollectionsApi {
 
     override suspend fun create(
         title: RequestBody, sareeTypeId: RequestBody, fabricId: RequestBody, price: RequestBody,
-        description: RequestBody, files: List<MultipartBody.Part>,
+        description: RequestBody, quantity: RequestBody, files: List<MultipartBody.Part>,
     ): CollectionDetail {
         calls += "create"
         val fields = mapOf(
             "title" to title.text(), "sareeTypeId" to sareeTypeId.text(), "fabricId" to fabricId.text(),
-            "price" to price.text(), "description" to description.text(),
+            "price" to price.text(), "description" to description.text(), "quantity" to quantity.text(),
         )
         return onCreate(fields, files)
     }
@@ -72,8 +72,11 @@ class FakeCollectionsApi : CollectionsApi {
         return onDelete()
     }
 
-    override suspend fun addPhotos(id: Long, files: List<MultipartBody.Part>): CollectionDetail {
+    var lastAddQuantity: String? = null
+
+    override suspend fun addPhotos(id: Long, quantity: RequestBody, files: List<MultipartBody.Part>): CollectionDetail {
         calls += "addPhotos"
+        lastAddQuantity = quantity.text()
         return onAddPhotos(files)
     }
 

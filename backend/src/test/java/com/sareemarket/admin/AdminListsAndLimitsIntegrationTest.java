@@ -17,7 +17,7 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 	void adminFindsUsersByPhoneAndRole() throws Exception {
 		String phone = newPhone();
 		mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content("""
-				{"phone":"%s","name":"Findable Person","password":"password1","role":"RESELLER"}""".formatted(phone)))
+				{"phone":"%s","name":"Findable Person","password":"password1","role":"CUSTOMER"}""".formatted(phone)))
 			.andExpect(status().isCreated());
 		String admin = adminToken();
 
@@ -25,7 +25,7 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 			.andExpect(jsonPath("$.totalItems").value(1))
 			.andExpect(jsonPath("$.items[0].phone").value(phone))
 			.andExpect(jsonPath("$.items[0].enabled").value(true))
-			.andExpect(jsonPath("$.items[0].role").value("RESELLER"));
+			.andExpect(jsonPath("$.items[0].role").value("CUSTOMER"));
 		getWith("/api/v1/admin/users?q=findable", admin).andExpect(jsonPath("$.items[0].phone").value(phone));
 		getWith("/api/v1/admin/users?q=" + phone + "&role=SELLER", admin).andExpect(jsonPath("$.totalItems").value(0));
 		getWith("/api/v1/admin/users?role=ADMIN", admin).andExpect(jsonPath("$.items[0].phone").value("9999999999"));
@@ -35,7 +35,7 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 	@Test
 	void userListIsAdminOnly() throws Exception {
 		getWith("/api/v1/admin/users", registerSeller()).andExpect(status().isForbidden());
-		getWith("/api/v1/admin/users", registerReseller()).andExpect(status().isForbidden());
+		getWith("/api/v1/admin/users", registerCustomer()).andExpect(status().isForbidden());
 		mvc.perform(get("/api/v1/admin/users")).andExpect(status().isUnauthorized());
 	}
 
@@ -48,12 +48,12 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 			.andExpect(jsonPath("$[?(@.name=='Hidden fabric list test')].active").value(false));
 		getWith("/api/v1/reference/fabrics", admin).andExpect(jsonPath("$[?(@.name=='Hidden fabric list test')]").doesNotExist());
 		getWith("/api/v1/admin/saree-types", admin).andExpect(status().isOk()).andExpect(jsonPath("$[0].name").exists());
-		getWith("/api/v1/admin/fabrics", registerReseller()).andExpect(status().isForbidden());
+		getWith("/api/v1/admin/fabrics", registerCustomer()).andExpect(status().isForbidden());
 	}
 
 	@Test
 	void sinceAboveTenYearsIsAValidationErrorNotAServerError() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 
 		getWith("/api/v1/catalog?since=2147483647", reseller).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
@@ -64,7 +64,7 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 	void sixthWrongPasswordIsRefusedEvenWithTheRightOneUntilTheLockoutEnds() throws Exception {
 		String phone = newPhone();
 		mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content("""
-				{"phone":"%s","name":"Priya","password":"password1","role":"RESELLER"}""".formatted(phone)))
+				{"phone":"%s","name":"Priya","password":"password1","role":"CUSTOMER"}""".formatted(phone)))
 			.andExpect(status().isCreated());
 		String wrong = "{\"phone\":\"%s\",\"password\":\"not-the-password\"}".formatted(phone);
 

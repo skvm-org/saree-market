@@ -57,6 +57,9 @@ public class SellerService {
 		SellerProfile profile = find(sellerId);
 		String whatsapp = r.whatsappNumber() == null || r.whatsappNumber().isBlank() ? null : r.whatsappNumber();
 		profile.update(r.shopName().strip(), r.marketLocation().strip(), r.contactPhone(), whatsapp);
+		// Absent means unchanged, so an older app that does not know these fields cannot wipe them; "" clears the UPI ID.
+		String upi = r.upiId() == null ? profile.getUpiId() : r.upiId().isBlank() ? null : r.upiId();
+		profile.updatePayment(upi, r.shippingFee() == null ? profile.getShippingFee() : r.shippingFee());
 		return toDto(profile);
 	}
 
@@ -66,7 +69,8 @@ public class SellerService {
 	}
 
 	private static SellerProfileDto toDto(SellerProfile p) {
-		return new SellerProfileDto(p.getShopName(), p.getMarketLocation(), p.getContactPhone(), p.getWhatsappNumber());
+		return new SellerProfileDto(p.getShopName(), p.getMarketLocation(), p.getContactPhone(), p.getWhatsappNumber(),
+				p.getUpiId(), p.getShippingFee());
 	}
 
 	private String followMode(long viewerId, long sellerId, boolean viewerIsReseller) {

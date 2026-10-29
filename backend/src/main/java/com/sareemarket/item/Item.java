@@ -2,6 +2,7 @@ package com.sareemarket.item;
 
 import java.time.Instant;
 
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
@@ -13,7 +14,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/** DynamicUpdate: a seller's edit writes only the fields that changed, so it cannot overwrite stock that checkout just moved. */
 @Entity
+@DynamicUpdate
 @Table(name = "item")
 public class Item {
 
@@ -28,6 +31,8 @@ public class Item {
 	private String colour;
 
 	private Integer priceOverride;
+
+	private int quantity = 1;
 
 	@Enumerated(EnumType.STRING)
 	private ItemStatus status = ItemStatus.AVAILABLE;
@@ -73,6 +78,14 @@ public class Item {
 
 	public void setColour(String colour) {
 		this.colour = colour;
+	}
+
+	public int getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(int quantity) {
+		this.quantity = quantity;
 	}
 
 	public Integer getPriceOverride() {

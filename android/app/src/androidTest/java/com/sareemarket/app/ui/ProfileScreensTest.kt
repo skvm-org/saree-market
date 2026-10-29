@@ -27,11 +27,11 @@ class ProfileScreensTest {
     fun profileShowsPhoneAsReadOnlyAndSavesTheName() {
         var saves = 0
         compose.setContent {
-            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, { saves++ }) }
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.CUSTOMER), {}, {}, { saves++ }) }
         }
 
         compose.onNodeWithTag("phone").assertIsDisplayed()
-        compose.onNodeWithText("Reseller").assertIsDisplayed()
+        compose.onNodeWithText("Customer").assertIsDisplayed()
         compose.onNodeWithTag("save").performClick()
 
         assertEquals(1, saves)
@@ -67,7 +67,7 @@ class ProfileScreensTest {
     @Test
     fun saveStaysOffUntilTheNameChanges() {
         compose.setContent {
-            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, {}) }
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.CUSTOMER), {}, {}, {}) }
         }
 
         compose.onNodeWithTag("save").assertIsNotEnabled()
@@ -121,7 +121,7 @@ class ProfileScreensTest {
     @Test
     fun theShopIsItsOwnTabSoProfileHasNoShopRow() {
         compose.setContent {
-            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.RESELLER), {}, {}, {}) }
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", original = "Priya", phone = "9876543210", role = Role.CUSTOMER), {}, {}, {}) }
         }
 
         compose.onNodeWithTag("change-password").assertIsDisplayed()

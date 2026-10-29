@@ -27,7 +27,7 @@ class SellerServiceTest {
 	void updateMineTrimsAndTurnsBlankWhatsappIntoNull() {
 		when(profiles.findById(2L)).thenReturn(Optional.of(new SellerProfile(2L, "Old", "Old", "9000000000", "9000000001")));
 
-		var dto = service.updateMine(2, new SellerProfileRequest(" New Silks ", " Erode ", "9111111111", ""));
+		var dto = service.updateMine(2, new SellerProfileRequest(" New Silks ", " Erode ", "9111111111", "", null, null));
 
 		assertThat(dto.shopName()).isEqualTo("New Silks");
 		assertThat(dto.marketLocation()).isEqualTo("Erode");

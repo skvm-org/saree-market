@@ -46,7 +46,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void listIsNewestFirstWithReadyToShowMessages() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		long oldest = note(me, c, "NEW_COLLECTION", 18, "3 days", true);
@@ -67,8 +67,8 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void resultsComeIn20sAndEachResellerSeesOnlyTheirOwn() throws Exception {
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		for (int n = 0; n < 25; n++) {
@@ -87,7 +87,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void unreadCountFollowsReading() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		long first = note(me, c, "NEW_COLLECTION", 1, "3 minutes", false);
@@ -101,7 +101,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void markingReadTwiceIsHarmlessAndKeepsTheFirstReadTime() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long id = note(resellerId(reseller), collection(), "NEW_COLLECTION", 1, "1 minute", false);
 
 		postTo("/api/v1/notifications/" + id + "/read", reseller).andExpect(status().isNoContent());
@@ -113,8 +113,8 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void anotherResellersNotificationLooksLikeItDoesNotExist() throws Exception {
-		String owner = registerReseller();
-		String intruder = registerReseller();
+		String owner = registerCustomer();
+		String intruder = registerCustomer();
 		long id = note(resellerId(owner), collection(), "NEW_COLLECTION", 1, "1 minute", false);
 
 		postTo("/api/v1/notifications/" + id + "/read", intruder).andExpect(status().isNotFound());
@@ -124,8 +124,8 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void markAllReadOnlyTouchesTheCallersNotifications() throws Exception {
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long c = collection();
 		note(resellerId(reseller), c, "NEW_COLLECTION", 1, "2 minutes", false);
 		note(resellerId(reseller), c, "ITEMS_ADDED", 1, "1 minute", false);
@@ -149,7 +149,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void theNightlyCleanupDeletesNotificationsOlderThanThirtyDays() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		note(me, c, "NEW_COLLECTION", 1, "40 days", true);
@@ -164,7 +164,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void deletingACollectionTakesItsNotificationsWithIt() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		note(me, c, "NEW_COLLECTION", 1, "1 minute", false);
@@ -183,7 +183,7 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void notificationCarriesAPhotoOfTheCollectionForItsThumbnail() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long me = resellerId(reseller);
 		long c = collection();
 		long seller = jdbc.queryForObject("SELECT seller_id FROM collection WHERE id = ?", Long.class, c);

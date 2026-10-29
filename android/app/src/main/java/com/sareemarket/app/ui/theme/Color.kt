@@ -51,7 +51,7 @@ object SareeColors {
 
     /** Text versions of the status colours, dark enough to read on their own pale tint (6.4:1 and 6.7:1). */
     val AvailableText = Color(0xFF166534)
-    /** A saree held for a reseller by an accepted booking request: amber, with a dark text version. */
+    /** Amber for something waiting on someone (an order awaiting the seller), with a dark text version. */
     val OnHold = Color(0xFFD97706)
     val OnHoldText = Color(0xFF92400E)
     val SlateText = Color(0xFF475569)

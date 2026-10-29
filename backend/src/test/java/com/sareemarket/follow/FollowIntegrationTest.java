@@ -47,7 +47,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void resellerFollowsMutesAndUnfollows() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Zed Silks");
 
 		follow(reseller, s, "INSTANT").andExpect(status().isNoContent());
@@ -65,7 +65,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void followingAndUnfollowingTwiceIsHarmless() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 
 		follow(reseller, s, "INSTANT").andExpect(status().isNoContent());
@@ -78,8 +78,8 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void followListIsPerResellerAndSortedByShopName() throws Exception {
-		String one = registerReseller();
-		String two = registerReseller();
+		String one = registerCustomer();
+		String two = registerCustomer();
 		long b = seller("Bbb Shop");
 		long a = seller("Aaa Shop");
 		follow(one, b, "INSTANT");
@@ -92,7 +92,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void unknownOrDisabledSellersCannotBeFollowed() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long gone = seller("Disabled");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", gone);
 
@@ -105,7 +105,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void badNotifyModeIsRejected() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 
 		follow(reseller, s, "LOUD").andExpect(status().isBadRequest());
@@ -127,7 +127,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void followingFilterShowsOnlyFollowedSellersIncludingMutedOnes() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long followed = seller("Followed");
 		long muted = seller("Muted");
 		long stranger = seller("Stranger");
@@ -148,7 +148,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void followingFilterIsEmptyForAResellerWhoFollowsNobodyAndAfterUnfollowing() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long s = seller("Shop");
 		listing(s, "A");
 
@@ -161,8 +161,8 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void sellerPageAndItemDetailShowHowTheResellerFollows() throws Exception {
-		String reseller = registerReseller();
-		String other = registerReseller();
+		String reseller = registerCustomer();
+		String other = registerCustomer();
 		long s = seller("Shop");
 		long item = listing(s, "A");
 
@@ -181,7 +181,7 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void followListSaysWhenEachSellerLastUploadedAndNullWhenNever() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		long active = seller("Active Shop");
 		long quiet = seller("Quiet Shop");
 		listing(active, "Diwali");

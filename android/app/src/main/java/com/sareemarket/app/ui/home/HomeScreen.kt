@@ -12,7 +12,7 @@ import com.sareemarket.app.ui.seller.SellerNavHost
 fun HomeScreen(session: Session, onLogout: () -> Unit) {
     when (session.role) {
         Role.SELLER -> SellerNavHost(session, onLogout)
-        Role.RESELLER -> ResellerNavHost(onLogout)
+        Role.CUSTOMER -> ResellerNavHost(onLogout)
         Role.ADMIN -> AdminNavHost(session, onLogout)
     }
 }

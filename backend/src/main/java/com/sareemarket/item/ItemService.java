@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,8 +20,6 @@ import com.sareemarket.collection.SareeCollectionRepository;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.ImageStorage;
 import com.sareemarket.item.dto.ItemDto;
-import com.sareemarket.item.event.CollectionSoldOut;
-import com.sareemarket.item.event.ItemSoldOut;
 import com.sareemarket.notification.event.ItemsRestocked;
 
 import tools.jackson.databind.JsonNode;
@@ -34,6 +30,8 @@ public class ItemService {
 	static final int MAX_PHOTOS = 30;
 
 	private static final int MAX_COLOUR = 50;
+
+	private static final int MAX_QUANTITY = 10000;
 
 	private static final Logger log = LoggerFactory.getLogger(ItemService.class);
 
@@ -47,12 +45,9 @@ public class ItemService {
 
 	private final ApplicationEventPublisher events;
 
-	private final NamedParameterJdbcTemplate jdbc;
-
 	ItemService(ItemRepository items, SareeCollectionRepository collections, ImageProcessor processor,
-			ImageStorage storage, ApplicationEventPublisher events, NamedParameterJdbcTemplate jdbc) {
+			ImageStorage storage, ApplicationEventPublisher events) {
 		this.events = events;
-		this.jdbc = jdbc;
 		this.items = items;
 		this.collections = collections;
 		this.processor = processor;
@@ -70,7 +65,7 @@ public class ItemService {
 	}
 
 	/** Writes the files and the item rows. Call inside a transaction; every key written is added to storedKeys. */
-	public void store(Long collectionId, Long sellerId, List<ProcessedImage> images, List<String> storedKeys) {
+	public void store(Long collectionId, Long sellerId, List<ProcessedImage> images, int quantity, List<String> storedKeys) {
 		List<Item> rows = new ArrayList<>();
 		for (ProcessedImage image : images) {
 			String base = sellerId + "/" + UUID.randomUUID();
@@ -80,27 +75,15 @@ public class ItemService {
 			storedKeys.add(full);
 			storage.save(thumb, image.thumb());
 			storedKeys.add(thumb);
-			rows.add(new Item(collectionId, sellerId, full, thumb, image.hash()));
+			Item row = new Item(collectionId, sellerId, full, thumb, image.hash());
+			row.setQuantity(quantity);
+			rows.add(row);
 		}
 		items.saveAll(rows);
 	}
 
 	public List<ItemDto> dtosFor(Long collectionId, int collectionPrice) {
 		return items.findByCollectionIdOrderById(collectionId).stream().map(i -> ItemDto.of(i, collectionPrice)).toList();
-	}
-
-	/** Open (pending or accepted) booking requests per photo; only photos that have some are in the map. */
-	public Map<Long, Integer> openRequestCounts(java.util.Collection<Long> itemIds) {
-		Map<Long, Integer> counts = new java.util.HashMap<>();
-		if (itemIds.isEmpty()) {
-			return counts;
-		}
-		jdbc.query("SELECT item_id, count(*) AS n FROM booking_request WHERE item_id IN (:ids) "
-				+ "AND status IN ('PENDING', 'ACCEPTED') GROUP BY item_id", new MapSqlParameterSource("ids", itemIds),
-				rs -> {
-					counts.put(rs.getLong("item_id"), rs.getInt("n"));
-				});
-		return counts;
 	}
 
 	public List<String> fileKeysOf(Long collectionId) {
@@ -152,24 +135,25 @@ public class ItemService {
 				errors.put("priceOverride", "must be a whole number above 0");
 			}
 		}
+		if (patch.has("quantity")) {
+			JsonNode node = patch.get("quantity");
+			if (node.isIntegralNumber() && node.canConvertToInt() && node.intValue() >= 0 && node.intValue() <= MAX_QUANTITY) {
+				item.setQuantity(node.intValue());
+			}
+			else {
+				errors.put("quantity", "must be a whole number from 0 to " + MAX_QUANTITY);
+			}
+		}
 		if (patch.has("status")) {
 			JsonNode node = patch.get("status");
 			ItemStatus status = node.isString() ? parseStatus(node.asString()) : null;
-			if (status == null || status == ItemStatus.ON_HOLD) {
+			if (status == null) {
 				errors.put("status", "must be AVAILABLE or SOLD_OUT");
 			}
 			else {
-				if (item.getStatus() == ItemStatus.ON_HOLD && status == ItemStatus.AVAILABLE) {
-					throw new ApiException(HttpStatus.CONFLICT, "ON_HOLD",
-							"This saree is on hold; reject or release its booking request instead");
-				}
 				// Going from sold out back to available is news for followers; the other way is not.
 				if (item.getStatus() == ItemStatus.SOLD_OUT && status == ItemStatus.AVAILABLE) {
 					events.publishEvent(new ItemsRestocked(sellerId, item.getCollectionId(), 1));
-				}
-				// Selling a held saree sells it to the holder; other open requests on it are closed.
-				if (item.getStatus() != ItemStatus.SOLD_OUT && status == ItemStatus.SOLD_OUT) {
-					events.publishEvent(new ItemSoldOut(itemId));
 				}
 				item.setStatus(status);
 			}
@@ -190,9 +174,6 @@ public class ItemService {
 		int changed = items.setStatusForCollection(collectionId, status);
 		if (status == ItemStatus.AVAILABLE && changed > 0) {
 			events.publishEvent(new ItemsRestocked(sellerId, collectionId, changed));
-		}
-		if (status == ItemStatus.SOLD_OUT && changed > 0) {
-			events.publishEvent(new CollectionSoldOut(collectionId));
 		}
 	}
 

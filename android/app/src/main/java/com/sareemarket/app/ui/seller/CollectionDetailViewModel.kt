@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class ItemFilter { ALL, AVAILABLE, ON_HOLD, SOLD_OUT }
+enum class ItemFilter { ALL, AVAILABLE, SOLD_OUT }
 
 /** "Marked 18 sold out" and the statuses to put back if the seller taps Undo. */
 data class BulkUndo(val message: String, val previous: Map<Long, ItemStatus>)
@@ -44,7 +44,6 @@ data class DetailState(
             when (filter) {
                 ItemFilter.ALL -> true
                 ItemFilter.AVAILABLE -> it.status == ItemStatus.AVAILABLE
-                ItemFilter.ON_HOLD -> it.status == ItemStatus.ON_HOLD
                 ItemFilter.SOLD_OUT -> it.status == ItemStatus.SOLD_OUT
             }
         }
@@ -85,7 +84,6 @@ class CollectionDetailViewModel @Inject constructor(
      */
     fun toggleStatus(itemId: Long) {
         val current = _state.value.detail?.items?.firstOrNull { it.id == itemId } ?: return
-        if (current.status == ItemStatus.ON_HOLD) return // a held saree is answered from its booking request
         val target = if (current.status == ItemStatus.AVAILABLE) ItemStatus.SOLD_OUT else ItemStatus.AVAILABLE
         replaceItem(itemId) { it.copy(status = target) }
         viewModelScope.launch {
@@ -97,8 +95,7 @@ class CollectionDetailViewModel @Inject constructor(
     }
 
     fun markAll(status: ItemStatus) {
-        // Held sarees belong to a booking request: "Mark all" leaves them alone, and so does Undo.
-        val previous = _state.value.detail?.items.orEmpty().filter { it.status != ItemStatus.ON_HOLD }.associate { it.id to it.status }
+        val previous = _state.value.detail?.items.orEmpty().associate { it.id to it.status }
         val changed = previous.values.count { it != status }
         if (changed == 0) return
         val word = if (status == ItemStatus.SOLD_OUT) "sold out" else "available"
@@ -141,13 +138,19 @@ class CollectionDetailViewModel @Inject constructor(
         run(onSaved, { repository.update(id, fields.toForm()) }) { d -> _state.update { it.copy(detail = d) } }
     }
 
-    fun saveItem(itemId: Long, colour: String, priceOverride: String, onSaved: () -> Unit) {
+    /** [quantity] is null when the seller did not touch the count, so it is not sent and cannot overwrite a sale. */
+    fun saveItem(itemId: Long, colour: String, priceOverride: String, quantity: String? = null, onSaved: () -> Unit) {
         val price = priceOverride.toIntOrNull()
         if (priceOverride.isNotEmpty() && (price ?: 0) < 1) {
             _state.update { it.copy(fieldErrors = mapOf("priceOverride" to "Enter a price above 0, or leave empty")) }
             return
         }
-        run(onSaved, { repository.updateItem(itemId, colour.trim(), price) }) { item ->
+        val pieces = quantity?.toIntOrNull()
+        if (quantity != null && pieces !in 0..MAX_QUANTITY) {
+            _state.update { it.copy(fieldErrors = mapOf("quantity" to "Enter 0 to 10,000")) }
+            return
+        }
+        run(onSaved, { repository.updateItem(itemId, colour.trim(), price, pieces) }) { item ->
             _state.update { s -> s.copy(detail = s.detail?.let { d -> d.copy(items = d.items.map { if (it.id == item.id) item else it }) }) }
         }
     }

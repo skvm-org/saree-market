@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/follows")
-@PreAuthorize("hasRole('RESELLER')")
+@PreAuthorize("hasRole('CUSTOMER')")
 class FollowController {
 
 	private final FollowService service;

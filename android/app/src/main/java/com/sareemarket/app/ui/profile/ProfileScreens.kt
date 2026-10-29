@@ -219,6 +219,7 @@ fun ShopDetailsScreen(onBack: () -> Unit, viewModel: ShopDetailsViewModel = hilt
     ShopDetailsContent(
         state, onBack, viewModel::onShopName, viewModel::onMarketLocation, viewModel::onContactPhone, viewModel::onWhatsapp,
         viewModel::save, viewModel::load, viewModel::onBlur, viewModel::onSavedShown,
+        onUpiId = viewModel::onUpiId, onShippingFee = viewModel::onShippingFee,
     )
 }
 
@@ -234,6 +235,8 @@ fun ShopDetailsContent(
     onRetry: () -> Unit,
     onBlur: (String) -> Unit = {},
     onSavedShown: () -> Unit = {},
+    onUpiId: (String) -> Unit = {},
+    onShippingFee: (String) -> Unit = {},
 ) {
     ProfilePage("Shop details", onBack, if (state.saved) "Shop details saved" else null, onSavedShown) {
         if (state.loading) {
@@ -258,8 +261,18 @@ fun ShopDetailsContent(
             SareeTextField(
                 state.whatsapp, onWhatsapp, "WhatsApp number (optional)", tag = "whatsapp", prefix = "+91", keyboardType = KeyboardType.Phone,
                 error = state.fieldErrors[FIELD_WHATSAPP], onBlur = { onBlur(FIELD_WHATSAPP) },
+            )
+            SareeTextField(
+                state.upiId, onUpiId, "UPI ID (where customers pay you)", tag = "shop-upi", placeholder = "name@bank",
+                error = state.fieldErrors[FIELD_UPI], onBlur = { onBlur(FIELD_UPI) },
+            )
+            Text("Customers pay this ID. Without it they can't order from you.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("shop-upi-help"))
+            SareeTextField(
+                state.shippingFee, onShippingFee, "Shipping fee per order", tag = "shop-fee", prefix = "₹", keyboardType = KeyboardType.Number,
+                error = state.fieldErrors[FIELD_FEE], onBlur = { onBlur(FIELD_FEE) },
                 imeAction = ImeAction.Done, onDone = onSave,
             )
+            Text("Added to each order from you. ₹0 means free shipping.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("shop-fee-help"))
             ErrorText(state.error)
             PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
         }

@@ -70,6 +70,43 @@ class CollectionDetailViewModelTest {
     }
 
     @Test
+    fun savingAnItemSendsTheQuantityOnlyWhenGiven() {
+        var sent: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap()
+        api.onUpdateItem = { id, patch -> sent = patch; item(id) }
+
+        vm.saveItem(10, "maroon", "") {}
+        assertFalse("quantity" in sent)
+
+        vm.saveItem(10, "maroon", "", "4") {}
+        assertEquals(kotlinx.serialization.json.JsonPrimitive(4), sent.getValue("quantity"))
+    }
+
+    @Test
+    fun filterChipsAreAllAvailableAndSoldOut() {
+        assertEquals(listOf("ALL", "AVAILABLE", "SOLD_OUT"), com.sareemarket.app.ui.seller.ItemFilter.entries.map { it.name })
+    }
+
+    @Test
+    fun zeroIsAValidQuantity() {
+        var saved = false
+        vm.saveItem(10, "maroon", "", "0") { saved = true }
+
+        assertTrue(saved)
+    }
+
+    @Test
+    fun aBadQuantityIsRejectedOnTheDevice() {
+        for (bad in listOf("", "10001", "abc", "-1")) {
+            var saved = false
+            vm.saveItem(10, "maroon", "", bad) { saved = true }
+
+            assertFalse("$bad should be refused", saved)
+            assertNotNull(vm.state.value.fieldErrors["quantity"])
+        }
+        assertFalse("updateItem" in api.calls)
+    }
+
+    @Test
     fun zeroPriceIsRejectedOnTheDeviceAndEmptyMeansNoOverride() {
         var saved = false
         vm.saveItem(10, "red", "0") { saved = true }
@@ -244,39 +281,5 @@ class CollectionDetailViewModelTest {
 
         assertTrue(api.calls.none { it == "setAllStatus" })
         assertNull(vm.state.value.undo)
-    }
-
-    @Test
-    fun theOnHoldFilterShowsOnlyHeldPhotosAndCountsThem() {
-        api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.ON_HOLD), item(12, status = ItemStatus.SOLD_OUT))) }
-
-        vm.setFilter(ItemFilter.ON_HOLD)
-
-        assertEquals(listOf(11L), vm.state.value.visibleItems.map { it.id })
-        assertEquals(1, vm.state.value.count(ItemStatus.ON_HOLD))
-        assertEquals(1, vm.state.value.count(ItemStatus.AVAILABLE))
-    }
-
-    @Test
-    fun aHeldPhotoIsNotFlippedByTheStockToggle() {
-        api.get = { detail(items = listOf(item(10, status = ItemStatus.ON_HOLD))) }
-        vm.state.value // load
-
-        vm.toggleStatus(10)
-
-        assertFalse("updateItem" in api.calls)
-        assertEquals(ItemStatus.ON_HOLD, vm.state.value.detail?.items?.single()?.status)
-    }
-
-    @Test
-    fun markAllSoldOutDoesNotCountOrUndoHeldPhotos() {
-        api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.ON_HOLD), item(12))) }
-        api.onSetAllStatus = { s -> detail(items = listOf(item(10, status = s), item(11, status = ItemStatus.ON_HOLD), item(12, status = s))) }
-
-        vm.markAll(ItemStatus.SOLD_OUT)
-
-        assertEquals("Marked 2 sold out", vm.state.value.undo?.message)
-        assertEquals(setOf(10L, 12L), vm.state.value.undo?.previous?.keys)
-        assertEquals(ItemStatus.ON_HOLD, vm.state.value.detail?.items?.first { it.id == 11L }?.status)
     }
 }

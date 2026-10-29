@@ -45,3 +45,15 @@ fun dayLabel(iso: String, now: java.time.Instant = java.time.Instant.now(), zone
         else -> "Earlier"
     }
 }
+
+/** What is left of a countdown, for a screen: "1 h 42 min", "35 min", "less than a minute", or "" once it is over. */
+fun timeRemaining(iso: String, now: java.time.Instant = java.time.Instant.now()): String {
+    val seconds = java.time.Duration.between(now, java.time.Instant.parse(iso)).seconds
+    val minutes = seconds / 60
+    return when {
+        seconds <= 0 -> ""
+        minutes < 1 -> "less than a minute"
+        minutes < 60 -> "$minutes min"
+        else -> "${minutes / 60} h ${minutes % 60} min"
+    }
+}

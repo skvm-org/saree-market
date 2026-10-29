@@ -58,12 +58,12 @@ class RegisterViewModelTest {
 
     @Test
     fun resellerNeedsNoShopDetails() {
-        vm.onRoleChange(Role.RESELLER)
+        vm.onRoleChange(Role.CUSTOMER)
         fillCommon()
 
         vm.submit()
 
-        assertEquals(Role.RESELLER, api.lastRegister?.role)
+        assertEquals(Role.CUSTOMER, api.lastRegister?.role)
         assertNull(api.lastRegister?.shopName)
         assertNotNull(store.saved)
     }
@@ -83,7 +83,7 @@ class RegisterViewModelTest {
 
     @Test
     fun shortPasswordAndBadPhoneAreCaughtOnTheDevice() {
-        vm.onRoleChange(Role.RESELLER)
+        vm.onRoleChange(Role.CUSTOMER)
         vm.onChange(RegisterField.NAME, "Priya")
         vm.onChange(RegisterField.PHONE, "12345")
         vm.onChange(RegisterField.PASSWORD, "short")
@@ -100,7 +100,7 @@ class RegisterViewModelTest {
         vm.submit()
         assertTrue(vm.state.value.fieldErrors.isNotEmpty())
 
-        vm.onRoleChange(Role.RESELLER)
+        vm.onRoleChange(Role.CUSTOMER)
 
         assertTrue(vm.state.value.fieldErrors.isEmpty())
     }
@@ -110,7 +110,7 @@ class RegisterViewModelTest {
         api.registerResult = {
             throw httpError(409, """{"code":"PHONE_TAKEN","message":"This phone number is already registered"}""")
         }
-        vm.onRoleChange(Role.RESELLER)
+        vm.onRoleChange(Role.CUSTOMER)
         fillCommon()
 
         vm.submit()
@@ -124,7 +124,7 @@ class RegisterViewModelTest {
         api.registerResult = {
             throw httpError(400, """{"code":"VALIDATION_ERROR","message":"Some fields are invalid","fields":{"name":"size must be at most 100"}}""")
         }
-        vm.onRoleChange(Role.RESELLER)
+        vm.onRoleChange(Role.CUSTOMER)
         fillCommon()
 
         vm.submit()

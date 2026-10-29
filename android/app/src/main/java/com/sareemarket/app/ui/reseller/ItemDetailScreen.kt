@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.draw.clip
@@ -191,9 +193,10 @@ fun ItemDetailScreen(
                 ItemDetailContent(
                     detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error,
                     pageLabel = if (state.ids.size > 1) "${page + 1} / ${state.ids.size}" else null,
-                    booking = BookingUi(state.bookingBusy, state.bookingError),
-                    onBook = { viewModel.book(id, it) },
-                    onCancelBooking = { viewModel.cancelBooking(id, it) },
+                    shopping = ShoppingUi(state.shoppingBusy, state.shoppingError),
+                    onSetQuantity = { viewModel.setCartQuantity(id, it) },
+                    onRemoveFromCart = { viewModel.removeFromCart(id) },
+                    onToggleWishlist = { viewModel.toggleWishlist(id) },
                 ) { follow.toggle(detail.seller.id, mode) }
             } else if (load?.error != null) {
                 Column(Modifier.fillMaxSize().padding(Spacing.margin), Arrangement.Center, Alignment.CenterHorizontally) {
@@ -232,9 +235,10 @@ fun ItemDetailContent(
     followMode: NotifyMode?,
     followError: String?,
     pageLabel: String? = null,
-    booking: BookingUi = BookingUi(),
-    onBook: (String) -> Unit = {},
-    onCancelBooking: (Long) -> Unit = {},
+    shopping: ShoppingUi = ShoppingUi(),
+    onSetQuantity: (Int) -> Unit = {},
+    onRemoveFromCart: () -> Unit = {},
+    onToggleWishlist: () -> Unit = {},
     onToggleFollow: () -> Unit,
 ) {
     val soldOut = detail.status == ItemStatus.SOLD_OUT
@@ -265,6 +269,20 @@ fun ItemDetailContent(
                     modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs).size(44.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                }
+                Surface(
+                    onClick = onToggleWishlist,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+                    modifier = Modifier.align(Alignment.BottomStart).padding(Spacing.md).size(44.dp).testTag("wishlist"),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
+                            tint = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    }
                 }
                 ItemStatusPill(detail.status, Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"))
                 pageLabel?.let {
@@ -346,13 +364,13 @@ fun ItemDetailContent(
                 Spacer(Modifier.height(Spacing.sm))
             }
         }
-        // Always within reach: the whole point of the page is to book it or contact the seller.
+        // Always within reach: the whole point of the page is to buy it or contact the seller.
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 6.dp) {
             Column(
                 Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                BookingPanel(detail, booking, onBook, onCancelBooking)
+                PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart)
                 ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
             }
         }

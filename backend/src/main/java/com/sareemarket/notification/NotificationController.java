@@ -18,7 +18,7 @@ import com.sareemarket.notification.dto.UnreadCountDto;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
-@PreAuthorize("hasRole('RESELLER')")
+@PreAuthorize("hasRole('CUSTOMER')")
 class NotificationController {
 
 	private final NotificationService service;

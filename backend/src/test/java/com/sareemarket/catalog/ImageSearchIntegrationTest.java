@@ -85,7 +85,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		long mine = upload(seller, "Original", 1, 2000, jpeg(original));
 		upload(seller, "Different", 1, 2000, jpeg(TestImages.blocks(640, 800, 2)));
 
-		search(registerReseller(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
+		search(registerCustomer(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
 			.andExpect(jsonPath("$.items.length()").value(1))
 			.andExpect(jsonPath("$.items[0].id").value(mine))
 			.andExpect(jsonPath("$.items[0].distance").value(0))
@@ -97,7 +97,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	void resizedRecompressedAndCroppedCopiesStillFindThePhoto() throws Exception {
 		String seller = registerSeller();
 		long mine = upload(seller, "Original", 1, 2000, jpeg(original));
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		String shop = "?sellerId=" + sellerId(seller);
 
 		for (byte[] copy : new byte[][] { resized(), lowQuality(), slightlyCropped() }) {
@@ -110,7 +110,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		String seller = registerSeller();
 		upload(seller, "Original", 1, 2000, jpeg(original));
 
-		assertThat(ids(search(registerReseller(), jpeg(TestImages.blocks(640, 800, 99)), "?sellerId=" + sellerId(seller)))).isEmpty();
+		assertThat(ids(search(registerCustomer(), jpeg(TestImages.blocks(640, 800, 99)), "?sellerId=" + sellerId(seller)))).isEmpty();
 	}
 
 	@Test
@@ -120,7 +120,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		long exact = upload(seller, "Exact", 1, 2000, jpeg(original));
 		long near = upload(seller, "Near", 1, 2000, resized());
 
-		String json = search(registerReseller(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
+		String json = search(registerCustomer(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
 			.andReturn().getResponse().getContentAsString();
 		List<Number> ids = JsonPath.read(json, "$.items[*].id");
 		List<Number> distances = JsonPath.read(json, "$.items[*].distance");
@@ -138,7 +138,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		long cotton = upload(seller, "Cotton copy", 4, 800, jpeg(original));
 		long sold = upload(seller, "Sold out copy", 3, 3000, jpeg(original));
 		jdbc.update("UPDATE item SET status = 'SOLD_OUT' WHERE id = ?", sold);
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 		String shop = "?sellerId=" + sellerId(seller);
 
 		assertThat(ids(search(reseller, jpeg(original), shop))).containsExactlyInAnyOrder(soft, cotton); // sold out hidden by default
@@ -159,7 +159,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		long thirteen = craft(collection, sellerId, hash ^ ((1L << 13) - 1));
 		long flipped = craft(collection, sellerId, ~hash); // every bit different
 
-		List<Long> found = ids(search(registerReseller(), jpeg(original), "?sellerId=" + sellerId));
+		List<Long> found = ids(search(registerCustomer(), jpeg(original), "?sellerId=" + sellerId));
 
 		assertThat(found).contains(exact, twelve).doesNotContain(thirteen, flipped);
 	}
@@ -177,7 +177,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		long id = sellerId(seller); // ask before the account is switched off
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", id);
 
-		assertThat(ids(search(registerReseller(), jpeg(original), "?sellerId=" + id))).isEmpty();
+		assertThat(ids(search(registerCustomer(), jpeg(original), "?sellerId=" + id))).isEmpty();
 	}
 
 	@Test
@@ -190,7 +190,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 		for (int n = 0; n < 29; n++) {
 			craft(collection, sellerId, hash);
 		}
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 
 		search(reseller, jpeg(original), "?sellerId=" + sellerId).andExpect(jsonPath("$.items.length()").value(24))
 			.andExpect(jsonPath("$.totalItems").value(30))
@@ -202,7 +202,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	void onlyResellersAndAdminsCanSearchByPhoto() throws Exception {
 		byte[] photo = jpeg(original);
 
-		search(registerReseller(), photo, "").andExpect(status().isOk());
+		search(registerCustomer(), photo, "").andExpect(status().isOk());
 		search(adminToken(), photo, "").andExpect(status().isOk());
 		search(registerSeller(), photo, "").andExpect(status().isForbidden());
 		mvc.perform(multipart("/api/v1/catalog/image-search").file(new MockMultipartFile("image", "q.jpg", "image/jpeg", photo)))
@@ -211,7 +211,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void aMissingOrBrokenPictureIsRejected() throws Exception {
-		String reseller = registerReseller();
+		String reseller = registerCustomer();
 
 		search(reseller, null, "").andExpect(status().isBadRequest()).andExpect(jsonPath("$.fields.image").exists());
 		search(reseller, "just some text".getBytes(), "").andExpect(status().isBadRequest())

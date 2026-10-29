@@ -42,7 +42,7 @@ class AuthServiceTest {
 	}
 
 	RegisterRequest reseller() {
-		return new RegisterRequest("9876543210", " Priya ", "password1", Role.RESELLER, null, null, null, null);
+		return new RegisterRequest("9876543210", " Priya ", "password1", Role.CUSTOMER, null, null, null, null);
 	}
 
 	RegisterRequest seller(String shop, String location, String contact, String whatsapp) {
@@ -51,7 +51,7 @@ class AuthServiceTest {
 	}
 
 	@Test
-	void registerResellerHashesPasswordAndSkipsSellerProfile() {
+	void registerCustomerHashesPasswordAndSkipsSellerProfile() {
 		AuthResponse response = service.register(reseller());
 
 		assertThat(response.token()).isEqualTo("token");
@@ -188,7 +188,7 @@ class AuthServiceTest {
 	}
 
 	private AppUser user(boolean enabled) {
-		AppUser user = new AppUser("9876543210", encoder.encode("password1"), "Priya", Role.RESELLER);
+		AppUser user = new AppUser("9876543210", encoder.encode("password1"), "Priya", Role.CUSTOMER);
 		if (!enabled) {
 			org.springframework.test.util.ReflectionTestUtils.setField(user, "enabled", false);
 		}

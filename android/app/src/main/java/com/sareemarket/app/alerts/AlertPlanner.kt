@@ -1,7 +1,7 @@
 package com.sareemarket.app.alerts
 
 import com.sareemarket.app.data.AppNotification
-import com.sareemarket.app.data.BookingSummary
+import com.sareemarket.app.data.OrderSummary
 import com.sareemarket.app.data.NotificationType
 import java.time.Instant
 
@@ -16,12 +16,12 @@ object AlertPlanner {
         if (fresh.size == 1) fresh.first().message else "${fresh.size} new collections from sellers you follow"
 
     /**
-     * The text for a booking alert, or null when nothing new has arrived since the last check. A seller's count is
-     * requests waiting for an answer; a reseller's is answers not yet looked at. The two never apply to one account.
+     * The text for an order alert, or null when nothing new has arrived since the last check. A seller hears about
+     * orders newly waiting for confirmation; anyone hears when the number of orders with unseen updates rises.
      */
-    fun bookingText(lastPending: Long, lastUnread: Long, now: BookingSummary): String? = when {
-        now.pending > lastPending -> (now.pending - lastPending).let { if (it == 1L) "1 new booking request" else "$it new booking requests" }
-        now.unread > lastUnread -> (now.unread - lastUnread).let { if (it == 1L) "A seller answered your booking request" else "$it booking requests have answers" }
+    fun orderText(lastToConfirm: Int, lastUnread: Int, now: OrderSummary): String? = when {
+        now.toConfirm > lastToConfirm -> (now.toConfirm - lastToConfirm).let { if (it == 1) "1 new order to confirm" else "$it new orders to confirm" }
+        now.unread > lastUnread -> "An order was updated"
         else -> null
     }
 

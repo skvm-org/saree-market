@@ -47,7 +47,7 @@ class CollectionServiceTest {
 
 	CollectionService service = new CollectionService(collections, types, fabrics, items, tx, events);
 
-	CreateCollectionForm form = new CreateCollectionForm("Diwali silks", 1L, 2L, 2500, null, List.of());
+	CreateCollectionForm form = new CreateCollectionForm("Diwali silks", 1L, 2L, 2500, null, List.of(), null);
 
 	@BeforeEach
 	@SuppressWarnings("unchecked")
@@ -63,9 +63,9 @@ class CollectionServiceTest {
 	@Test
 	void filesAlreadyWrittenAreRemovedWhenSavingFails() {
 		doAnswer(inv -> {
-			inv.<List<String>>getArgument(3).addAll(List.of("1/a.jpg", "1/a_thumb.jpg"));
+			inv.<List<String>>getArgument(4).addAll(List.of("1/a.jpg", "1/a_thumb.jpg"));
 			throw new IllegalStateException("database is down");
-		}).when(items).store(any(), anyLong(), anyList(), anyList());
+		}).when(items).store(any(), anyLong(), anyList(), org.mockito.ArgumentMatchers.anyInt(), anyList());
 
 		assertThatThrownBy(() -> service.create(1L, form)).isInstanceOf(IllegalStateException.class);
 
@@ -116,7 +116,7 @@ class CollectionServiceTest {
 	void noEventWhenSavingThePhotosFails() {
 		doAnswer(inv -> {
 			throw new IllegalStateException("database is down");
-		}).when(items).store(any(), anyLong(), anyList(), anyList());
+		}).when(items).store(any(), anyLong(), anyList(), org.mockito.ArgumentMatchers.anyInt(), anyList());
 
 		assertThatThrownBy(() -> service.create(1L, form)).isInstanceOf(IllegalStateException.class);
 

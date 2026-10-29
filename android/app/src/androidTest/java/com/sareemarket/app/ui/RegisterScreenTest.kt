@@ -32,7 +32,7 @@ class RegisterScreenTest {
 
     @Test
     fun resellerDoesNotSeeShopFields() {
-        show(RegisterUiState(role = Role.RESELLER))
+        show(RegisterUiState(role = Role.CUSTOMER))
 
         compose.onNodeWithTag("shopName").assertDoesNotExist()
         compose.onNodeWithTag("name").assertExists()
@@ -43,14 +43,14 @@ class RegisterScreenTest {
         var chosen: Role? = null
         show(RegisterUiState(role = Role.SELLER), onRole = { chosen = it })
 
-        compose.onNodeWithTag("role-RESELLER").performClick()
+        compose.onNodeWithTag("role-CUSTOMER").performClick()
 
-        assertEquals(Role.RESELLER, chosen)
+        assertEquals(Role.CUSTOMER, chosen)
     }
 
     @Test
     fun showsAFieldError() {
-        show(RegisterUiState(role = Role.RESELLER, fieldErrors = mapOf("phone" to "Enter a 10-digit mobile number")))
+        show(RegisterUiState(role = Role.CUSTOMER, fieldErrors = mapOf("phone" to "Enter a 10-digit mobile number")))
 
         compose.onNodeWithText("Enter a 10-digit mobile number").assertExists()
     }

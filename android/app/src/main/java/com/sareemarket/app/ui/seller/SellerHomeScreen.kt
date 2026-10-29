@@ -163,7 +163,6 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
-    val onHold = collections.sumOf { it.onHoldCount }
     Column(
         Modifier
             .fillMaxWidth()
@@ -185,7 +184,6 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
         val totals: @Composable (Modifier) -> Unit = { modifier ->
             Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
                 StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
-                if (onHold > 0) StatTile("On hold", onHold, SareeColors.OnHoldText, Modifier.weight(1f).testTag("stat-on-hold"))
                 StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
             }
         }
@@ -248,7 +246,6 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
                 Text(
                     buildString {
                         append("${collection.availableCount} available")
-                        if (collection.onHoldCount > 0) append(" · ${collection.onHoldCount} on hold")
                         if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
                     },
                     style = MaterialTheme.typography.labelMedium,

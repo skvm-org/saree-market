@@ -17,11 +17,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sareemarket.booking.BookingStatus;
 import com.sareemarket.catalog.dto.CatalogCollectionDto;
 import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.catalog.dto.ItemDetailDto;
-import com.sareemarket.catalog.dto.ItemDetailDto.MyBookingDto;
 import com.sareemarket.catalog.dto.ItemDetailDto.SellerContactDto;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.collection.SareeCollectionRepository;
@@ -54,7 +52,8 @@ public class CatalogService {
 
 	private static final String CARD_COLUMNS = """
 			SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
-			       COALESCE(i.price_override, c.price) AS price, i.status, c.seller_id, sp.shop_name, i.created_at
+			       COALESCE(i.price_override, c.price) AS price, i.status, i.quantity, c.seller_id, sp.shop_name,
+			       i.created_at
 			""";
 
 	private final NamedParameterJdbcTemplate jdbc;
@@ -73,7 +72,19 @@ public class CatalogService {
 		return (rs, n) -> new CatalogItemDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
 				rs.getString("saree_type"), rs.getString("fabric"), rs.getString("colour"), rs.getInt("price"),
 				ItemStatus.valueOf(rs.getString("status")), rs.getLong("seller_id"), rs.getString("shop_name"),
-				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null);
+				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null, rs.getInt("quantity"),
+				inStock(rs));
+	}
+
+	/** Cards for the given photos in the order asked for; unknown photos and those of disabled sellers are left out. */
+	public List<CatalogItemDto> cardsFor(List<Long> itemIds) {
+		if (itemIds.isEmpty()) {
+			return List.of();
+		}
+		Map<Long, CatalogItemDto> byId = new java.util.HashMap<>();
+		jdbc.query(CARD_COLUMNS + FROM + " WHERE i.id IN (:ids) AND u.enabled", new MapSqlParameterSource("ids", itemIds),
+				card(false)).forEach(c -> byId.put(c.id(), c));
+		return itemIds.stream().map(byId::get).filter(c -> c != null).toList();
 	}
 
 	public PageDto<CatalogItemDto> search(CatalogFilter filter, long viewerId) {
@@ -103,7 +114,6 @@ public class CatalogService {
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'SOLD_OUT') AS sold_out,
-				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'ON_HOLD') AS on_hold,
 				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
 				FROM collection cc
 				JOIN saree_type tt ON tt.id = cc.saree_type_id
@@ -114,7 +124,7 @@ public class CatalogService {
 					return new CatalogCollectionDto(rs.getLong("id"), rs.getString("title"), rs.getString("saree_type"),
 							rs.getString("fabric"), rs.getInt("price"), instant(rs, "created_at"),
 							rs.getLong("item_count"), rs.getLong("available"), rs.getLong("sold_out"),
-							rs.getLong("on_hold"), rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
+							rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
 							rs.getString("shop_name"));
 				});
 		return PageDto.of(withPreviews(cards), filter.page(), PAGE_SIZE, total == null ? 0 : total);
@@ -131,7 +141,7 @@ public class CatalogService {
 		}
 		return cards.stream()
 			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.sareeType(), c.fabric(), c.price(), c.createdAt(),
-					c.itemCount(), c.availableCount(), c.soldOutCount(), c.onHoldCount(), c.coverItemId(),
+					c.itemCount(), c.availableCount(), c.soldOutCount(), c.coverItemId(),
 					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName()))
 			.toList();
 	}
@@ -234,7 +244,7 @@ public class CatalogService {
 		List<ItemDetailDto> found = jdbc.query("""
 				SELECT i.id, i.collection_id, c.title, c.description, t.name AS saree_type, f.name AS fabric,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
-				       i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
+				       i.quantity, i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
 				       sp.whatsapp_number, u.enabled
 				""" + FROM + " WHERE i.id = :id", byId, (rs, n) -> {
 			long sellerId = rs.getLong("seller_id");
@@ -250,11 +260,11 @@ public class CatalogService {
 			return new ItemDetailDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
 					rs.getString("description"), rs.getString("saree_type"), rs.getString("fabric"),
 					rs.getString("colour"), override, rs.getInt("price"), ItemStatus.valueOf(rs.getString("status")),
-					instant(rs, "created_at"),
+					rs.getInt("quantity"), inStock(rs), instant(rs, "created_at"),
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
 							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
-					myBooking(role, userId, itemId));
+					inWishlist(role, userId, itemId), inCart(role, userId, itemId));
 		});
 		return found.stream()
 			.filter(d -> d != null)
@@ -262,30 +272,38 @@ public class CatalogService {
 			.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Photo not found"));
 	}
 
-	/** The viewing reseller's latest booking request for this photo, or null. */
-	private MyBookingDto myBooking(String role, long userId, long itemId) {
-		if (!"RESELLER".equals(role)) {
-			return null;
+	/** How many of this saree the viewing customer has in their cart; 0 for anyone else. */
+	private int inCart(String role, long userId, long itemId) {
+		if (!"CUSTOMER".equals(role)) {
+			return 0;
 		}
-		List<MyBookingDto> latest = jdbc.query("""
-				SELECT id, status, hold_expires_at FROM booking_request WHERE item_id = :i AND reseller_id = :r
-				ORDER BY created_at DESC, id DESC LIMIT 1""", new MapSqlParameterSource("i", itemId).addValue("r", userId),
-				(rs, n) -> {
-					OffsetDateTime expires = rs.getObject("hold_expires_at", OffsetDateTime.class);
-					return new MyBookingDto(rs.getLong("id"), BookingStatus.valueOf(rs.getString("status")),
-							expires == null ? null : expires.toInstant());
-				});
-		return latest.isEmpty() ? null : latest.get(0);
+		List<Integer> found = jdbc.queryForList("SELECT quantity FROM cart_line WHERE customer_id = :u AND item_id = :i",
+				new MapSqlParameterSource("u", userId).addValue("i", itemId), Integer.class);
+		return found.isEmpty() ? 0 : found.get(0);
+	}
+
+	private boolean inWishlist(String role, long userId, long itemId) {
+		if (!"CUSTOMER".equals(role)) {
+			return false;
+		}
+		return Boolean.TRUE.equals(jdbc.queryForObject(
+				"SELECT EXISTS (SELECT 1 FROM wishlist_entry WHERE customer_id = :u AND item_id = :i)",
+				new MapSqlParameterSource("u", userId).addValue("i", itemId), Boolean.class));
 	}
 
 	/** How the viewing reseller follows this seller (INSTANT or MUTED), or null: not following, or not a reseller. */
 	private String followMode(String role, long userId, long sellerId) {
-		if (!"RESELLER".equals(role)) {
+		if (!"CUSTOMER".equals(role)) {
 			return null;
 		}
 		List<String> modes = jdbc.queryForList("SELECT notify_mode FROM seller_follow WHERE reseller_id = :r AND seller_id = :s",
 				new MapSqlParameterSource("r", userId).addValue("s", sellerId), String.class);
 		return modes.isEmpty() ? null : modes.get(0);
+	}
+
+	/** Orderable now: marked available by the seller and at least one piece left. */
+	private static boolean inStock(ResultSet rs) throws SQLException {
+		return "AVAILABLE".equals(rs.getString("status")) && rs.getInt("quantity") > 0;
 	}
 
 	private static java.time.Instant instant(ResultSet rs, String column) throws SQLException {
