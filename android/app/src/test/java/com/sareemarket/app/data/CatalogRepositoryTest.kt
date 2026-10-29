@@ -113,4 +113,17 @@ class CatalogRepositoryTest {
 
         assertEquals("Each photo must be 10 MB or smaller", repo.imageSearch(CatalogQuery(), "photo-1", 0).exceptionOrNull()?.message)
     }
+
+    @Test
+    fun anItemDetailWithoutAnyBookingFieldDecodes() {
+        val detail = testJson.decodeFromString<ItemDetail>(
+            """{"id":10,"collectionId":5,"collectionTitle":"Diwali silks","sareeType":"Soft silk","fabric":"Pure silk","price":2500,
+            "status":"AVAILABLE","quantity":2,"inStock":true,"inWishlist":false,"inCart":0,
+            "seller":{"id":1,"shopName":"Lakshmi Silks","marketLocation":"Dindigul"}}""",
+        )
+
+        assertEquals(ItemStatus.AVAILABLE, detail.status)
+        assertEquals(2, detail.quantity)
+    }
+
 }

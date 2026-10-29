@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class ItemFilter { ALL, AVAILABLE, ON_HOLD, SOLD_OUT }
+enum class ItemFilter { ALL, AVAILABLE, SOLD_OUT }
 
 /** "Marked 18 sold out" and the statuses to put back if the seller taps Undo. */
 data class BulkUndo(val message: String, val previous: Map<Long, ItemStatus>)
@@ -44,7 +44,6 @@ data class DetailState(
             when (filter) {
                 ItemFilter.ALL -> true
                 ItemFilter.AVAILABLE -> it.status == ItemStatus.AVAILABLE
-                ItemFilter.ON_HOLD -> it.status == ItemStatus.ON_HOLD
                 ItemFilter.SOLD_OUT -> it.status == ItemStatus.SOLD_OUT
             }
         }
@@ -85,7 +84,6 @@ class CollectionDetailViewModel @Inject constructor(
      */
     fun toggleStatus(itemId: Long) {
         val current = _state.value.detail?.items?.firstOrNull { it.id == itemId } ?: return
-        if (current.status == ItemStatus.ON_HOLD) return // a held saree is answered from its booking request
         val target = if (current.status == ItemStatus.AVAILABLE) ItemStatus.SOLD_OUT else ItemStatus.AVAILABLE
         replaceItem(itemId) { it.copy(status = target) }
         viewModelScope.launch {
@@ -97,8 +95,7 @@ class CollectionDetailViewModel @Inject constructor(
     }
 
     fun markAll(status: ItemStatus) {
-        // Held sarees belong to a booking request: "Mark all" leaves them alone, and so does Undo.
-        val previous = _state.value.detail?.items.orEmpty().filter { it.status != ItemStatus.ON_HOLD }.associate { it.id to it.status }
+        val previous = _state.value.detail?.items.orEmpty().associate { it.id to it.status }
         val changed = previous.values.count { it != status }
         if (changed == 0) return
         val word = if (status == ItemStatus.SOLD_OUT) "sold out" else "available"

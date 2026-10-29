@@ -66,8 +66,6 @@ data class ItemDetail(
     val seller: SellerContact,
     /** ISO-8601 instant the photo was uploaded. */
     val createdAt: String? = null,
-    /** This reseller's latest booking request for the photo, or null if they never asked. */
-    val myBooking: MyBooking? = null,
     val quantity: Int = 1,
     val inStock: Boolean = true,
     val inWishlist: Boolean = false,

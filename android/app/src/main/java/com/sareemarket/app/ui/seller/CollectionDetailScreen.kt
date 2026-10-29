@@ -199,7 +199,6 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                             total = detail.items.size,
                             available = state.count(ItemStatus.AVAILABLE),
                             soldOut = state.count(ItemStatus.SOLD_OUT),
-                            onHold = state.count(ItemStatus.ON_HOLD),
                             filter = state.filter,
                             busy = state.busy,
                             onFilter = viewModel::setFilter,
@@ -313,7 +312,6 @@ internal fun StockControls(
     busy: Boolean,
     onFilter: (ItemFilter) -> Unit,
     onMarkAll: (ItemStatus) -> Unit,
-    onHold: Int = 0,
 ) {
     // Chips on the left and the bulk action after them; on a narrow phone the action wraps to its own line.
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.Center) {
@@ -321,10 +319,7 @@ internal fun StockControls(
             Triple(ItemFilter.ALL, "All $total", "chip-all"),
             Triple(ItemFilter.AVAILABLE, "Available $available", "chip-available"),
             Triple(ItemFilter.SOLD_OUT, "Sold out $soldOut", "chip-sold-out"),
-        ).let { chips ->
-            // The chip only appears once something is on hold.
-            if (onHold > 0) chips.toMutableList().apply { add(2, Triple(ItemFilter.ON_HOLD, "On hold $onHold", "chip-on-hold")) } else chips
-        }.forEach { (value, label, tag) -> PillChip(label, filter == value, tag) { onFilter(value) } }
+        ).forEach { (value, label, tag) -> PillChip(label, filter == value, tag) { onFilter(value) } }
         // With nothing left in stock the useful action is the opposite one.
         TextButton(
             onClick = { onMarkAll(if (available == 0) ItemStatus.AVAILABLE else ItemStatus.SOLD_OUT) },
@@ -337,9 +332,8 @@ internal fun StockControls(
 
 @Composable
 internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
-    val held = item.status == ItemStatus.ON_HOLD
     // No pieces left looks sold out whatever the seller's own mark says: checkout lowers the count but not the mark.
-    val soldOut = item.status == ItemStatus.SOLD_OUT || (item.quantity == 0 && !held)
+    val soldOut = item.status == ItemStatus.SOLD_OUT || item.quantity == 0
     val haptics = LocalHapticFeedback.current
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.testTag("item-${item.id}")) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -355,14 +349,6 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                     color = MaterialTheme.colorScheme.primaryContainer,
                     textDecoration = if (soldOut) TextDecoration.LineThrough else null,
                 )
-                if (item.openRequests > 0) {
-                    Text(
-                        if (item.openRequests == 1) "1 request" else "${item.openRequests} requests",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = SareeColors.GoldText,
-                        modifier = Modifier.testTag("requests-${item.id}"),
-                    )
-                }
             }
             Row(
                 Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape).padding(start = Spacing.md),
@@ -370,32 +356,19 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    when {
-                        held -> "On hold"
-                        soldOut -> "Out of stock"
-                        else -> "${item.quantity} in stock"
-                    },
+                    if (soldOut) "Out of stock" else "${item.quantity} in stock",
                     style = MaterialTheme.typography.labelMedium,
-                    color = when {
-                        held -> SareeColors.OnHoldText
-                        soldOut -> SareeColors.SlateText
-                        else -> SareeColors.AvailableText
-                    },
+                    color = if (soldOut) SareeColors.SlateText else SareeColors.AvailableText,
                 )
-                if (held) {
-                    // A booking holds this saree, so there is no stock checkbox to flip here.
-                    Text("Booking in progress", style = MaterialTheme.typography.labelMedium, color = SareeColors.OnHoldText, modifier = Modifier.padding(end = Spacing.md).testTag("held-${item.id}"))
-                } else {
-                    Checkbox(
-                        checked = !soldOut,
-                        onCheckedChange = {
-                            haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
-                            onToggle()
-                        },
-                        colors = CheckboxDefaults.colors(checkedColor = SareeColors.Available),
-                        modifier = Modifier.testTag("stock-${item.id}"),
-                    )
-                }
+                Checkbox(
+                    checked = !soldOut,
+                    onCheckedChange = {
+                        haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                        onToggle()
+                    },
+                    colors = CheckboxDefaults.colors(checkedColor = SareeColors.Available),
+                    modifier = Modifier.testTag("stock-${item.id}"),
+                )
             }
         }
     }

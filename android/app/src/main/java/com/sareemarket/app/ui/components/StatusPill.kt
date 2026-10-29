@@ -49,7 +49,6 @@ fun StatusPill(text: String, target: Color, modifier: Modifier = Modifier) {
 @Composable
 fun ItemStatusPill(status: ItemStatus, modifier: Modifier = Modifier) = when (status) {
     ItemStatus.AVAILABLE -> StatusPill("Available", SareeColors.Available, modifier)
-    ItemStatus.ON_HOLD -> StatusPill("On hold", SareeColors.OnHold, modifier)
     ItemStatus.SOLD_OUT -> StatusPill("Sold out", SareeColors.SlateNeutral, modifier)
 }
 

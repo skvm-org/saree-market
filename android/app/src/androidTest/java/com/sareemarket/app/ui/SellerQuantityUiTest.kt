@@ -108,12 +108,4 @@ class SellerQuantityUiTest {
 
         compose.onNodeWithTag("stock-3").assertIsOn()
     }
-
-    @Test
-    fun aHeldCardHasNoRequestsLinkButStillShowsOnHold() {
-        compose.setContent { SareeTheme { ItemCard(item(1, ItemStatus.ON_HOLD), {}, {}) } }
-
-        compose.onNodeWithTag("held-3").assertIsDisplayed()
-        compose.onNodeWithText("See Requests").assertDoesNotExist()
-    }
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import com.sareemarket.app.BuildConfig
 import com.sareemarket.app.data.AuthApi
 import com.sareemarket.app.data.AuthInterceptor
-import com.sareemarket.app.data.BookingApi
 import com.sareemarket.app.data.OrderApi
 import com.sareemarket.app.data.ShoppingApi
 import com.sareemarket.app.data.CatalogApi
@@ -86,10 +85,6 @@ object NetworkModule {
     @Provides
     @Singleton
     fun notificationsApi(retrofit: Retrofit): NotificationsApi = retrofit.create(NotificationsApi::class.java)
-
-    @Provides
-    @Singleton
-    fun bookingApi(retrofit: Retrofit): BookingApi = retrofit.create(BookingApi::class.java)
 
     @Provides
     @Singleton

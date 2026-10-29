@@ -144,4 +144,16 @@ class CollectionRepositoryTest {
         assertEquals(ItemStatus.SOLD_OUT, sent)
         assertTrue(result.getOrNull()!!.items.all { it.status == ItemStatus.SOLD_OUT })
     }
+
+    @Test
+    fun aSummaryWithoutAnOnHoldCountDecodes() {
+        val summary = testJson.decodeFromString<CollectionSummary>(
+            """{"id":5,"title":"Diwali silks","sareeType":"Kanjivaram","fabric":"Pure silk","price":2500,"itemCount":3,
+            "availableCount":2,"soldOutCount":1,"coverItemId":10,"previewItemIds":[10,11]}""",
+        )
+
+        assertEquals(3L, summary.itemCount)
+        assertEquals(1L, summary.soldOutCount)
+    }
+
 }

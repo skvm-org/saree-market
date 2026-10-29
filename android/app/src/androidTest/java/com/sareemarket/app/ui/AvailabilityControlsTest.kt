@@ -92,40 +92,10 @@ class AvailabilityControlsTest {
     }
 
     @Test
-    fun aHeldCardShowsOnHoldAndHasNoStockSwitch() {
-        compose.setContent { SareeTheme { ItemCard(Item(3, "Peacock blue", null, 4500, ItemStatus.ON_HOLD, openRequests = 2), {}, {}) } }
-
-        compose.onAllNodesWithText("On hold").assertCountEquals(2) // the pill on the photo and the label under it
-        compose.onNodeWithTag("held-3").assertExists()
-        compose.onNodeWithTag("stock-3").assertDoesNotExist()
-        compose.onNodeWithText("2 requests").assertExists()
-    }
-
-    @Test
-    fun aCardWithOneRequestSaysSo() {
-        compose.setContent { SareeTheme { ItemCard(Item(3, "Peacock blue", null, 4500, ItemStatus.AVAILABLE, openRequests = 1), {}, {}) } }
-
-        compose.onNodeWithText("1 request").assertExists()
-        compose.onNodeWithTag("stock-3").assertExists()
-    }
-
-    @Test
-    fun theOnHoldChipAppearsOnlyWhenSomethingIsHeld() {
-        var chosen: ItemFilter? = null
-        compose.setContent {
-            SareeTheme { StockControls(10, 6, 2, ItemFilter.ALL, busy = false, onFilter = { chosen = it }, onMarkAll = {}, onHold = 2) }
-        }
-
-        compose.onNodeWithText("On hold 2").assertExists()
-        compose.onNodeWithTag("chip-on-hold").performClick()
-
-        assertEquals(ItemFilter.ON_HOLD, chosen)
-    }
-
-    @Test
-    fun noOnHoldChipWhenNothingIsHeld() {
+    fun thereIsNoOnHoldChipOrPill() {
         compose.setContent { SareeTheme { StockControls(10, 8, 2, ItemFilter.ALL, busy = false, onFilter = {}, onMarkAll = {}) } }
 
         compose.onNodeWithTag("chip-on-hold").assertDoesNotExist()
+        compose.onNodeWithText("On hold", substring = true).assertDoesNotExist()
     }
 }
