@@ -1,7 +1,7 @@
 package com.sareemarket.app.alerts
 
 import org.junit.Assert.assertNull
-import com.sareemarket.app.data.BookingSummary
+import com.sareemarket.app.data.OrderSummary
 import com.sareemarket.app.data.NotificationType
 import com.sareemarket.app.data.note
 import java.time.Instant
@@ -61,21 +61,30 @@ class AlertPlannerTest {
     }
 
     @Test
-    fun aSellerIsToldHowManyNewRequestsCameSinceTheLastCheck() {
-        assertEquals("1 new booking request", AlertPlanner.bookingText(2, 0, BookingSummary(pending = 3)))
-        assertEquals("3 new booking requests", AlertPlanner.bookingText(0, 0, BookingSummary(pending = 3)))
+    fun announcesNewOrdersToConfirm() {
+        assertEquals("1 new order to confirm", AlertPlanner.orderText(2, 0, OrderSummary(toConfirm = 3)))
+        assertEquals("3 new orders to confirm", AlertPlanner.orderText(0, 0, OrderSummary(toConfirm = 3)))
     }
 
     @Test
-    fun aResellerIsToldAboutNewAnswers() {
-        assertEquals("A seller answered your booking request", AlertPlanner.bookingText(0, 0, BookingSummary(unread = 1)))
-        assertEquals("2 booking requests have answers", AlertPlanner.bookingText(0, 0, BookingSummary(unread = 2)))
+    fun announcesAnUpdateWhenTheUnreadCountRises() {
+        assertEquals("An order was updated", AlertPlanner.orderText(0, 1, OrderSummary(unread = 2)))
     }
 
     @Test
-    fun noNewBookingNewsMeansNoAlert() {
-        assertNull(AlertPlanner.bookingText(3, 0, BookingSummary(pending = 3)))
-        assertNull(AlertPlanner.bookingText(3, 2, BookingSummary(pending = 1, unread = 0))) // counts went down: answered or seen in the app
-        assertNull(AlertPlanner.bookingText(0, 0, BookingSummary()))
+    fun newOrdersWinOverUpdates() {
+        assertEquals("2 new orders to confirm", AlertPlanner.orderText(0, 0, OrderSummary(toConfirm = 2, unread = 5)))
+    }
+
+    @Test
+    fun staysQuietWhenNothingRose() {
+        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toConfirm = 3, unread = 2)))
+        assertNull(AlertPlanner.orderText(0, 0, OrderSummary()))
+    }
+
+    @Test
+    fun staysQuietWhenCountsFell() {
+        // answered or seen in the app: the next rise is announced against the lower mark
+        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toConfirm = 1, unread = 0)))
     }
 }

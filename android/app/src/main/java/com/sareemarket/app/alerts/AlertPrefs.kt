@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -26,13 +27,13 @@ class AlertPrefs @Inject constructor(@ApplicationContext context: Context) {
         store.edit { it[LAST] = time.toEpochMilli() }
     }
 
-    /** What the last booking check saw: (requests waiting, answers unseen). */
-    suspend fun bookingMarks(): Pair<Long, Long> = store.data.first().let { (it[PENDING_MARK] ?: 0L) to (it[UNREAD_MARK] ?: 0L) }
+    /** What the last order check saw: (orders to confirm, orders with unseen updates). */
+    suspend fun orderMarks(): Pair<Int, Int> = store.data.first().let { (it[TO_CONFIRM_MARK] ?: 0) to (it[ORDER_UNREAD_MARK] ?: 0) }
 
-    suspend fun setBookingMarks(pending: Long, unread: Long) {
+    suspend fun setOrderMarks(toConfirm: Int, unread: Int) {
         store.edit {
-            it[PENDING_MARK] = pending
-            it[UNREAD_MARK] = unread
+            it[TO_CONFIRM_MARK] = toConfirm
+            it[ORDER_UNREAD_MARK] = unread
         }
     }
 
@@ -42,7 +43,7 @@ class AlertPrefs @Inject constructor(@ApplicationContext context: Context) {
 
     private companion object {
         val LAST = longPreferencesKey("last_notified")
-        val PENDING_MARK = longPreferencesKey("booking_pending")
-        val UNREAD_MARK = longPreferencesKey("booking_unread")
+        val TO_CONFIRM_MARK = intPreferencesKey("order_to_confirm")
+        val ORDER_UNREAD_MARK = intPreferencesKey("order_unread")
     }
 }
