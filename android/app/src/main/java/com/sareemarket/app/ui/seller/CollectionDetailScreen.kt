@@ -160,6 +160,13 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                                     text = { Text("Add photos") }, modifier = Modifier.heightIn(min = MinTouchTarget),
                                     onClick = { menuOpen = false; picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 )
+                                val inStock = state.count(ItemStatus.AVAILABLE)
+                                if (detail.items.isNotEmpty()) DropdownMenuItem(
+                                    text = { Text(if (inStock == 0) "Mark all available" else "Mark all sold out") },
+                                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all"),
+                                    enabled = !state.busy,
+                                    onClick = { menuOpen = false; viewModel.markAll(if (inStock == 0) ItemStatus.AVAILABLE else ItemStatus.SOLD_OUT) },
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Share") }, modifier = Modifier.heightIn(min = MinTouchTarget),
                                     onClick = {
@@ -200,9 +207,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                             available = state.count(ItemStatus.AVAILABLE),
                             soldOut = state.count(ItemStatus.SOLD_OUT),
                             filter = state.filter,
-                            busy = state.busy,
                             onFilter = viewModel::setFilter,
-                            onMarkAll = viewModel::markAll,
                         )
                         if (state.visibleItems.isEmpty()) {
                             Text("No sarees match this filter.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -301,32 +306,15 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
     }
 }
 
-/** Filter chips and the "mark all" button from the design. */
-@OptIn(ExperimentalLayoutApi::class)
+/** The All / Available / Sold out chips. Bulk changes live in the menu, so the first screen is mostly sarees. */
 @Composable
-internal fun StockControls(
-    total: Int,
-    available: Int,
-    soldOut: Int,
-    filter: ItemFilter,
-    busy: Boolean,
-    onFilter: (ItemFilter) -> Unit,
-    onMarkAll: (ItemStatus) -> Unit,
-) {
-    // Chips on the left and the bulk action after them; on a narrow phone the action wraps to its own line.
-    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.Center) {
+internal fun StockControls(total: Int, available: Int, soldOut: Int, filter: ItemFilter, onFilter: (ItemFilter) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         listOf(
             Triple(ItemFilter.ALL, "All $total", "chip-all"),
             Triple(ItemFilter.AVAILABLE, "Available $available", "chip-available"),
             Triple(ItemFilter.SOLD_OUT, "Sold out $soldOut", "chip-sold-out"),
         ).forEach { (value, label, tag) -> PillChip(label, filter == value, tag) { onFilter(value) } }
-        // With nothing left in stock the useful action is the opposite one.
-        TextButton(
-            onClick = { onMarkAll(if (available == 0) ItemStatus.AVAILABLE else ItemStatus.SOLD_OUT) },
-            modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all").alpha(if (busy) 0.5f else 1f),
-        ) {
-            Text(if (available == 0) "Mark all available" else "Mark all sold out", style = MaterialTheme.typography.labelLarge, textDecoration = TextDecoration.Underline)
-        }
     }
 }
 
@@ -340,7 +328,7 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
             Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Box {
                     SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
-                    ItemStatusPill(item.status, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
+                    if (soldOut) ItemStatusPill(ItemStatus.SOLD_OUT, Modifier.padding(Spacing.sm).align(Alignment.TopStart), onPhoto = true)
                 }
                 Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(

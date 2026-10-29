@@ -73,6 +73,36 @@ class SellerOrdersScreenTest {
         SellerOrdersState(filter = filter, items = orders.toList(), loading = false, summary = OrderSummary(toConfirm = 2, toPack = 1, toShip = 3, shipped = 4))
 
     @Test
+    fun allFiveFiltersAreVisibleAndAllHasNoPlaceholderDot() {
+        show(state())
+
+        listOf("to-confirm", "to-pack", "to-ship", "shipped", "all").forEach { compose.onNodeWithTag("tile-$it").assertIsDisplayed() }
+        compose.onNodeWithText("·").assertDoesNotExist()
+    }
+
+    @Test
+    fun theCustomerCanBeReachedOnWhatsAppFromTheCard() {
+        var chat: String? = null
+        compose.setContent {
+            SareeTheme {
+                SellerOrdersContent(state(order(1)), true, now, {}, {}, { chat = it }, {}, {}, { _, _ -> }, {}, { _, _, _ -> }, {}, { _, _ -> }, {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithTag("whatsapp", useUnmergedTree = true).performClick()
+
+        assertEquals("9876543211", chat)
+    }
+
+    @Test
+    fun aDeliveredOrderHidesItsAddressLine() {
+        show(state(order(1, OrderStatus.DELIVERED)))
+
+        compose.onNodeWithText("Erode 638001").assertDoesNotExist()
+        compose.onNodeWithTag("total-1", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun tilesShowTheCountsAndTheSelectedOneIsMarked() {
         show(state(filter = SellerOrderFilter.TO_PACK))
 

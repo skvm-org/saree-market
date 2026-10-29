@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +25,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -66,7 +75,6 @@ import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.components.orderProofUrl
 import com.sareemarket.app.ui.formatRupees
-import com.sareemarket.app.ui.reseller.ContactButtons
 import com.sareemarket.app.ui.reseller.rememberContactActions
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.theme.MinTouchTarget
@@ -193,9 +201,11 @@ fun SellerOrdersContent(
 }
 
 /** The five states an order passes through, each a button that filters the list under it. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFilter: (SellerOrderFilter) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.testTag("summary")) {
+    // Wraps rather than scrolls, so every filter is visible without swiping.
+    FlowRow(maxItemsInEachRow = 3, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.fillMaxWidth().testTag("summary")) {
         val tiles = listOf(
             Triple(SellerOrderFilter.TO_CONFIRM, "To confirm", summary.toConfirm),
             Triple(SellerOrderFilter.TO_PACK, "To pack", summary.toPack),
@@ -203,8 +213,8 @@ private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFi
             Triple(SellerOrderFilter.SHIPPED, "Shipped", summary.shipped),
             Triple(SellerOrderFilter.ALL, "All", -1),
         )
-        items(tiles, key = { it.first.name }) { (filter, label, count) ->
-            Tile(label, count, selected == filter, { onFilter(filter) }, Modifier.width(92.dp).testTag("tile-${filter.name.lowercase().replace('_', '-')}"))
+        tiles.forEach { (filter, label, count) ->
+            Tile(label, count, selected == filter, { onFilter(filter) }, Modifier.weight(1f).testTag("tile-${filter.name.lowercase().replace('_', '-')}"))
         }
     }
 }
@@ -221,8 +231,9 @@ private fun Tile(label: String, count: Int, selected: Boolean, onClick: () -> Un
         modifier = modifier.heightIn(min = MinTouchTarget),
     ) {
         Column(Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.sm), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (count >= 0) count.toString() else "·", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("count-$label"))
-            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            // "All" has no count of its own; it is just the label, centred.
+            if (count >= 0) Text(count.toString(), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("count-$label"))
+            Text(label, style = if (count >= 0) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall, maxLines = 1, modifier = if (count >= 0) Modifier else Modifier.padding(vertical = Spacing.sm))
         }
     }
 }
@@ -279,7 +290,7 @@ private fun OrderCard(
                     Text(order.customer?.name ?: "Customer", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("customer-${order.id}"))
                     order.customer?.phone?.let { Text("+91 $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                if (order.unread) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(10.dp).testTag("unread-${order.id}")) {}
+                if (order.unread) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(10.dp).semantics { contentDescription = "Updated" }.testTag("unread-${order.id}")) {}
                 OrderStatusPill(order.status, Modifier.testTag("status-${order.id}"))
             }
             val first = order.lines.firstOrNull()?.title.orEmpty()
@@ -289,11 +300,24 @@ private fun OrderCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row {
-                Text("${order.address.city} ${order.address.pin}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(timeAgo(order.createdAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // A finished order needs nothing from the seller, so it shrinks to the total and the date.
+            val closed = order.status == OrderStatus.DELIVERED || order.status == OrderStatus.CANCELLED
+            if (!closed) {
+                Row {
+                    Text("${order.address.city} ${order.address.pin}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(timeAgo(order.createdAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Text(formatRupees(order.grandTotal), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.testTag("total-${order.id}"))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(formatRupees(order.grandTotal), Modifier.weight(1f).testTag("total-${order.id}"), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer)
+                if (closed) Text(timeAgo(order.createdAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                order.customer?.phone?.let { phone ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onCall(phone) }, modifier = Modifier.testTag("call")) { Icon(Icons.Filled.Phone, contentDescription = "Call ${order.customer?.name ?: "customer"}", tint = MaterialTheme.colorScheme.primaryContainer) }
+                        IconButton(onClick = { onWhatsApp(phone) }, modifier = Modifier.testTag("whatsapp")) { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "WhatsApp ${order.customer?.name ?: "customer"}", tint = MaterialTheme.colorScheme.primaryContainer) }
+                    }
+                }
+            }
             order.paymentReference?.let { utr ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("UTR $utr", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).testTag("utr-${order.id}"))
@@ -309,7 +333,6 @@ private fun OrderCard(
                     modifier = Modifier.testTag("tracking-${order.id}"),
                 )
             }
-            order.customer?.phone?.let { ContactButtons(it, it, onCall, onWhatsApp) }
             Actions(order, busy, now, onPack, onDeliver, ask)
         }
     }

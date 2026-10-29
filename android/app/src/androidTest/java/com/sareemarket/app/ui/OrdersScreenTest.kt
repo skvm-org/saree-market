@@ -67,6 +67,23 @@ class OrdersScreenTest {
     }
 
     @Test
+    fun aRejectedOrderSaysWhatToDoAndComesFirst() {
+        showList(OrdersState(items = listOf(order(1, OrderStatus.DELIVERED), order(2, OrderStatus.PAYMENT_REJECTED, deadline = "2026-10-28T11:30:00Z")), loading = false))
+
+        compose.onNodeWithTag("next-2", useUnmergedTree = true).assertTextContains("Send the right UTR within", substring = true)
+        val top = compose.onNodeWithTag("order-2").fetchSemanticsNode().boundsInRoot.top
+        val below = compose.onNodeWithTag("order-1").fetchSemanticsNode().boundsInRoot.top
+        assert(top < below) { "rejected order should be above the delivered one" }
+    }
+
+    @Test
+    fun aSubmittedOrderSaysItIsWaitingForTheSeller() {
+        showList(OrdersState(items = listOf(order(3)), loading = false))
+
+        compose.onNodeWithTag("next-3", useUnmergedTree = true).assertTextContains("Waiting for the seller", substring = true)
+    }
+
+    @Test
     fun anOrderRowShowsItsStatusAndTotal() {
         showList(OrdersState(items = listOf(order(1)), loading = false))
 
