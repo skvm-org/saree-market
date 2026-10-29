@@ -572,7 +572,7 @@ private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
                     textDecoration = if (soldOut) TextDecoration.LineThrough else null,
                 )
                 Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = SareeColors.SlateNeutral, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (item.status != ItemStatus.AVAILABLE) ItemStatusPill(item.status)
             }
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.align(Alignment.CenterVertically))

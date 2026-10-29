@@ -97,24 +97,10 @@ fun SellerHomeContent(
     toConfirm: Long = 0,
     onOpenOrders: () -> Unit = {},
 ) {
-    val grid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
-    // On a wide screen the Add tab is enough, and a floating button would sit on top of a card.
+    // The Add tab is always on screen, so there is no floating button to cover a card; an empty shop gets a button in the page itself.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
-            if (!wide) ExtendedFloatingActionButton(
-                onClick = onNewCollection,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = CircleShape,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New collection", style = MaterialTheme.typography.labelLarge) },
-                // Shrinks to a plus once the list scrolls, so it stops covering the cards.
-                expanded = grid.firstVisibleItemIndex == 0,
-                modifier = Modifier.testTag("new-collection"),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -131,22 +117,24 @@ fun SellerHomeContent(
                     }
                     is SellerHomeState.Loaded ->
                         if (state.collections.isEmpty()) {
-                            Text(
-                                "No collections yet.\nTap New collection to upload your first photos.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.align(Alignment.Center).testTag("empty"),
-                            )
+                            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                Text(
+                                    "No collections yet.\nUpload your first photos.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.testTag("empty"),
+                                )
+                                PrimaryButton("New collection", onClick = onNewCollection, modifier = Modifier.testTag("new-collection"))
+                            }
                         } else {
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                                 // One column on a phone; two or three on a wide screen.
                                 LazyVerticalGrid(
-                                    state = grid,
                                     columns = GridCells.Adaptive(minSize = 340.dp),
                                     horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
-                                    contentPadding = PaddingValues(top = Spacing.md, bottom = 96.dp),
+                                    contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.lg),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
                                     if (toConfirm > 0) item(span = { GridItemSpan(maxLineSpan) }) {
@@ -273,7 +261,7 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
                         if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
                     },
                     style = MaterialTheme.typography.labelMedium,
-                    color = SareeColors.GoldText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 collection.createdAt?.let {
                     Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

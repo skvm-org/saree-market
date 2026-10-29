@@ -38,6 +38,14 @@ class SellerBottomBarTest {
     }
 
     @Test
+    fun theFirstTabIsCalledSareesSoTheLabelFitsFiveTabsOnAPhone() {
+        compose.setContent { SareeTheme { SellerBottomBar(current = "home") {} } }
+
+        compose.onNodeWithText("Sarees").assertExists()
+        compose.onNodeWithText("Collections").assertDoesNotExist()
+    }
+
+    @Test
     fun tabsReportWhereToGo() {
         val picked = mutableListOf<String>()
         compose.setContent { SareeTheme { SellerBottomBar(current = "home") { picked += it } } }

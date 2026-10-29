@@ -33,6 +33,13 @@ class SellerHomeScreenTest {
     }
 
     @Test
+    fun aShopWithCollectionsHasNoFloatingButtonOverTheCards() {
+        show(SellerHomeState.Loaded(listOf(diwali)))
+
+        compose.onNodeWithTag("new-collection").assertDoesNotExist()
+    }
+
+    @Test
     fun paymentsToConfirmShowABannerThatOpensOrders() {
         var opened = false
         compose.setContent {
