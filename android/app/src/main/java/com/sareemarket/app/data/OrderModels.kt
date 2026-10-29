@@ -94,7 +94,6 @@ data class Order(
     val sellerId: Long,
     val shopName: String,
     val sellerUpiId: String? = null,
-    val customer: OrderParty? = null,
     val lines: List<OrderLine>,
     val itemsTotal: Int,
     val shippingFee: Int,
@@ -114,6 +113,8 @@ data class Order(
     val createdAt: String,
     val updatedAt: String,
     val history: List<StatusEntry> = emptyList(),
+    /** Who ordered; set only in the seller's view of their own orders. */
+    val customer: OrderParty? = null,
 )
 
 @Serializable

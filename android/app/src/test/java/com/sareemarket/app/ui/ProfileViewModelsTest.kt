@@ -149,7 +149,88 @@ class ProfileViewModelsTest {
         vm.onShopName(" New Silks ")
         vm.save()
         assertTrue(vm.state.value.saved)
-        assertEquals(ShopDetails("New Silks", "Dindigul", "9111111111", null), api.lastShopUpdate)
+        assertEquals(ShopDetails("New Silks", "Dindigul", "9111111111", null, upiId = "", shippingFee = 0), api.lastShopUpdate)
+    }
+
+    @Test
+    fun shopDetailsLoadTheUpiIdAndShippingFee() {
+        api.shopResult = { ShopDetails("Lakshmi Silks", "Dindigul", "9876500001", null, "lakshmi@okaxis", 60) }
+
+        val vm = ShopDetailsViewModel(repo)
+
+        assertEquals("lakshmi@okaxis", vm.state.value.upiId)
+        assertEquals("60", vm.state.value.shippingFee)
+        assertFalse(vm.state.value.dirty)
+    }
+
+    @Test
+    fun savingSendsTheUpiIdAndShippingFee() {
+        val vm = ShopDetailsViewModel(repo)
+        vm.onUpiId(" lakshmi.silks@okaxis ")
+        vm.onShippingFee("60")
+
+        vm.save()
+
+        assertTrue(vm.state.value.saved)
+        assertEquals("lakshmi.silks@okaxis", api.lastShopUpdate?.upiId)
+        assertEquals(60, api.lastShopUpdate?.shippingFee)
+    }
+
+    @Test
+    fun anEmptyUpiIdIsSentEmptySoTheServerClearsIt() {
+        api.shopResult = { ShopDetails("Lakshmi Silks", "Dindigul", "9876500001", null, "old@ybl", 40) }
+        val vm = ShopDetailsViewModel(repo)
+        vm.onUpiId("")
+
+        vm.save()
+
+        assertEquals("", api.lastShopUpdate?.upiId)
+        assertEquals(40, api.lastShopUpdate?.shippingFee)
+    }
+
+    @Test
+    fun aBadUpiIdIsRejectedWithoutCallingTheServer() {
+        for (bad in listOf("abc", "a@b", "x y@okaxis", "@okaxis")) {
+            api.lastShopUpdate = null
+            val vm = ShopDetailsViewModel(repo)
+            vm.onUpiId(bad)
+
+            vm.save()
+
+            assertNotNull("$bad should be refused", vm.state.value.fieldErrors["upiId"])
+            assertEquals(null, api.lastShopUpdate)
+        }
+    }
+
+    @Test
+    fun aShippingFeeAboveTenThousandIsRejected() {
+        val vm = ShopDetailsViewModel(repo)
+        vm.onShippingFee("10001")
+
+        vm.save()
+
+        assertNotNull(vm.state.value.fieldErrors["shippingFee"])
+        assertEquals("10000", ShopDetailsViewModel(repo).also { it.onShippingFee("10000") }.state.value.shippingFee)
+    }
+
+    @Test
+    fun anEmptyShippingFeeMeansFree() {
+        val vm = ShopDetailsViewModel(repo)
+        vm.onShippingFee("")
+
+        vm.save()
+
+        assertEquals(0, api.lastShopUpdate?.shippingFee)
+    }
+
+    @Test
+    fun changingOnlyTheUpiIdMakesTheFormDirty() {
+        val vm = ShopDetailsViewModel(repo)
+        assertFalse(vm.state.value.dirty)
+
+        vm.onUpiId("shop@ybl")
+
+        assertTrue(vm.state.value.dirty)
     }
 
     @Test
