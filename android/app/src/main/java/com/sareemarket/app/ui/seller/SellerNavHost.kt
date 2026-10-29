@@ -93,8 +93,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                 CollectionDetailScreen(onBack = { nav.popBackStack() })
             }
             composable(SELLER_ORDERS) {
-                // Until the shop has loaded the banner stays away, so it does not flash for a shop that does have a UPI ID.
-                SellerOrdersScreen(onOpenSettings = { nav.navigate(SHOP) }, hasUpiId = shop?.upiId?.isNotBlank() ?: true)
+                SellerOrdersScreen(onOpenSettings = { nav.navigate(SHOP) }, hasUpiId = shopHasUpiId(shop))
             }
             composable(SHOP) { ShopDetailsScreen(onBack = { nav.popBackStack() }) }
             accountRoutes(nav, onLogout)

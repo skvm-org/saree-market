@@ -134,7 +134,7 @@ fun SellerOrdersContent(
     onRefresh: () -> Unit,
 ) {
     var ask by remember { mutableStateOf<Ask?>(null) }
-    var proofOf by remember { mutableStateOf<Long?>(null) }
+    var proofOf by remember { mutableStateOf<Order?>(null) }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Text("Orders", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = Spacing.md).testTag("title"))
@@ -189,7 +189,7 @@ fun SellerOrdersContent(
         is Ask.Ship -> ShipDialog({ ask = null }) { courier, tracking -> ask = null; onShip(a.order.id, courier, tracking) }
         null -> Unit
     }
-    proofOf?.let { PhotoViewer(orderProofUrl(it), "Payment screenshot") { proofOf = null } }
+    proofOf?.let { PhotoViewer(orderProofUrl(it.id, it.updatedAt), "Payment screenshot") { proofOf = null } }
 }
 
 /** The five states an order passes through, each a button that filters the list under it. */
@@ -236,7 +236,7 @@ private fun OrderList(
     onPack: (Long) -> Unit,
     onDeliver: (Long) -> Unit,
     ask: (Ask) -> Unit,
-    onProof: (Long) -> Unit,
+    onProof: (Order) -> Unit,
     onLoadMore: () -> Unit,
 ) {
     val list = rememberLazyListState()
@@ -252,7 +252,7 @@ private fun OrderList(
         modifier = Modifier.fillMaxSize().testTag("orders"),
     ) {
         items(state.items, key = { it.id }) { order ->
-            OrderCard(order, state.busyId == order.id, now, onCall, onWhatsApp, onPack, onDeliver, ask, onProof)
+            OrderCard(order, state.busyId != null, now, onCall, onWhatsApp, onPack, onDeliver, ask, onProof)
         }
         if (state.loadingMore) {
             item { Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() } }
@@ -270,7 +270,7 @@ private fun OrderCard(
     onPack: (Long) -> Unit,
     onDeliver: (Long) -> Unit,
     ask: (Ask) -> Unit,
-    onProof: (Long) -> Unit,
+    onProof: (Order) -> Unit,
 ) {
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth().testTag("order-${order.id}")) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -298,7 +298,7 @@ private fun OrderCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("UTR $utr", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).testTag("utr-${order.id}"))
                     if (order.hasProof) {
-                        TextButton(onClick = { onProof(order.id) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("proof-${order.id}")) { Text("View screenshot") }
+                        TextButton(onClick = { onProof(order) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("proof-${order.id}")) { Text("View screenshot") }
                     }
                 }
             }

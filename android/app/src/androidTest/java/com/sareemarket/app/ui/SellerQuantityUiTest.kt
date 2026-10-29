@@ -3,6 +3,8 @@ package com.sareemarket.app.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -90,6 +92,21 @@ class SellerQuantityUiTest {
         compose.setContent { SareeTheme { ItemCard(item(0), {}, {}) } }
 
         compose.onNodeWithText("Out of stock").assertIsDisplayed()
+    }
+
+    @Test
+    fun aSareeWithNoPiecesLeftLooksSoldOutEvenWhileMarkedAvailable() {
+        compose.setContent { SareeTheme { ItemCard(item(0), {}, {}) } }
+
+        compose.onNodeWithText("Out of stock").assertIsDisplayed()
+        compose.onNodeWithTag("stock-3").assertIsOff()
+    }
+
+    @Test
+    fun aSareeWithPiecesLeftIsTicked() {
+        compose.setContent { SareeTheme { ItemCard(item(2), {}, {}) } }
+
+        compose.onNodeWithTag("stock-3").assertIsOn()
     }
 
     @Test

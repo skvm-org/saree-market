@@ -237,7 +237,15 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                         }
                         items(state.visibleItems, key = { it.id }) { item ->
                             Box(Modifier.animateItem()) {
-                                ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = { viewModel.toggleStatus(item.id) })
+                                ItemCard(item, onClick = { viewModel.clearError(); editingItem = item }, onToggle = {
+                                    // Ticking a saree with no pieces means "I have more": ask how many instead of flipping a mark that changes nothing.
+                                    if (item.quantity == 0) {
+                                        viewModel.clearError()
+                                        editingItem = item
+                                    } else {
+                                        viewModel.toggleStatus(item.id)
+                                    }
+                                })
                             }
                         }
                     }
@@ -329,8 +337,9 @@ internal fun StockControls(
 
 @Composable
 internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
-    val soldOut = item.status == ItemStatus.SOLD_OUT
     val held = item.status == ItemStatus.ON_HOLD
+    // No pieces left looks sold out whatever the seller's own mark says: checkout lowers the count but not the mark.
+    val soldOut = item.status == ItemStatus.SOLD_OUT || (item.quantity == 0 && !held)
     val haptics = LocalHapticFeedback.current
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.testTag("item-${item.id}")) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -363,7 +372,7 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                 Text(
                     when {
                         held -> "On hold"
-                        soldOut || item.quantity == 0 -> "Out of stock"
+                        soldOut -> "Out of stock"
                         else -> "${item.quantity} in stock"
                     },
                     style = MaterialTheme.typography.labelMedium,

@@ -41,7 +41,12 @@ data class ShopDetails(
     val whatsappNumber: String? = null,
     /** Where customers pay this shop; empty clears it. Without one nobody can order from the shop. */
     val upiId: String? = null,
-    /** Flat shipping fee added to each order from the shop, in whole rupees. */
+    /**
+     * Flat shipping fee added to each order from the shop, in whole rupees. Always written, even at 0: a missing field means
+     * "keep the current fee" to the server, so a seller could never switch to free shipping.
+     */
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+    @kotlinx.serialization.EncodeDefault
     val shippingFee: Int = 0,
 )
 

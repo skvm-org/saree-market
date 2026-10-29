@@ -216,6 +216,16 @@ class SellerOrdersScreenTest {
     }
 
     @Test
+    fun whileOneOrderIsBusyEveryOtherActionIsOffSoNoTapIsSilentlyDropped() {
+        show(state(order(1), order(2, OrderStatus.CONFIRMED)).copy(busyId = 2))
+
+        compose.onNodeWithTag("act-confirm-1").assertIsNotEnabled()
+        compose.onNodeWithTag("act-reject-1").assertIsNotEnabled()
+        compose.onNodeWithTag("act-cancel-1").assertIsNotEnabled()
+        compose.onNodeWithTag("act-pack-2").assertIsNotEnabled()
+    }
+
+    @Test
     fun theCustomerCanBeCalledFromTheCard() {
         show(state(order(1)))
 

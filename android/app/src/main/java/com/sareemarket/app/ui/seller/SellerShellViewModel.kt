@@ -20,6 +20,12 @@ import kotlinx.coroutines.launch
 /** The number on the Orders tab: only orders that need the seller to act, not every update. */
 internal fun sellerBadge(summary: OrderSummary): Long = summary.toConfirm.toLong()
 
+/**
+ * Whether customers can pay this shop. The server returns a null UPI ID when it was never set or was cleared, so only a
+ * loaded shop without one counts as missing; before the shop loads nothing is shown, so the banner does not flash.
+ */
+internal fun shopHasUpiId(shop: ShopDetails?): Boolean = shop?.let { !it.upiId.isNullOrBlank() } ?: true
+
 /** The shop's name and place, shown in the seller home header. Reloaded whenever the home screen comes back into view. */
 @HiltViewModel
 class SellerShellViewModel @Inject constructor(
