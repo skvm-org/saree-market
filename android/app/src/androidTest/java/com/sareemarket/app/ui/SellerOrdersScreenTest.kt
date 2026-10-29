@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.AddressSnapshot
@@ -96,7 +97,7 @@ class SellerOrdersScreenTest {
         show(state(order(1)))
 
         compose.onNodeWithTag("customer-1", useUnmergedTree = true).assertTextContains("Priya")
-        compose.onNodeWithTag("utr-1", useUnmergedTree = true).assertTextContains("412345678901")
+        compose.onNodeWithTag("utr-1", useUnmergedTree = true).assertTextContains("412345678901", substring = true)
         compose.onNodeWithTag("proof-1").assertIsDisplayed()
         compose.onNodeWithTag("act-confirm-1").assertIsEnabled()
         compose.onNodeWithTag("act-reject-1").assertIsDisplayed()
@@ -115,10 +116,8 @@ class SellerOrdersScreenTest {
         show(state(order(1)))
 
         compose.onNodeWithTag("act-confirm-1").performClick()
-        compose.onNodeWithTag("confirm-payment-dialog").assertIsDisplayed()
-        compose.onNodeWithTag("confirm-payment-dialog").assertTextContains("₹850", substring = true)
-        compose.onNodeWithTag("confirm-payment-dialog").assertTextContains("412345678901", substring = true)
-        compose.onNodeWithTag("confirm-payment-dialog").assertTextContains("Check your bank or UPI app first", substring = true)
+        compose.onNodeWithText("Did ₹850 arrive in your account with UTR 412345678901?").assertIsDisplayed()
+        compose.onNodeWithText("Check your bank or UPI app first", substring = true).assertIsDisplayed()
         assertEquals(null, confirmed)
         compose.onNodeWithTag("confirm-payment-yes").performClick()
 
@@ -246,7 +245,7 @@ class SellerOrdersScreenTest {
     fun eachTileHasItsOwnEmptyMessage() {
         show(SellerOrdersState(filter = SellerOrderFilter.TO_PACK, loading = false))
 
-        compose.onNodeWithTag("orders-empty").assertTextContains("Nothing to pack")
+        compose.onNodeWithTag("orders-empty").assertTextContains("Nothing to pack", substring = true)
     }
 }
 

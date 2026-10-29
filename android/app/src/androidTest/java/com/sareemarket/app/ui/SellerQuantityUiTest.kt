@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -31,13 +33,15 @@ class SellerQuantityUiTest {
         var typed = ""
         compose.setContent {
             SareeTheme {
-                CollectionFieldsForm(CollectionFields(), null, emptyMap(), {}, {}, {}, {}, {}, onQuantity = { typed = it })
+                var fields by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(CollectionFields()) }
+                CollectionFieldsForm(fields, null, emptyMap(), {}, {}, {}, {}, {}, onQuantity = { typed = it; fields = fields.copy(quantity = it) })
             }
         }
 
         compose.onNodeWithText("Pieces of each saree").assertIsDisplayed()
+        compose.onNodeWithTag("quantity").performTextClearance()
         compose.onNodeWithTag("quantity").performTextInput("5")
-        assertEquals("15", typed) // typed after the default "1"
+        assertEquals("5", typed)
     }
 
     @Test

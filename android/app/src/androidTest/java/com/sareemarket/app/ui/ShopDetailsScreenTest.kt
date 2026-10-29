@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -45,7 +47,16 @@ class ShopDetailsScreenTest {
 
     @Test
     fun typingReportsTheNewValues() {
-        show(loaded.copy(upiId = "", shippingFee = ""))
+        compose.setContent {
+            SareeTheme {
+                var state by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(loaded.copy(upiId = "", shippingFee = "")) }
+                ShopDetailsContent(
+                    state, {}, {}, {}, {}, {}, {}, {},
+                    onUpiId = { upi = it; state = state.copy(upiId = it) },
+                    onShippingFee = { fee = it; state = state.copy(shippingFee = it) },
+                )
+            }
+        }
 
         compose.onNodeWithTag("shop-upi").performTextInput("shop@ybl")
         compose.onNodeWithTag("shop-fee").performTextInput("40")
