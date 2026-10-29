@@ -8,6 +8,6 @@ import java.util.List;
  * photos are of the whole collection, in upload order, whatever filter found it. coverItemId is the first photo.
  */
 public record CatalogCollectionDto(Long id, String title, String sareeType, String fabric, int price,
-		Instant createdAt, long itemCount, long availableCount, long soldOutCount, long onHoldCount,
+		Instant createdAt, long itemCount, long availableCount, long soldOutCount,
 		Long coverItemId, List<Long> previewItemIds, Long sellerId, String shopName) {
 }

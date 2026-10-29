@@ -17,11 +17,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.sareemarket.booking.BookingStatus;
 import com.sareemarket.catalog.dto.CatalogCollectionDto;
 import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.catalog.dto.ItemDetailDto;
-import com.sareemarket.catalog.dto.ItemDetailDto.MyBookingDto;
 import com.sareemarket.catalog.dto.ItemDetailDto.SellerContactDto;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.collection.SareeCollectionRepository;
@@ -116,7 +114,6 @@ public class CatalogService {
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'SOLD_OUT') AS sold_out,
-				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'ON_HOLD') AS on_hold,
 				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
 				FROM collection cc
 				JOIN saree_type tt ON tt.id = cc.saree_type_id
@@ -127,7 +124,7 @@ public class CatalogService {
 					return new CatalogCollectionDto(rs.getLong("id"), rs.getString("title"), rs.getString("saree_type"),
 							rs.getString("fabric"), rs.getInt("price"), instant(rs, "created_at"),
 							rs.getLong("item_count"), rs.getLong("available"), rs.getLong("sold_out"),
-							rs.getLong("on_hold"), rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
+							rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
 							rs.getString("shop_name"));
 				});
 		return PageDto.of(withPreviews(cards), filter.page(), PAGE_SIZE, total == null ? 0 : total);
@@ -144,7 +141,7 @@ public class CatalogService {
 		}
 		return cards.stream()
 			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.sareeType(), c.fabric(), c.price(), c.createdAt(),
-					c.itemCount(), c.availableCount(), c.soldOutCount(), c.onHoldCount(), c.coverItemId(),
+					c.itemCount(), c.availableCount(), c.soldOutCount(), c.coverItemId(),
 					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName()))
 			.toList();
 	}
@@ -267,28 +264,12 @@ public class CatalogService {
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
 							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
-					myBooking(role, userId, itemId), inWishlist(role, userId, itemId), inCart(role, userId, itemId));
+					inWishlist(role, userId, itemId), inCart(role, userId, itemId));
 		});
 		return found.stream()
 			.filter(d -> d != null)
 			.findFirst()
 			.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Photo not found"));
-	}
-
-	/** The viewing reseller's latest booking request for this photo, or null. */
-	private MyBookingDto myBooking(String role, long userId, long itemId) {
-		if (!"CUSTOMER".equals(role)) {
-			return null;
-		}
-		List<MyBookingDto> latest = jdbc.query("""
-				SELECT id, status, hold_expires_at FROM booking_request WHERE item_id = :i AND reseller_id = :r
-				ORDER BY created_at DESC, id DESC LIMIT 1""", new MapSqlParameterSource("i", itemId).addValue("r", userId),
-				(rs, n) -> {
-					OffsetDateTime expires = rs.getObject("hold_expires_at", OffsetDateTime.class);
-					return new MyBookingDto(rs.getLong("id"), BookingStatus.valueOf(rs.getString("status")),
-							expires == null ? null : expires.toInstant());
-				});
-		return latest.isEmpty() ? null : latest.get(0);
 	}
 
 	/** How many of this saree the viewing customer has in their cart; 0 for anyone else. */

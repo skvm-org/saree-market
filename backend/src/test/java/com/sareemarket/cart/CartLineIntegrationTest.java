@@ -81,15 +81,13 @@ class CartLineIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void soldOutHeldOrZeroStockItemIs409NotAvailable() throws Exception {
+	void soldOutOrZeroStockItemIs409NotAvailable() throws Exception {
 		String customer = registerCustomer();
 		long soldOut = item(5);
-		long held = item(5);
 		long none = item(0);
 		jdbc.update("UPDATE item SET status = 'SOLD_OUT' WHERE id = ?", soldOut);
-		jdbc.update("UPDATE item SET status = 'ON_HOLD' WHERE id = ?", held);
 
-		for (long id : new long[] { soldOut, held, none }) {
+		for (long id : new long[] { soldOut, none }) {
 			putJson("/api/v1/cart/items/" + id, customer, "{\"quantity\":1}").andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("NOT_AVAILABLE"));
 		}

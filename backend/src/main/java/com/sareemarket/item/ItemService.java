@@ -22,8 +22,6 @@ import com.sareemarket.collection.SareeCollectionRepository;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.ImageStorage;
 import com.sareemarket.item.dto.ItemDto;
-import com.sareemarket.item.event.CollectionSoldOut;
-import com.sareemarket.item.event.ItemSoldOut;
 import com.sareemarket.notification.event.ItemsRestocked;
 
 import tools.jackson.databind.JsonNode;
@@ -93,20 +91,6 @@ public class ItemService {
 		return items.findByCollectionIdOrderById(collectionId).stream().map(i -> ItemDto.of(i, collectionPrice)).toList();
 	}
 
-	/** Open (pending or accepted) booking requests per photo; only photos that have some are in the map. */
-	public Map<Long, Integer> openRequestCounts(java.util.Collection<Long> itemIds) {
-		Map<Long, Integer> counts = new java.util.HashMap<>();
-		if (itemIds.isEmpty()) {
-			return counts;
-		}
-		jdbc.query("SELECT item_id, count(*) AS n FROM booking_request WHERE item_id IN (:ids) "
-				+ "AND status IN ('PENDING', 'ACCEPTED') GROUP BY item_id", new MapSqlParameterSource("ids", itemIds),
-				rs -> {
-					counts.put(rs.getLong("item_id"), rs.getInt("n"));
-				});
-		return counts;
-	}
-
 	public List<String> fileKeysOf(Long collectionId) {
 		return items.findByCollectionIdOrderById(collectionId)
 			.stream()
@@ -168,21 +152,13 @@ public class ItemService {
 		if (patch.has("status")) {
 			JsonNode node = patch.get("status");
 			ItemStatus status = node.isString() ? parseStatus(node.asString()) : null;
-			if (status == null || status == ItemStatus.ON_HOLD) {
+			if (status == null) {
 				errors.put("status", "must be AVAILABLE or SOLD_OUT");
 			}
 			else {
-				if (item.getStatus() == ItemStatus.ON_HOLD && status == ItemStatus.AVAILABLE) {
-					throw new ApiException(HttpStatus.CONFLICT, "ON_HOLD",
-							"This saree is on hold; reject or release its booking request instead");
-				}
 				// Going from sold out back to available is news for followers; the other way is not.
 				if (item.getStatus() == ItemStatus.SOLD_OUT && status == ItemStatus.AVAILABLE) {
 					events.publishEvent(new ItemsRestocked(sellerId, item.getCollectionId(), 1));
-				}
-				// Selling a held saree sells it to the holder; other open requests on it are closed.
-				if (item.getStatus() != ItemStatus.SOLD_OUT && status == ItemStatus.SOLD_OUT) {
-					events.publishEvent(new ItemSoldOut(itemId));
 				}
 				item.setStatus(status);
 			}
@@ -203,9 +179,6 @@ public class ItemService {
 		int changed = items.setStatusForCollection(collectionId, status);
 		if (status == ItemStatus.AVAILABLE && changed > 0) {
 			events.publishEvent(new ItemsRestocked(sellerId, collectionId, changed));
-		}
-		if (status == ItemStatus.SOLD_OUT && changed > 0) {
-			events.publishEvent(new CollectionSoldOut(collectionId));
 		}
 	}
 

@@ -76,7 +76,7 @@ public class CollectionService {
 		if (isSeller && !collection.getSellerId().equals(userId)) {
 			throw forbidden();
 		}
-		return detail(collection, isSeller);
+		return detail(collection);
 	}
 
 	public List<CollectionSummaryDto> listMine(long sellerId) {
@@ -152,18 +152,9 @@ public class CollectionService {
 	}
 
 	private CollectionDetailDto detail(SareeCollection c) {
-		return detail(c, true);
-	}
-
-	/** Booking request counts are demand information, so only the owning seller gets them. */
-	private CollectionDetailDto detail(SareeCollection c, boolean forOwner) {
 		RefDto type = types.findById(c.getSareeTypeId()).map(t -> new RefDto(t.getId(), t.getName())).orElseThrow();
 		RefDto fabric = fabrics.findById(c.getFabricId()).map(f -> new RefDto(f.getId(), f.getName())).orElseThrow();
 		List<ItemDto> photos = items.dtosFor(c.getId(), c.getPrice());
-		if (forOwner) {
-			Map<Long, Integer> open = items.openRequestCounts(photos.stream().map(ItemDto::id).toList());
-			photos = photos.stream().map(p -> p.withOpenRequests(open.getOrDefault(p.id(), 0))).toList();
-		}
 		return new CollectionDetailDto(c.getId(), c.getSellerId(), c.getTitle(), type, fabric, c.getPrice(),
 				c.getDescription(), c.getCreatedAt(), c.getUpdatedAt(), photos);
 	}

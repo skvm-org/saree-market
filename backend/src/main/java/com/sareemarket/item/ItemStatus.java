@@ -1,6 +1,6 @@
 package com.sareemarket.item;
 
-/** ON_HOLD is set only by accepting a booking request, never directly by the seller. */
+/** The seller's own mark. Whether a saree can be ordered also depends on its quantity (see Item.quantity). */
 public enum ItemStatus {
-	AVAILABLE, ON_HOLD, SOLD_OUT
+	AVAILABLE, SOLD_OUT
 }
