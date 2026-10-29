@@ -74,6 +74,19 @@ data class CheckoutResult(
 @Serializable
 data class StatusEntry(val status: OrderStatus, val at: String)
 
+/** The customer, as the seller sees them. Only the seller's view carries it. */
+@Serializable
+data class OrderParty(val name: String, val phone: String)
+
+@Serializable
+data class RejectBody(val reason: String)
+
+@Serializable
+data class ShipBody(val courier: String? = null, val trackingNumber: String? = null)
+
+@Serializable
+data class CancelBody(val reason: String? = null)
+
 @Serializable
 data class Order(
     val id: Long,
@@ -81,6 +94,7 @@ data class Order(
     val sellerId: Long,
     val shopName: String,
     val sellerUpiId: String? = null,
+    val customer: OrderParty? = null,
     val lines: List<OrderLine>,
     val itemsTotal: Int,
     val shippingFee: Int,

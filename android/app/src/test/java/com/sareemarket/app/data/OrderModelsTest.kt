@@ -43,6 +43,30 @@ class OrderModelsTest {
     }
 
     @Test
+    fun decodesTheCustomerPartyInTheSellersView() {
+        val order = testJson.decodeFromString<Order>(
+            """{"id":1,"status":"PAYMENT_SUBMITTED","sellerId":2,"shopName":"S","sellerUpiId":"s@ybl",
+            "customer":{"name":"Priya","phone":"9876543210"},"lines":[],"itemsTotal":0,"shippingFee":0,"grandTotal":0,
+            "address":{"name":"H","phone":"9","line1":"l","line2":null,"city":"c","state":"s","pin":"638001"},
+            "note":null,"paymentReference":"412345678901","hasProof":true,"createdAt":"2026-10-28T16:00:00Z","updatedAt":"2026-10-28T16:00:00Z"}""",
+        )
+
+        assertEquals("Priya", order.customer?.name)
+        assertEquals("9876543210", order.customer?.phone)
+    }
+
+    @Test
+    fun decodesTheCustomerPartyInTheSellersViewAbsentForCustomers() {
+        val order = testJson.decodeFromString<Order>(
+            """{"id":1,"status":"CONFIRMED","sellerId":2,"shopName":"S","lines":[],"itemsTotal":0,"shippingFee":0,"grandTotal":0,
+            "address":{"name":"H","phone":"9","line1":"l","city":"c","state":"s","pin":"638001"},
+            "createdAt":"2026-10-28T16:00:00Z","updatedAt":"2026-10-28T16:00:00Z"}""",
+        )
+
+        assertEquals(null, order.customer)
+    }
+
+    @Test
     fun decodesTheHoldAndCheckoutResult() {
         val result = testJson.decodeFromString<CheckoutResult>(
             """{"holds":[{"id":1,"sellerId":2,"shopName":"S","sellerUpiId":"s@ybl","lines":[],"itemsTotal":0,"shippingFee":0,

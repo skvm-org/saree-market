@@ -42,6 +42,8 @@ data class Item(
     val status: ItemStatus,
     /** Pending or accepted booking requests on this photo; only the owning seller is told. */
     val openRequests: Int = 0,
+    /** Pieces the seller has left. 0 means out of stock. */
+    val quantity: Int = 1,
 )
 
 @Serializable

@@ -23,7 +23,8 @@ class CollectionRepository @Inject constructor(
 
     suspend fun collection(id: Long): Result<CollectionDetail> = apiCall(json) { api.collection(id) }
 
-    suspend fun create(form: CollectionForm, photoUris: List<String>, onProgress: (Float) -> Unit): Result<CollectionDetail> =
+    /** [quantity] is how many pieces of each saree the seller has; every new photo starts with that many. */
+    suspend fun create(form: CollectionForm, photoUris: List<String>, quantity: Int = 1, onProgress: (Float) -> Unit): Result<CollectionDetail> =
         apiCall(json) {
             api.create(
                 title = form.title.text(),
@@ -31,6 +32,7 @@ class CollectionRepository @Inject constructor(
                 fabricId = form.fabricId.toString().text(),
                 price = form.price.toString().text(),
                 description = form.description.text(),
+                quantity = quantity.toString().text(),
                 files = photoParts(photos, photoUris, onProgress),
             )
         }
@@ -42,13 +44,17 @@ class CollectionRepository @Inject constructor(
     suspend fun delete(id: Long): Result<Unit> = apiCall(json) { api.delete(id).requireSuccess() }
 
     suspend fun addPhotos(id: Long, photoUris: List<String>, onProgress: (Float) -> Unit): Result<CollectionDetail> =
-        apiCall(json) { api.addPhotos(id, photoParts(photos, photoUris, onProgress)) }
+        apiCall(json) { api.addPhotos(id, "1".text(), photoParts(photos, photoUris, onProgress)) }
 
-    /** Sends both fields every time: a blank colour or a null price clears it on the server. */
-    suspend fun updateItem(id: Long, colour: String, priceOverride: Int?): Result<Item> = apiCall(json) {
+    /**
+     * Sends colour and price every time: a blank colour or a null price clears it on the server. The quantity goes only
+     * when it is given, so editing a colour cannot overwrite a stock count that a checkout just changed.
+     */
+    suspend fun updateItem(id: Long, colour: String, priceOverride: Int?, quantity: Int? = null): Result<Item> = apiCall(json) {
         api.updateItem(id, buildJsonObject {
             put("colour", JsonPrimitive(colour))
             put("priceOverride", priceOverride?.let { JsonPrimitive(it) } ?: JsonNull)
+            quantity?.let { put("quantity", JsonPrimitive(it)) }
         })
     }
 

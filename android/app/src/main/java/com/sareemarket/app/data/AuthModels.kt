@@ -39,6 +39,10 @@ data class ShopDetails(
     val marketLocation: String,
     val contactPhone: String,
     val whatsappNumber: String? = null,
+    /** Where customers pay this shop; empty clears it. Without one nobody can order from the shop. */
+    val upiId: String? = null,
+    /** Flat shipping fee added to each order from the shop, in whole rupees. */
+    val shippingFee: Int = 0,
 )
 
 /** The backend's standard error body: `{ "code", "message", "fields" }`. */

@@ -35,6 +35,7 @@ interface CollectionsApi {
         @Part("fabricId") fabricId: RequestBody,
         @Part("price") price: RequestBody,
         @Part("description") description: RequestBody,
+        @Part("quantity") quantity: RequestBody,
         @Part files: List<MultipartBody.Part>,
     ): CollectionDetail
 
@@ -46,7 +47,11 @@ interface CollectionsApi {
 
     @Multipart
     @POST("api/v1/collections/{id}/items")
-    suspend fun addPhotos(@Path("id") id: Long, @Part files: List<MultipartBody.Part>): CollectionDetail
+    suspend fun addPhotos(
+        @Path("id") id: Long,
+        @Part("quantity") quantity: RequestBody,
+        @Part files: List<MultipartBody.Part>,
+    ): CollectionDetail
 
     @PATCH("api/v1/items/{id}")
     suspend fun updateItem(@Path("id") id: Long, @Body patch: JsonObject): Item

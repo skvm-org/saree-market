@@ -48,6 +48,24 @@ class OrderRepository @Inject constructor(
 
     suspend fun mine(state: OrderStatus?, page: Int): Result<OrderPage> = apiCall(json) { api.mine(state?.name, page) }
 
+    // ---- the seller's side ----
+
+    suspend fun received(state: OrderStatus?, page: Int): Result<OrderPage> = apiCall(json) { api.received(state?.name, page) }
+
+    suspend fun confirmPayment(id: Long): Result<Order> = changing { api.confirmPayment(id) }
+
+    suspend fun rejectPayment(id: Long, reason: String): Result<Order> = changing { api.rejectPayment(id, RejectBody(reason.trim())) }
+
+    suspend fun pack(id: Long): Result<Order> = changing { api.pack(id) }
+
+    /** Courier and tracking number are optional; blank ones are sent as nothing. */
+    suspend fun ship(id: Long, courier: String?, trackingNumber: String?): Result<Order> =
+        changing { api.ship(id, ShipBody(courier?.trim()?.ifEmpty { null }, trackingNumber?.trim()?.ifEmpty { null })) }
+
+    suspend fun deliver(id: Long): Result<Order> = changing { api.deliver(id) }
+
+    suspend fun cancelAsSeller(id: Long, reason: String): Result<Order> = changing { api.cancelWithReason(id, CancelBody(reason.trim())) }
+
     suspend fun order(id: Long): Result<Order> = apiCall(json) { api.order(id) }
 
     suspend fun cancel(id: Long): Result<Order> = changing { api.cancel(id) }

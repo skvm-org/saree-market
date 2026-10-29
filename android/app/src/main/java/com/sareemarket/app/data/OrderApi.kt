@@ -40,6 +40,30 @@ interface OrderApi {
     @POST("api/v1/orders/{id}/cancel")
     suspend fun cancel(@Path("id") id: Long): Order
 
+    // ---- the seller's side ----
+
+    @GET("api/v1/orders/received")
+    suspend fun received(@Query("state") state: String?, @Query("page") page: Int): OrderPage
+
+    @POST("api/v1/orders/{id}/confirm-payment")
+    suspend fun confirmPayment(@Path("id") id: Long): Order
+
+    @POST("api/v1/orders/{id}/reject-payment")
+    suspend fun rejectPayment(@Path("id") id: Long, @Body body: RejectBody): Order
+
+    @POST("api/v1/orders/{id}/pack")
+    suspend fun pack(@Path("id") id: Long): Order
+
+    @POST("api/v1/orders/{id}/ship")
+    suspend fun ship(@Path("id") id: Long, @Body body: ShipBody): Order
+
+    @POST("api/v1/orders/{id}/deliver")
+    suspend fun deliver(@Path("id") id: Long): Order
+
+    /** The seller must say why; the customer's own cancel is the body-less [cancel]. */
+    @POST("api/v1/orders/{id}/cancel")
+    suspend fun cancelWithReason(@Path("id") id: Long, @Body body: CancelBody): Order
+
     @POST("api/v1/orders/seen")
     suspend fun seen(): Response<Unit>
 

@@ -30,8 +30,37 @@ class CollectionRepositoryTest {
 
         assertTrue(repo.create(form, listOf("a", "b")) {}.isSuccess)
 
-        assertEquals(mapOf("title" to "Diwali silks", "sareeTypeId" to "1", "fabricId" to "2", "price" to "2500", "description" to "Festive"), sentFields)
+        assertEquals(mapOf("title" to "Diwali silks", "sareeTypeId" to "1", "fabricId" to "2", "price" to "2500", "description" to "Festive", "quantity" to "1"), sentFields)
         assertEquals(2, partCount)
+    }
+
+    @Test
+    fun createSendsTheChosenQuantity() = runTest {
+        var sent = ""
+        api.onCreate = { fields, _ -> sent = fields.getValue("quantity"); detail() }
+
+        repo.create(form, listOf("a"), quantity = 7) {}
+
+        assertEquals("7", sent)
+    }
+
+    @Test
+    fun addedPhotosStartWithOnePiece() = runTest {
+        repo.addPhotos(5, listOf("a")) {}
+
+        assertEquals("1", api.lastAddQuantity)
+    }
+
+    @Test
+    fun updateItemSendsTheQuantityOnlyWhenGiven() = runTest {
+        var sent: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap()
+        api.onUpdateItem = { id, patch -> sent = patch; item(id) }
+
+        repo.updateItem(10, "maroon", null)
+        assertTrue("quantity" !in sent)
+
+        repo.updateItem(10, "maroon", null, quantity = 4)
+        assertEquals(JsonPrimitive(4), sent.getValue("quantity"))
     }
 
     @Test

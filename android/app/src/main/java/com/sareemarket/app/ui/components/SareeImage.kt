@@ -15,6 +15,9 @@ import com.sareemarket.app.ui.theme.SareeColors
 fun imageUrl(itemId: Long, thumb: Boolean) =
     "${BuildConfig.API_BASE_URL}api/v1/images/$itemId/${if (thumb) "thumb" else "full"}"
 
+/** The payment screenshot a customer sent with an order; only that order's customer and seller can load it. */
+fun orderProofUrl(orderId: Long) = "${BuildConfig.API_BASE_URL}api/v1/orders/$orderId/proof"
+
 /** A saree photo from the backend, or a picked photo (any URI string). Portrait 4:5 as in DESIGN.md. */
 @Composable
 fun SareeImage(model: Any?, contentDescription: String?, modifier: Modifier = Modifier) {

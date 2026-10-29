@@ -89,6 +89,54 @@ class OrderRepositoryTest {
     }
 
     @Test
+    fun receivedSendsTheStateAndPage() = runTest {
+        repo.received(OrderStatus.CONFIRMED, 2)
+
+        assertEquals("received CONFIRMED 2", api.calls.single())
+    }
+
+    @Test
+    fun confirmPackAndDeliverCallTheirRoutesAndRefreshTheSummary() = runTest {
+        repo.confirmPayment(5)
+        repo.pack(5)
+        repo.deliver(5)
+
+        assertEquals(listOf("confirm 5", "summary", "pack 5", "summary", "deliver 5", "summary"), api.calls)
+    }
+
+    @Test
+    fun rejectSendsTheReason() = runTest {
+        repo.rejectPayment(5, "Not received")
+
+        assertEquals("reject 5 Not received", api.calls.first())
+    }
+
+    @Test
+    fun shipTrimsAndSendsNullForBlankFields() = runTest {
+        repo.ship(5, "  DTDC ", "   ")
+
+        assertEquals("ship 5 DTDC null", api.calls.first())
+    }
+
+    @Test
+    fun sellerCancelSendsTheReason() = runTest {
+        val result = repo.cancelAsSeller(5, "Sold in the shop")
+
+        assertEquals("cancel-reason 5 Sold in the shop", api.calls.first())
+        assertEquals(OrderStatus.CANCELLED, result.getOrNull()?.status)
+    }
+
+    @Test
+    fun aBadStateAnswerKeepsTheServersMessage() = runTest {
+        api.onAction = { _, _ -> throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is CANCELLED"}""") }
+
+        val result = repo.confirmPayment(5)
+
+        assertEquals("This can't be done to an order that is CANCELLED", result.exceptionOrNull()?.message)
+        assertEquals("BAD_STATE", (result.exceptionOrNull() as ApiFailure).code)
+    }
+
+    @Test
     fun mineSendsTheStateFilter() = runTest {
         repo.mine(OrderStatus.SHIPPED, 1)
 

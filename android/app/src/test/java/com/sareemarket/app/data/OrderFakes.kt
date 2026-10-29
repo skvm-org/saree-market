@@ -163,6 +163,55 @@ class FakeOrderApi : OrderApi {
         return onCancel(id)
     }
 
+    var onAction: (String, Long) -> Order = { action, id ->
+        com.sareemarket.app.data.order(
+            id,
+            when (action) {
+                "confirm" -> OrderStatus.CONFIRMED
+                "pack" -> OrderStatus.PACKED
+                "ship" -> OrderStatus.SHIPPED
+                "deliver" -> OrderStatus.DELIVERED
+                "reject" -> OrderStatus.PAYMENT_REJECTED
+                else -> OrderStatus.CANCELLED
+            },
+        )
+    }
+
+    override suspend fun received(state: String?, page: Int): OrderPage {
+        calls += "received $state $page"
+        return onMine(state, page)
+    }
+
+    override suspend fun confirmPayment(id: Long): Order {
+        calls += "confirm $id"
+        return onAction("confirm", id)
+    }
+
+    override suspend fun rejectPayment(id: Long, body: RejectBody): Order {
+        calls += "reject $id ${body.reason}"
+        return onAction("reject", id)
+    }
+
+    override suspend fun pack(id: Long): Order {
+        calls += "pack $id"
+        return onAction("pack", id)
+    }
+
+    override suspend fun ship(id: Long, body: ShipBody): Order {
+        calls += "ship $id ${body.courier} ${body.trackingNumber}"
+        return onAction("ship", id)
+    }
+
+    override suspend fun deliver(id: Long): Order {
+        calls += "deliver $id"
+        return onAction("deliver", id)
+    }
+
+    override suspend fun cancelWithReason(id: Long, body: CancelBody): Order {
+        calls += "cancel-reason $id ${body.reason}"
+        return onAction("cancel", id)
+    }
+
     override suspend fun seen(): Response<Unit> {
         calls += "seen"
         return Response.success(Unit)
