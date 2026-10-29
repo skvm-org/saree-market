@@ -1,6 +1,6 @@
 # Customer orders redesign — design spec
 
-Status: draft for review (2026-10-28). Supersedes the "Add-on: booking requests" section of `docs/MVP_BRIEF.md` and reverses its "no payments, no orders" scope line.
+Status: built in slices 1–5 on branch `customer-orders` (bookings removed by migration V13); release pending. Originally drafted 2026-10-28. Supersedes the "Add-on: booking requests" section of `docs/MVP_BRIEF.md` and reverses its "no payments, no orders" scope line.
 
 ## 1. Goal
 
@@ -112,7 +112,7 @@ The `notification` table gains types `PAYMENT_SUBMITTED` (to the seller: a new o
 
 ## 9. Delivery slices (one at a time, stop for review after each)
 
-Slices 1 and 2 are built on branch `customer-orders` and are not pushed (a push to `main` deploys). It exposes `GET /cart` and `PUT/DELETE /cart/items/{id}` instead of the single `/cart` resource listed in section 6.
+Slices 1–5 are built on branch `customer-orders` and are not pushed (a push to `main` deploys). It exposes `GET /cart` and `PUT/DELETE /cart/items/{id}` instead of the single `/cart` resource listed in section 6.
 
 1. **Backend: roles, quantity, cart, wishlist, addresses.** V6–V8, role rename across `AuthService`, controllers, `SecurityConfig`, quantity in item DTOs and catalog filters, tests.
 2. **Backend: holds and orders.** V9, checkout with locking, payment holds, proof submission, seller actions, hold expiry job, events and notifications, `orders/summary`, tests including concurrent checkout of the last piece.

@@ -1,6 +1,6 @@
 # Saree Market Catalog — MVP
 
-A catalog app where saree sellers list their collections and resellers search them by keyword, filters or image, then contact the seller directly. No payments, no orders, no external services.
+A saree marketplace app: sellers list their collections with quantities; customers (resellers are customers) search by keyword, filters or image, add sarees to a cart and order. Each seller is paid directly by UPI: the customer enters the UTR and the seller confirms it. No payment gateway, no external services.
 
 Full scope: `docs/MVP_BRIEF.md`. Read it before starting any feature. If it conflicts with the longer product spec or functional flow docs, **MVP_BRIEF.md wins**.
 
@@ -49,7 +49,7 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 
 ## Backend conventions
 
-- Package by feature: `auth`, `seller`, `collection`, `item`, `catalog`, `imagesearch`, `follow`, `notification`, `reference`, `common`
+- Package by feature: `auth`, `seller`, `collection`, `item`, `catalog`, `imagesearch`, `follow`, `notification`, `reference`, `address`, `wishlist`, `cart`, `order`, `common`
 - Cross-feature side effects (e.g. notifying followers) go through Spring application events, not direct service calls
 - Inside each feature: `Controller`, `Service`, `Repository`, `dto/`, `entity`
 - Controllers never return entities; use DTO records
@@ -68,18 +68,18 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 - MVVM: one `ViewModel` per screen exposing `StateFlow` UI state, a repository layer over Retrofit, Hilt for DI
 - Retrofit + OkHttp + kotlinx.serialization; an OkHttp interceptor adds the JWT and logs out on a 401
 - Debug builds request the Android 17 `ACCESS_LOCAL_NETWORK` permission at startup (needed to reach `10.0.2.2` and LAN IPs); release builds do not declare it
-- JWT stored in DataStore; logout clears it. Seller and Reseller flows are chosen at login by role
+- JWT stored in DataStore; logout clears it. Seller and Customer flows are chosen at login by role
 - Base URL from `BuildConfig`: `http://10.0.2.2:8080` by default (emulator), overridable for a physical device on the LAN. Cleartext HTTP is allowed in the debug build only
 - Coil for images; Android Photo Picker for multi-select upload (up to 30); camera capture for image search
 - `DESIGN.md` tokens become the Compose theme (colour scheme, typography, shapes, spacing). Stitch HTML is the layout and content reference for each screen, rebuilt natively in Compose; never a WebView
-- Notifications: in-app bell with unread count and a notifications screen, plus a WorkManager periodic job (every 15 min) that checks the unread count and shows a local Android notification for new collections from followed sellers. No Firebase in the MVP
+- Notifications: in-app bell with unread count and a notifications screen, plus a WorkManager periodic job (every 15 min) that checks the unread count and shows a local Android notification for new collections from followed sellers, and for orders (new orders to confirm for sellers, order updates for customers). No Firebase yet
 - Admin stays backend-only in the MVP (seeded admin user, admin endpoints covered by integration tests). Admin screens come with the Angular app
 
 ## Testing rules
 
 - Every backend service method with logic gets unit tests
 - Every controller gets at least one integration test against Testcontainers PostgreSQL
-- Must-have integration tests: role-based access (a reseller cannot edit a seller's items; seller phone is hidden from anonymous users), catalog filters, image search finds an uploaded image, admin endpoints
+- Must-have integration tests: role-based access (a customer cannot edit a seller's items or read another customer's orders; seller phone is hidden from anonymous users), catalog filters, image search finds an uploaded image, admin endpoints
 - `./mvnw verify` must pass before a backend slice is called done
 - Android: unit tests for ViewModels and repositories using a fake API; Compose UI tests for the login and catalog screens
 - Android tests must pass before an Android slice is called done
@@ -105,7 +105,7 @@ Applies only once the Angular app begins, after the MVP. Do not scaffold `fronte
 - Standalone components, signals for local state, lazy-loaded routes per feature
 - Visual design comes from the design skills below and `DESIGN.md`, not from Material defaults: use Angular Material / CDK only for complex widgets (dialogs, menus, autocomplete), restyled to the design system
 - One `ApiService` per feature; an HTTP interceptor adds the JWT
-- Route guards by role (SELLER, RESELLER, ADMIN)
+- Route guards by role (SELLER, CUSTOMER, ADMIN)
 - Mobile-first layouts: most users are on phones
 - Admin screens (reference data, users) are built here
 - Dev server on 4200, proxying `/api` to 8080; add its origin to `app.cors.allowed-origins` if it calls the API directly
