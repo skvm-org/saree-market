@@ -28,7 +28,7 @@ internal const val SELLER_ORDERS = "orders"
 private data class SellerTab(val route: String, val label: String, val icon: ImageVector)
 
 private val sellerTabs = listOf(
-    SellerTab(SELLER_HOME, "Collections", Icons.Filled.PhotoLibrary),
+    SellerTab(SELLER_HOME, "Sarees", Icons.Filled.PhotoLibrary),
     SellerTab(SELLER_ORDERS, "Orders", Icons.Filled.Inbox),
     SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
     SellerTab(SELLER_SHOP, "Shop", Icons.Filled.Storefront),

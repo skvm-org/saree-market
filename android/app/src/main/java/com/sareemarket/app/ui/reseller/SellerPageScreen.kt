@@ -107,7 +107,7 @@ fun SellerPageContent(
                     Text(
                         "${if (available == 1L) "1 saree" else "$available sarees"} available",
                         style = MaterialTheme.typography.labelLarge,
-                        color = SareeColors.GoldText,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.testTag("available-count"),
                     )
                 }

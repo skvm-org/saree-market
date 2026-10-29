@@ -174,7 +174,7 @@ private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = SareeColors.SlateText)
+                if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(
                 onClick = {
@@ -186,7 +186,7 @@ private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long,
                 Icon(
                     if (notifying) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsOff,
                     contentDescription = if (notifying) "Mute ${seller.shopName}" else "Turn on notifications for ${seller.shopName}",
-                    tint = if (notifying) MaterialTheme.colorScheme.primaryContainer else SareeColors.SlateNeutral,
+                    tint = if (notifying) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Box {
