@@ -25,6 +25,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
+import com.sareemarket.app.ui.components.ScreenHeader
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,25 +67,15 @@ private fun ProfilePage(title: String, onBack: (() -> Unit)?, message: String?, 
     }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box {
-            Column(
-                Modifier
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Spacing.margin),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                Row(Modifier.heightIn(min = MinTouchTarget), verticalAlignment = Alignment.CenterVertically) {
-                    // A tab is a top-level place, so it has no back arrow; pages opened from it do.
-                    if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = if (onBack == null) Spacing.xs else 0.dp))
+            Column(Modifier.safeDrawingPadding().imePadding()) {
+                ScreenHeader(title, onBack = onBack)
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    content()
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
                 }
-                content()
-                androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
             }
             SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(Spacing.margin))
         }

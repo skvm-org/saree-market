@@ -4,6 +4,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Inventory2
+import com.sareemarket.app.ui.components.EmptyState
+import com.sareemarket.app.ui.components.ScreenHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,7 +89,7 @@ private const val LOAD_MORE_AHEAD_ORDERS = 4
 
 /** The customer's payments in progress and their orders. */
 @Composable
-fun OrdersScreen(onOpenOrder: (Long) -> Unit, onOpenHold: (Long) -> Unit, viewModel: OrdersViewModel = hiltViewModel()) {
+fun OrdersScreen(onOpenOrder: (Long) -> Unit, onOpenHold: (Long) -> Unit, onBrowse: () -> Unit = {}, viewModel: OrdersViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Sellers answer while another tab is open, so look again whenever this tab comes back.
     LifecycleResumeEffect(Unit) {
@@ -99,7 +102,7 @@ fun OrdersScreen(onOpenOrder: (Long) -> Unit, onOpenHold: (Long) -> Unit, viewMo
             delay(30_000L)
         }
     }
-    OrdersContent(state, now, onOpenOrder, onOpenHold, viewModel::loadMore, viewModel::reload, viewModel::pullRefresh)
+    OrdersContent(state, now, onOpenOrder, onOpenHold, viewModel::loadMore, viewModel::reload, viewModel::pullRefresh, onBrowse)
 }
 
 @Composable
@@ -111,23 +114,25 @@ fun OrdersContent(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
+    onBrowse: () -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Text("My orders", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(vertical = Spacing.md).testTag("title"))
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            ScreenHeader("My orders")
+            Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.margin)) {
                 when {
                     state.loading -> SkeletonRows()
                     state.items.isEmpty() && state.holds.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
                     }
-                    state.items.isEmpty() && state.holds.isEmpty() -> Text(
-                        "No orders yet.\nAdd a saree to your cart and pay the seller.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).testTag("orders-empty"),
+                    state.items.isEmpty() && state.holds.isEmpty() -> EmptyState(
+                        Icons.Filled.Inventory2,
+                        "No orders yet",
+                        "Add a saree to your cart and pay the seller. Orders show up here.",
+                        Modifier.align(Alignment.Center).testTag("orders-empty"),
+                        actionLabel = "Browse sarees",
+                        onAction = onBrowse,
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         OrdersList(state, now, onOpenOrder, onOpenHold, onLoadMore)

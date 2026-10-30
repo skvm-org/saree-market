@@ -92,7 +92,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     }
                 }
                 composable(TAB_WISHLIST) {
-                    WishlistScreen(onOpenItem = { nav.navigate("item/$it") })
+                    WishlistScreen(onOpenItem = { nav.navigate("item/$it") }, onBrowse = { openTab(TAB_CATALOG) })
                 }
                 composable(TAB_CART) {
                     CartScreen(
@@ -103,7 +103,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     )
                 }
                 composable(TAB_ORDERS) {
-                    OrdersScreen(onOpenOrder = { nav.navigate("order/$it") }, onOpenHold = { nav.navigate("hold/$it") })
+                    OrdersScreen(onOpenOrder = { nav.navigate("order/$it") }, onOpenHold = { nav.navigate("hold/$it") }, onBrowse = { openTab(TAB_CATALOG) })
                 }
                 composable(ROUTE_SELLERS) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
@@ -148,7 +148,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = selectedTab,cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
+            ResellerBottomBar(current = selectedTab, cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
         }
     }
 }

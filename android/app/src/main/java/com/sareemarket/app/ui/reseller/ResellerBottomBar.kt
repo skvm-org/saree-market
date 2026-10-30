@@ -2,6 +2,11 @@ package com.sareemarket.app.ui.reseller
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Inventory2
@@ -33,14 +38,14 @@ internal const val ROUTE_ALERTS = "alerts"
 /** Pages opened from a tab that keep the bar. The saree page hides it: its own Add to cart / Buy now bar sits at the bottom. */
 internal val BROWSE_ROUTES = setOf("collection/{id}", "seller/{id}")
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val tabs = listOf(
-    Tab(TAB_CATALOG, "Catalog", Icons.Filled.Search),
-    Tab(TAB_WISHLIST, "Wishlist", Icons.Filled.Favorite),
-    Tab(TAB_CART, "Cart", Icons.Filled.ShoppingCart),
-    Tab(TAB_ORDERS, "Orders", Icons.Filled.Inventory2),
-    Tab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
+    Tab(TAB_CATALOG, "Catalog", Icons.Outlined.Search, Icons.Filled.Search),
+    Tab(TAB_WISHLIST, "Wishlist", Icons.Outlined.FavoriteBorder, Icons.Filled.Favorite),
+    Tab(TAB_CART, "Cart", Icons.Outlined.ShoppingCart, Icons.Filled.ShoppingCart),
+    Tab(TAB_ORDERS, "Orders", Icons.Outlined.Inventory2, Icons.Filled.Inventory2),
+    Tab(ROUTE_PROFILE, "Profile", Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
 )
 
 /** The five places a customer lives. Cart carries the number of sarees in it; Orders, the updates not yet seen plus payments in progress. */
@@ -61,13 +66,15 @@ fun ResellerBottomBar(current: String?, cartCount: Long, orderBadge: Long, onSel
                         if (count > 0) {
                             Badge(Modifier.testTag(if (tab.route == TAB_CART) "cart-badge" else "orders-badge")) { Text(if (count > 99) "99+" else count.toString()) }
                         }
-                    }) { Icon(tab.icon, contentDescription = null) }
+                    }) { Icon(if (current == tab.route) tab.selectedIcon else tab.icon, contentDescription = null) }
                 },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedIconColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedTextColor = MaterialTheme.colorScheme.primaryContainer,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 modifier = Modifier.testTag("tab-${tab.route}"),
             )

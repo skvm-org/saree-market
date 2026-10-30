@@ -90,6 +90,8 @@ import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.ItemStatusPill
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
+import com.sareemarket.app.ui.components.LowStockChip
+import com.sareemarket.app.ui.components.SoldOutChip
 import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
@@ -318,9 +320,8 @@ fun ItemDetailContent(
                         )
                         // "Available" is the normal state, so only the exceptions get a chip.
                         when {
-                            soldOut -> StockChip("Sold out", MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.onSurfaceVariant, dot = false, modifier = Modifier.testTag("status"))
-                            detail.inStock && detail.quantity <= LOW_STOCK ->
-                                StockChip("Only ${detail.quantity} left", SareeColors.GoldBg, SareeColors.GoldText, dot = true, modifier = Modifier.testTag("low-stock"))
+                            soldOut -> SoldOutChip(Modifier.testTag("status"))
+                            detail.inStock && detail.quantity <= LOW_STOCK -> LowStockChip(detail.quantity, Modifier.testTag("low-stock"))
                         }
                     }
                     val meta = listOfNotNull(detail.colour?.let { "Colour: $it" }, detail.createdAt?.let { "Uploaded ${timeAgo(it)}" })
@@ -407,17 +408,6 @@ private fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, cont
         color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
         modifier = modifier.size(44.dp),
     ) { Box(contentAlignment = Alignment.Center) { content() } }
-}
-
-/** One status, only when it is not the normal one: low stock in gold, sold out in grey. */
-@Composable
-private fun StockChip(text: String, container: Color, content: Color, dot: Boolean, modifier: Modifier = Modifier) {
-    Surface(shape = CircleShape, color = container, modifier = modifier) {
-        Row(Modifier.padding(horizontal = Spacing.sm + Spacing.xs, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (dot) Box(Modifier.size(6.dp).background(SareeColors.Gold, CircleShape))
-            Text(text, style = MaterialTheme.typography.labelLarge, color = content)
-        }
-    }
 }
 
 /** Where you are among the photos of the collection: dots up to seven photos, a count beyond that. */
