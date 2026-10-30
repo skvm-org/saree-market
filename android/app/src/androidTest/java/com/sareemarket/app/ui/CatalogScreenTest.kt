@@ -63,7 +63,7 @@ class CatalogScreenTest {
         show(CatalogState(collections = listOf(diwali, summer), totalItems = 148, loading = false))
 
         compose.onNodeWithText("Diwali soft silks").assertExists()
-        compose.onNodeWithText("₹1,25,000").assertExists()
+        compose.onNodeWithText("From ₹1,25,000").assertExists()
         compose.onAllNodesWithText("Soft silk · Pure silk").assertCountEquals(2) // one per card
         compose.onNodeWithText("Lakshmi Silks").assertExists()
         compose.onNodeWithText("Kanchi Weaves").assertExists()

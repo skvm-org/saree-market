@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -223,78 +227,83 @@ private fun StatTile(label: String, value: Long, numberColor: androidx.compose.u
     }
 }
 
+/**
+ * A collection as a card. In the catalog the seller leads (who, and when), then the photos, then the title with
+ * "From" price. On a seller's own dashboard every card is the same shop, so the header is left out.
+ */
 @Composable
 internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
+    val catalog = collection.shopName != null
     Surface(
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = CardBorder,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClickLabel = "Open collection", role = Role.Button, onClick = onClick)
             .testTag("collection-${collection.id}"),
     ) {
-        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Column(Modifier.weight(1f)) {
-                    Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        typeAndFabric(collection.sareeType, collection.fabric),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    // Only the reseller catalog fills this in; a seller's own dashboard is all one shop.
-                    collection.shopName?.let {
-                        Row(Modifier.padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Icon(Icons.Filled.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(18.dp))
-                            Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+        Column(Modifier.padding(vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+            collection.shopName?.let { shop ->
+                Row(Modifier.padding(horizontal = Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                    InitialAvatar(shop, 32.dp)
+                    Column {
+                        Text(shop, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        collection.createdAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 }
-                Text(formatRupees(collection.price), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer)
             }
             PhotoStrip(collection)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    buildString {
-                        append("${collection.availableCount} available")
-                        if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                collection.createdAt?.let {
-                    Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.padding(horizontal = Spacing.md), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(
+                        if (catalog) "From ${formatRupees(collection.price)}" else formatRupees(collection.price),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                }
+                Text(typeAndFabric(collection.sareeType, collection.fabric), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        buildString {
+                            append("${collection.availableCount} available")
+                            if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!catalog) collection.createdAt?.let {
+                        Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
     }
 }
 
-/** Up to three photos side by side; a collection with fewer photos shows what it has. */
+/** The collection's photos in a row that scrolls sideways; the edge of the next one shows when there is more. */
 @Composable
 private fun PhotoStrip(collection: CollectionSummary) {
     val ids = collection.previewItemIds.ifEmpty { listOfNotNull(collection.coverItemId) }
     if (ids.isEmpty()) return
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        ids.take(3).forEach { id ->
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        ids.forEach { id ->
             AsyncImage(
                 model = imageUrl(id, thumb = true),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .weight(1f)
-                    .aspectRatioPortrait()
-                    .clip(PhotoShape)
+                    .width(128.dp)
+                    .height(164.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(SareeColors.SurfaceMuted),
             )
         }
-        // Keep the photos the same width when there are fewer than three.
-        repeat(3 - ids.take(3).size) { Box(Modifier.weight(1f)) }
     }
 }
-
-private fun Modifier.aspectRatioPortrait() = this.aspectRatio(4f / 5f)
 
 
 @Preview(showBackground = true)

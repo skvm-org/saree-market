@@ -69,7 +69,7 @@ fun ScreenHeader(
 fun EmptyState(
     icon: ImageVector,
     title: String,
-    body: String,
+    body: String?,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     actionTag: String = "empty-action",
@@ -80,7 +80,7 @@ fun EmptyState(
             Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primaryContainer)
         }
         Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.padding(top = Spacing.sm))
-        Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         if (actionLabel != null) {
             TonalButton(actionLabel, onClick = onAction, modifier = Modifier.padding(top = Spacing.sm).widthIn(max = 240.dp).testTag(actionTag))
         }

@@ -71,24 +71,23 @@ fun InitialAvatar(name: String, size: Dp, modifier: Modifier = Modifier, filled:
 
 /** A pill the user can switch on: crimson with white text when selected, warm and flat when not. */
 @Composable
-fun PillChip(label: String, selected: Boolean, tag: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun PillChip(label: String, selected: Boolean, tag: String, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        leadingIcon = icon?.let { { androidx.compose.material3.Icon(it, contentDescription = null, modifier = Modifier.size(18.dp)) } },
         shape = CircleShape,
         // Selected is a tint of the brand colour, so the one solid crimson on a screen stays the main action.
         colors = FilterChipDefaults.filterChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
             selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.primaryContainer,
         ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = SareeColors.Hairline,
-            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-        ),
+        // Tone against the page is enough; no outline.
+        border = null,
         modifier = modifier.heightIn(min = MinTouchTarget).testTag(tag),
     )
 }
