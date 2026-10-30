@@ -71,7 +71,7 @@ class V2ScreensTest {
         }
 
         compose.onNodeWithTag("followed-count").assertIsDisplayed()
-        compose.onNodeWithText("Followed (1)").assertIsDisplayed()
+        compose.onNodeWithText("Following 1", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Last upload", substring = true).assertIsDisplayed()
         compose.onNodeWithTag("discover").performClick()
 

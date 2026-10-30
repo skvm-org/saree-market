@@ -202,10 +202,11 @@ fun SellerOrdersContent(
     proofOf?.let { PhotoViewer(orderProofUrl(it.id, it.updatedAt), "Payment screenshot") { proofOf = null } }
 }
 
-/** The five states an order passes through, as one row of chips with their counts; each filters the list under it. */
+/** The five states an order passes through, as chips with their counts; each filters the list under it. They wrap, so none is hidden off the edge. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFilter: (SellerOrderFilter) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("summary"), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+    FlowRow(Modifier.fillMaxWidth().testTag("summary"), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         listOf(
             Triple(SellerOrderFilter.TO_CONFIRM, "To confirm", summary.toConfirm),
             Triple(SellerOrderFilter.TO_PACK, "To pack", summary.toPack),

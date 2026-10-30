@@ -63,11 +63,13 @@ fun LoginContent(
             modifier = Modifier
                 .safeDrawingPadding()
                 .imePadding()
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.margin, vertical = Spacing.lg),
+            // Centred when it fits, a little above the middle; it scrolls when the keyboard or a small screen needs the room.
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(Spacing.lg))
             BrandMark(80.dp)
             Spacer(Modifier.height(Spacing.md))
             Text(
@@ -127,6 +129,7 @@ fun LoginContent(
             TextButton(onClick = onCreateAccount, modifier = Modifier.heightIn(min = MinTouchTarget)) {
                 Text("Create an account", style = MaterialTheme.typography.labelLarge)
             }
+            Spacer(Modifier.height(Spacing.xl))
         }
     }
 }

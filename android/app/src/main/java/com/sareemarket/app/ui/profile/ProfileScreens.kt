@@ -97,10 +97,11 @@ fun ProfileScreen(
     onChangePassword: () -> Unit,
     onOpenShop: (() -> Unit)? = null,
     missingUpi: Boolean = false,
+    shortcuts: List<ProfileShortcut> = emptyList(),
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi)
+    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts)
 }
 
 /** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
@@ -117,6 +118,7 @@ fun ProfileContent(
     /** A seller's shop settings live here too: set, they add a Shop details row. */
     onOpenShop: (() -> Unit)? = null,
     missingUpi: Boolean = false,
+    shortcuts: List<ProfileShortcut> = emptyList(),
 ) {
     var confirmingLogout by remember { mutableStateOf(false) }
     ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
@@ -141,6 +143,10 @@ fun ProfileContent(
         if (onOpenShop != null && missingUpi) UpiBanner(onOpenShop)
         Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
             Column {
+                shortcuts.forEach {
+                    ProfileRow(it.icon, it.label, it.tag, it.onClick)
+                    HorizontalDivider(color = SareeColors.Hairline)
+                }
                 if (onOpenShop != null) {
                     ProfileRow(Icons.Filled.Storefront, "Shop details", "shop-details", onOpenShop)
                     HorizontalDivider(color = SareeColors.Hairline)
