@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -135,31 +138,31 @@ private fun open(context: Context, action: String, uri: String, failure: String)
         .onFailure { Toast.makeText(context, failure, Toast.LENGTH_SHORT).show() }
 }
 
-/** Call and WhatsApp as two pills. WhatsApp only shows when the seller gave a number. */
+/** Call and WhatsApp as two white pills on the seller card. WhatsApp only shows when the seller gave a number. */
 @Composable
 internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCall: (String) -> Unit, onWhatsApp: (String) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+        val colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface)
         if (!contactPhone.isNullOrBlank()) {
-            OutlinedButton(
+            Button(
                 onClick = { onCall(contactPhone) },
                 shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = colors,
                 modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("call"),
             ) {
-                Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primaryContainer)
                 Text("  Call", style = MaterialTheme.typography.labelLarge)
             }
         }
         if (!whatsappNumber.isNullOrBlank()) {
-            // The green is the brand's trade colour; the label is dark because white on this green is too faint to read.
+            // The green is the brand's trade colour, kept to the icon so the label stays dark and readable.
             Button(
                 onClick = { onWhatsApp(whatsappNumber) },
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = SareeColors.WhatsApp, contentColor = MaterialTheme.colorScheme.onSurface),
+                colors = colors,
                 modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("whatsapp"),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = SareeColors.WhatsApp)
                 Text("  WhatsApp", style = MaterialTheme.typography.labelLarge)
             }
         }
@@ -201,7 +204,7 @@ fun ItemDetailScreen(
                 val mode = followState.modeOf(detail.seller.id, detail.seller.followMode)
                 ItemDetailContent(
                     detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error,
-                    pageLabel = if (state.ids.size > 1) "${page + 1} / ${state.ids.size}" else null,
+                    pageIndex = page, pageCount = state.ids.size,
                     shopping = ShoppingUi(state.shoppingBusy, state.shoppingError),
                     onSetQuantity = { viewModel.setCartQuantity(id, it) },
                     onRemoveFromCart = { viewModel.removeFromCart(id) },
@@ -244,7 +247,8 @@ fun ItemDetailContent(
     onWhatsApp: (String) -> Unit,
     followMode: NotifyMode?,
     followError: String?,
-    pageLabel: String? = null,
+    pageIndex: Int = 0,
+    pageCount: Int = 1,
     shopping: ShoppingUi = ShoppingUi(),
     onSetQuantity: (Int) -> Unit = {},
     onRemoveFromCart: () -> Unit = {},
@@ -257,8 +261,8 @@ fun ItemDetailContent(
     var viewing by remember { mutableStateOf(false) }
     if (viewing) PhotoViewer(imageUrl(detail.id, thumb = false), detail.colour ?: detail.collectionTitle) { viewing = false }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            // The photo runs edge to edge; back, share and save float over it as round buttons.
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // The photo runs edge to edge; back, share and save float over it, and the details sheet rises over its foot.
             Box {
                 AsyncImage(
                     model = imageUrl(detail.id, thumb = false),
@@ -267,76 +271,56 @@ fun ItemDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .sharedPhoto(detail.id)
-                        .aspectRatio(7f / 8f)
-                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .aspectRatio(18f / 19f)
                         .background(SareeColors.SurfaceMuted)
                         .clickable(onClickLabel = "Zoom photo", role = Role.Image) { viewing = true }
                         .testTag("photo"),
                 )
-                Surface(
-                    onClick = onBack,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                    modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs).size(44.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                GlassButton(onBack, Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Row(
                     Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.sm + Spacing.xs),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Surface(
-                        onClick = { share(context, ShareText.item(detail)) },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                        modifier = Modifier.size(44.dp).testTag("share"),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Share, contentDescription = "Share") }
+                    GlassButton({ share(context, ShareText.item(detail)) }, Modifier.testTag("share")) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
                     }
-                    Surface(
-                        onClick = onToggleWishlist,
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                        modifier = Modifier.size(44.dp).testTag("wishlist"),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
-                                tint = MaterialTheme.colorScheme.primaryContainer,
-                            )
-                        }
+                    GlassButton(onToggleWishlist, Modifier.testTag("wishlist")) {
+                        Icon(
+                            if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
+                            tint = MaterialTheme.colorScheme.primaryContainer,
+                        )
                     }
                 }
-                pageLabel?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(Spacing.md)
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            .padding(horizontal = Spacing.sm + Spacing.xs, vertical = 4.dp)
-                            .testTag("page-label"),
-                    )
-                }
+                // The top edge of the details sheet: ivory with round corners, laid over the foot of the photo.
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(SheetRise)
+                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
+                )
+                if (pageCount > 1) PageDots(pageIndex, pageCount, Modifier.align(Alignment.BottomCenter).padding(bottom = SheetRise + Spacing.sm))
             }
-            Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(Modifier.padding(horizontal = Spacing.margin).padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 // What it is, what it costs and whether it can be had: one block, read top to bottom.
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineMedium)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
                             formatRupees(detail.price),
-                            style = PriceHero.copy(fontSize = 30.sp, lineHeight = 36.sp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            style = PriceHero.copy(fontSize = 32.sp, lineHeight = 40.sp),
+                            color = if (soldOut) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
                             textDecoration = if (soldOut) TextDecoration.LineThrough else null,
                             modifier = Modifier.testTag("price"),
                         )
-                        ItemStatusPill(detail.status, Modifier.testTag("status"))
-                        if (detail.inStock && detail.quantity <= LOW_STOCK) {
-                            Text("Only ${detail.quantity} left", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("low-stock"))
+                        // "Available" is the normal state, so only the exceptions get a chip.
+                        when {
+                            soldOut -> StockChip("Sold out", MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.onSurfaceVariant, dot = false, modifier = Modifier.testTag("status"))
+                            detail.inStock && detail.quantity <= LOW_STOCK ->
+                                StockChip("Only ${detail.quantity} left", SareeColors.GoldBg, SareeColors.GoldText, dot = true, modifier = Modifier.testTag("low-stock"))
                         }
                     }
                     val meta = listOfNotNull(detail.colour?.let { "Colour: $it" }, detail.createdAt?.let { "Uploaded ${timeAgo(it)}" })
@@ -344,39 +328,44 @@ fun ItemDetailContent(
                         Text(meta.joinToString("  ·  "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                // Where it comes from and who sells it, as one grouped card instead of three separate blocks.
-                Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { onOpenCollection(detail.collectionId) }.padding(Spacing.md).testTag("collection-link"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-                        ) {
-                            Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primaryContainer)
-                            Column(Modifier.weight(1f)) {
-                                Text(detail.collectionTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                detail.collectionDescription?.let {
-                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                // The collection it came from: a light row on its own.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(SheetRowShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .clickable { onOpenCollection(detail.collectionId) }
+                        .heightIn(min = 56.dp)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs)
+                        .testTag("collection-link"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                ) {
+                    Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primaryContainer)
+                    Column(Modifier.weight(1f)) {
+                        Text(detail.collectionTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        detail.collectionDescription?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        HorizontalDivider(Modifier.padding(horizontal = Spacing.md), color = SareeColors.Hairline)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // The seller: who, a quiet Follow, and the two ways to reach them.
+                Surface(shape = SheetRowShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(Spacing.md - 2.dp), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
                         Row(
-                            Modifier.fillMaxWidth().clickable { onOpenSeller(detail.seller.id) }.padding(Spacing.md).testTag("seller-card"),
+                            Modifier.fillMaxWidth().clickable { onOpenSeller(detail.seller.id) }.testTag("seller-card"),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
                         ) {
                             InitialAvatar(detail.seller.shopName, 48.dp)
                             Column(Modifier.weight(1f)) {
-                                Text(detail.seller.shopName, style = MaterialTheme.typography.titleMedium)
+                                Text(detail.seller.shopName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             FollowPill(followMode, onToggleFollow)
                         }
-                        Box(Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.md)) {
-                            ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
-                        }
+                        ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
                     }
                 }
                 if (followMode == NotifyMode.MUTED) {
@@ -389,13 +378,71 @@ fun ItemDetailContent(
             }
         }
         // Always within reach: the whole point of the page is to buy it or contact the seller.
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 6.dp) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+            shadowElevation = 6.dp,
+        ) {
             Column(
                 Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart, onBuyNow)
             }
+        }
+    }
+}
+
+/** How far the details sheet rises over the foot of the photo. */
+private val SheetRise = 24.dp
+private val SheetRowShape = RoundedCornerShape(20.dp)
+private const val MAX_DOTS = 7
+
+/** A round, translucent button that stays readable over any photo. */
+@Composable
+private fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+        modifier = modifier.size(44.dp),
+    ) { Box(contentAlignment = Alignment.Center) { content() } }
+}
+
+/** One status, only when it is not the normal one: low stock in gold, sold out in grey. */
+@Composable
+private fun StockChip(text: String, container: Color, content: Color, dot: Boolean, modifier: Modifier = Modifier) {
+    Surface(shape = CircleShape, color = container, modifier = modifier) {
+        Row(Modifier.padding(horizontal = Spacing.sm + Spacing.xs, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (dot) Box(Modifier.size(6.dp).background(SareeColors.Gold, CircleShape))
+            Text(text, style = MaterialTheme.typography.labelLarge, color = content)
+        }
+    }
+}
+
+/** Where you are among the photos of the collection: dots up to seven photos, a count beyond that. */
+@Composable
+private fun PageDots(index: Int, count: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .background(Color.Black.copy(alpha = 0.38f), CircleShape)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .semantics { contentDescription = "Photo ${index + 1} of $count" }
+            .testTag("page-label"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (count <= MAX_DOTS) {
+            repeat(count) { i ->
+                Box(
+                    Modifier
+                        .height(6.dp)
+                        .width(if (i == index) 18.dp else 6.dp)
+                        .background(Color.White.copy(alpha = if (i == index) 1f else 0.6f), CircleShape),
+                )
+            }
+        } else {
+            Text("${index + 1} / $count", style = MaterialTheme.typography.labelMedium, color = Color.White)
         }
     }
 }

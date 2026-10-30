@@ -70,7 +70,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
         }
     }
 
-    // Item, collection and seller pages keep the bar so the cart is one tap away; the tab they were opened from stays highlighted.
+    // Collection and seller pages keep the bar; the tab they were opened from stays highlighted. The saree page has none.
     val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS || route in BROWSE_ROUTES
     val selectedTab = if (route in BROWSE_ROUTES) nav.currentBackStack.value.lastOrNull { it.destination.route in TABS }?.destination?.route ?: TAB_CATALOG else route
     val openTab: (String) -> Unit = { tab -> nav.openTab(tab) }

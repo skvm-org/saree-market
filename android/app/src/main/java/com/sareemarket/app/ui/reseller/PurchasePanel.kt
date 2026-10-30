@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sareemarket.app.data.ItemDetail
 import com.sareemarket.app.ui.components.PrimaryButton
-import com.sareemarket.app.ui.components.SecondaryButton
+import com.sareemarket.app.ui.components.TonalButton
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
@@ -97,11 +97,11 @@ internal fun PurchasePanel(detail: ItemDetail, ui: ShoppingUi, onSetQuantity: (I
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
             if (inCart > 0) {
-                SecondaryButton("Remove", onClick = onRemove, enabled = !ui.busy, modifier = Modifier.weight(1f).testTag("remove-from-cart"))
-                PrimaryButton("Go to cart", onClick = { onBuyNow(quantity) }, enabled = !ui.busy, modifier = Modifier.weight(1f).testTag("go-to-cart"))
+                TonalButton("Remove", onClick = onRemove, enabled = !ui.busy, modifier = Modifier.weight(1f).testTag("remove-from-cart"))
+                PrimaryButton("Go to cart", onClick = { onBuyNow(quantity) }, enabled = !ui.busy, modifier = Modifier.weight(1.25f).testTag("go-to-cart"))
             } else {
-                SecondaryButton("Add to cart", onClick = { onSetQuantity(quantity) }, enabled = !ui.busy, modifier = Modifier.weight(1f).testTag("add-to-cart"))
-                PrimaryButton("Buy now", onClick = { onBuyNow(quantity) }, loading = ui.busy, modifier = Modifier.weight(1f).testTag("buy-now"))
+                TonalButton("Add to cart", onClick = { onSetQuantity(quantity) }, enabled = !ui.busy, modifier = Modifier.weight(1f).testTag("add-to-cart"))
+                PrimaryButton("Buy now", onClick = { onBuyNow(quantity) }, loading = ui.busy, modifier = Modifier.weight(1.25f).testTag("buy-now"))
             }
         }
     }

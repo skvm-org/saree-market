@@ -184,6 +184,27 @@ fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modi
     }
 }
 
+/** Quiet action next to a filled one: tonal fill, maroon text, no border. */
+@Composable
+fun TonalButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.primaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            disabledContentColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = MinTouchTarget),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
 @Composable
 fun FormColumn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = modifier) { content() }

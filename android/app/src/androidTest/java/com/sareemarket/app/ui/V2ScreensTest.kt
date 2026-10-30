@@ -127,7 +127,7 @@ class V2ScreensTest {
         )
         compose.setContent {
             SareeTheme {
-                com.sareemarket.app.ui.reseller.ItemDetailContent(detail, {}, {}, {}, {}, {}, null, null, pageLabel = "3 / 12") {}
+                com.sareemarket.app.ui.reseller.ItemDetailContent(detail, {}, {}, {}, {}, {}, null, null, pageIndex = 2, pageCount = 12) {}
             }
         }
 
