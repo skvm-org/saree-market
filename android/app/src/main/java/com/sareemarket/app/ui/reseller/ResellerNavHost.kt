@@ -70,7 +70,9 @@ fun ResellerNavHost(onLogout: () -> Unit) {
         }
     }
 
-    val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS
+    // Item, collection and seller pages keep the bar so the cart is one tap away; the tab they were opened from stays highlighted.
+    val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS || route in BROWSE_ROUTES
+    val selectedTab = if (route in BROWSE_ROUTES) nav.currentBackStack.value.lastOrNull { it.destination.route in TABS }?.destination?.route ?: TAB_CATALOG else route
     val openTab: (String) -> Unit = { tab -> nav.openTab(tab) }
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
@@ -129,6 +131,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                             onBack = { nav.popBackStack() },
                             onOpenCollection = { nav.navigate("collection/$it") },
                             onOpenSeller = { nav.navigate("seller/$it") },
+                            onOpenCart = { openTab(TAB_CART) },
                         )
                     }
                 }
@@ -145,7 +148,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = route, cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
+            ResellerBottomBar(current = selectedTab,cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
         }
     }
 }

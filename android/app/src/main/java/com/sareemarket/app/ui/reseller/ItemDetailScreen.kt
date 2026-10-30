@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Favorite
@@ -66,6 +68,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,7 +145,7 @@ internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCa
                 shape = CircleShape,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.then(if (whatsappNumber.isNullOrBlank()) Modifier.weight(1f) else Modifier).heightIn(min = MinTouchTarget).testTag("call"),
+                modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("call"),
             ) {
                 Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("  Call", style = MaterialTheme.typography.labelLarge)
@@ -156,7 +160,7 @@ internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCa
                 modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("whatsapp"),
             ) {
                 Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("  Chat on WhatsApp", style = MaterialTheme.typography.labelLarge)
+                Text("  WhatsApp", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -168,6 +172,7 @@ fun ItemDetailScreen(
     onBack: () -> Unit,
     onOpenCollection: (Long) -> Unit,
     onOpenSeller: (Long) -> Unit,
+    onOpenCart: () -> Unit = {},
     viewModel: ItemPagerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -183,6 +188,10 @@ fun ItemDetailScreen(
     LaunchedEffect(pager.currentPage, state.ids) {
         listOf(pager.currentPage - 1, pager.currentPage, pager.currentPage + 1).mapNotNull { state.ids.getOrNull(it) }.forEach(viewModel::ensure)
     }
+    // Coming back to this page (from the cart, another tab, or the background) shows the cart and stock as they are now.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh(listOf(pager.currentPage - 1, pager.currentPage, pager.currentPage + 1).mapNotNull { state.ids.getOrNull(it) })
+    }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         HorizontalPager(pager, Modifier.fillMaxSize(), key = { state.ids.getOrElse(it) { -1L } }) { page ->
             val id = state.ids[page]
@@ -196,6 +205,7 @@ fun ItemDetailScreen(
                     shopping = ShoppingUi(state.shoppingBusy, state.shoppingError),
                     onSetQuantity = { viewModel.setCartQuantity(id, it) },
                     onRemoveFromCart = { viewModel.removeFromCart(id) },
+                    onBuyNow = { qty -> if (detail.inCart == qty) onOpenCart() else viewModel.setCartQuantity(id, qty, onOpenCart) },
                     onToggleWishlist = { viewModel.toggleWishlist(id) },
                 ) { follow.toggle(detail.seller.id, mode) }
             } else if (load?.error != null) {
@@ -238,6 +248,7 @@ fun ItemDetailContent(
     shopping: ShoppingUi = ShoppingUi(),
     onSetQuantity: (Int) -> Unit = {},
     onRemoveFromCart: () -> Unit = {},
+    onBuyNow: (Int) -> Unit = {},
     onToggleWishlist: () -> Unit = {},
     onToggleFollow: () -> Unit,
 ) {
@@ -247,7 +258,7 @@ fun ItemDetailContent(
     if (viewing) PhotoViewer(imageUrl(detail.id, thumb = false), detail.colour ?: detail.collectionTitle) { viewing = false }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            // The photo runs edge to edge; back and status float over it.
+            // The photo runs edge to edge; back, share and save float over it as round buttons.
             Box {
                 AsyncImage(
                     model = imageUrl(detail.id, thumb = false),
@@ -256,7 +267,7 @@ fun ItemDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .sharedPhoto(detail.id)
-                        .aspectRatio(4f / 5f)
+                        .aspectRatio(7f / 8f)
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(SareeColors.SurfaceMuted)
                         .clickable(onClickLabel = "Zoom photo", role = Role.Image) { viewing = true }
@@ -270,21 +281,33 @@ fun ItemDetailContent(
                 ) {
                     Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 }
-                Surface(
-                    onClick = onToggleWishlist,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                    modifier = Modifier.align(Alignment.BottomStart).padding(Spacing.md).size(44.dp).testTag("wishlist"),
+                Row(
+                    Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.sm + Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
-                            tint = MaterialTheme.colorScheme.primaryContainer,
-                        )
+                    Surface(
+                        onClick = { share(context, ShareText.item(detail)) },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+                        modifier = Modifier.size(44.dp).testTag("share"),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Share, contentDescription = "Share") }
+                    }
+                    Surface(
+                        onClick = onToggleWishlist,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+                        modifier = Modifier.size(44.dp).testTag("wishlist"),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
+                                tint = MaterialTheme.colorScheme.primaryContainer,
+                            )
+                        }
                     }
                 }
-                ItemStatusPill(detail.status, Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"))
                 pageLabel?.let {
                     Text(
                         it,
@@ -300,59 +323,60 @@ fun ItemDetailContent(
                 }
             }
             Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        formatRupees(detail.price),
-                        style = PriceHero.copy(fontSize = 30.sp, lineHeight = 36.sp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        textDecoration = if (soldOut) TextDecoration.LineThrough else null,
-                        modifier = Modifier.weight(1f).testTag("price"),
-                    )
-                    IconButton(onClick = { share(context, ShareText.item(detail)) }, modifier = Modifier.testTag("share")) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share")
-                    }
-                }
+                // What it is, what it costs and whether it can be had: one block, read top to bottom.
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineSmall)
-                    detail.colour?.let { Text("Colour: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        onClick = { onOpenCollection(detail.collectionId) },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        modifier = Modifier.testTag("collection-link"),
-                    ) {
-                        Row(Modifier.padding(horizontal = Spacing.sm + Spacing.xs, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primaryContainer)
-                            Text(detail.collectionTitle, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                        Text(
+                            formatRupees(detail.price),
+                            style = PriceHero.copy(fontSize = 30.sp, lineHeight = 36.sp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                            modifier = Modifier.testTag("price"),
+                        )
+                        ItemStatusPill(detail.status, Modifier.testTag("status"))
+                        if (detail.inStock && detail.quantity <= LOW_STOCK) {
+                            Text("Only ${detail.quantity} left", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("low-stock"))
                         }
                     }
-                    detail.createdAt?.let {
-                        Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val meta = listOfNotNull(detail.colour?.let { "Colour: $it" }, detail.createdAt?.let { "Uploaded ${timeAgo(it)}" })
+                    if (meta.isNotEmpty()) {
+                        Text(meta.joinToString("  ·  "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                detail.collectionDescription?.let {
-                    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Text("About this collection", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                // Where it comes from and who sells it, as one grouped card instead of three separate blocks.
+                Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onOpenCollection(detail.collectionId) }.padding(Spacing.md).testTag("collection-link"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                        ) {
+                            Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primaryContainer)
+                            Column(Modifier.weight(1f)) {
+                                Text(detail.collectionTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                detail.collectionDescription?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
-                }
-                Surface(
-                    onClick = { onOpenSeller(detail.seller.id) },
-                    shape = CardShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth().testTag("seller-card"),
-                ) {
-                    Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                        InitialAvatar(detail.seller.shopName, 48.dp)
-                        Column(Modifier.weight(1f)) {
-                            Text(detail.seller.shopName, style = MaterialTheme.typography.titleLarge)
-                            Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        HorizontalDivider(Modifier.padding(horizontal = Spacing.md), color = SareeColors.Hairline)
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onOpenSeller(detail.seller.id) }.padding(Spacing.md).testTag("seller-card"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                        ) {
+                            InitialAvatar(detail.seller.shopName, 48.dp)
+                            Column(Modifier.weight(1f)) {
+                                Text(detail.seller.shopName, style = MaterialTheme.typography.titleMedium)
+                                Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            FollowPill(followMode, onToggleFollow)
                         }
-                        FollowPill(followMode, onToggleFollow)
+                        Box(Modifier.padding(start = Spacing.md, end = Spacing.md, bottom = Spacing.md)) {
+                            ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
+                        }
                     }
                 }
                 if (followMode == NotifyMode.MUTED) {
@@ -370,8 +394,7 @@ fun ItemDetailContent(
                 Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart)
-                ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
+                PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart, onBuyNow)
             }
         }
     }

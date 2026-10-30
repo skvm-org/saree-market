@@ -30,6 +30,7 @@ internal val TABS = setOf(TAB_CATALOG, TAB_WISHLIST, TAB_CART, TAB_ORDERS, ROUTE
 /** Where "My sellers" and "Alerts" live now: pages opened from the catalog header, not tabs. */
 internal const val ROUTE_SELLERS = "sellers"
 internal const val ROUTE_ALERTS = "alerts"
+internal val BROWSE_ROUTES = setOf("item/{id}", "collection/{id}", "seller/{id}")
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
