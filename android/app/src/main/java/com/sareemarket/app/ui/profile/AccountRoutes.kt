@@ -19,12 +19,15 @@ const val ROUTE_PASSWORD = "password"
 /**
  * Adds the profile and change-password screens to a role's navigation graph. Every role reaches Profile from its
  * bottom bar, so the profile screen is a tab and has no back arrow; Change password opens from it and does.
+ * A seller passes [onOpenShop], which adds a Shop details row, and [missingUpi] to show the UPI prompt above it.
  */
-fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit) {
+fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit, onOpenShop: (() -> Unit)? = null, missingUpi: () -> Boolean = { false }) {
     composable(ROUTE_PROFILE) {
         ProfileScreen(
             onLogout = onLogout,
             onChangePassword = { nav.navigate(ROUTE_PASSWORD) { launchSingleTop = true } },
+            onOpenShop = onOpenShop,
+            missingUpi = missingUpi(),
         )
     }
     composable(ROUTE_PASSWORD) { ChangePasswordScreen(onBack = { nav.popBackStack() }) }

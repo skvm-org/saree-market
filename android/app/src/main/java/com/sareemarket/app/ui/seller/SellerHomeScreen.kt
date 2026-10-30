@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.PhotoLibrary
+import com.sareemarket.app.ui.components.EmptyState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -78,6 +80,8 @@ fun SellerHomeScreen(
     onOpen: (Long) -> Unit,
     toConfirm: Long = 0,
     onOpenOrders: () -> Unit = {},
+    hasUpiId: Boolean = true,
+    onAddUpi: () -> Unit = {},
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -86,7 +90,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi)
 }
 
 @Composable
@@ -100,6 +104,8 @@ fun SellerHomeContent(
     location: String = "",
     toConfirm: Long = 0,
     onOpenOrders: () -> Unit = {},
+    hasUpiId: Boolean = true,
+    onAddUpi: () -> Unit = {},
 ) {
     // The Add tab is always on screen, so there is no floating button to cover a card; an empty shop gets a button in the page itself.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
@@ -111,7 +117,7 @@ fun SellerHomeContent(
                 .padding(padding)
                 .safeDrawingPadding(),
         ) {
-            ShopHeader(sellerName, location, state, wide)
+            ShopHeader(sellerName, location, state, wide, hasUpiId, onAddUpi)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> SkeletonCollections()
@@ -121,16 +127,15 @@ fun SellerHomeContent(
                     }
                     is SellerHomeState.Loaded ->
                         if (state.collections.isEmpty()) {
-                            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                                Text(
-                                    "No collections yet.\nUpload your first photos.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.testTag("empty"),
-                                )
-                                PrimaryButton("New collection", onClick = onNewCollection, modifier = Modifier.testTag("new-collection"))
-                            }
+                            EmptyState(
+                                Icons.Filled.PhotoLibrary,
+                                "No collections yet",
+                                "Upload your first photos.",
+                                Modifier.align(Alignment.Center).testTag("empty"),
+                                actionLabel = "New collection",
+                                actionTag = "new-collection",
+                                onAction = onNewCollection,
+                            )
                         } else {
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                                 // One column on a phone; two or three on a wide screen.
@@ -143,7 +148,7 @@ fun SellerHomeContent(
                                 ) {
                                     if (toConfirm > 0) item(span = { GridItemSpan(maxLineSpan) }) {
                                         Surface(
-                                            onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg, border = CardBorder,
+                                            onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg,
                                             modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("confirm-banner"),
                                         ) {
                                             Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +162,7 @@ fun SellerHomeContent(
                                     }
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                                            Text("Active collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
+                                            Text("Your collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
                                             Text("Newest first", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
@@ -173,21 +178,18 @@ fun SellerHomeContent(
     }
 }
 
-/** Shop name and place on a warm panel, with the two stock totals as tiles underneath. */
+/** Shop name and place, the UPI prompt while it is missing, then the two stock totals as tiles. */
 @Composable
-private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean) {
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean, hasUpiId: Boolean, onAddUpi: () -> Unit) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
     Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .padding(horizontal = Spacing.margin, vertical = Spacing.sm),
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.margin).padding(top = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         val identity: @Composable (Modifier) -> Unit = { modifier ->
-            Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
                 InitialAvatar(shopName, 44.dp)
                 Column(Modifier.weight(1f)) {
                     Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
@@ -199,19 +201,20 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
         }
         val totals: @Composable (Modifier) -> Unit = { modifier ->
             Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-                StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
+                StatTile("In stock", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
                 StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
             }
         }
         if (wide) {
-            // Name on the left, totals on the right: one short band instead of two tall ones.
-            Row(Modifier.padding(bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 identity(Modifier.weight(1f))
                 totals(Modifier.width(360.dp))
             }
+            if (!hasUpiId) UpiBanner(onAddUpi)
         } else {
             identity(Modifier)
-            totals(Modifier.padding(bottom = Spacing.sm))
+            if (!hasUpiId) UpiBanner(onAddUpi)
+            totals(Modifier)
         }
     }
 }

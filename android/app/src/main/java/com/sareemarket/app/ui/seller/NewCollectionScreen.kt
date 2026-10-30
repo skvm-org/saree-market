@@ -5,6 +5,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
+import com.sareemarket.app.ui.components.ScreenHeader
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -97,13 +100,7 @@ fun NewCollectionContent(
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().imePadding()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack, enabled = !state.uploading) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-                Text("Upload collection", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-                Spacer(Modifier.size(48.dp)) // balances the back button so the title stays centred
-            }
+            ScreenHeader("Upload collection", onBack = onBack)
             Column(
                 Modifier
                     .weight(1f)
@@ -126,8 +123,9 @@ fun NewCollectionContent(
                         }
                     }
                 }
-                Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder) {
-                    Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                // The fields sit straight on the page; a second card behind them only adds a layer.
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    run {
                         CollectionFieldsForm(
                             fields = state.fields,
                             reference = state.reference,
@@ -184,12 +182,13 @@ private fun PhotoDropZone(count: Int, uploading: Boolean, onGallery: () -> Unit,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                TextButton(onClick = onCamera, enabled = !uploading, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("take-photo-upload")) {
+            Row(Modifier.fillMaxWidth().padding(top = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                val white = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.primaryContainer)
+                Button(onClick = onCamera, enabled = !uploading, shape = CircleShape, colors = white, modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("take-photo-upload")) {
                     Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text("  Camera", style = MaterialTheme.typography.labelLarge)
                 }
-                TextButton(onClick = onGallery, enabled = !uploading, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("pick-photos")) {
+                Button(onClick = onGallery, enabled = !uploading, shape = CircleShape, colors = white, modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("pick-photos")) {
                     Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text("  Gallery", style = MaterialTheme.typography.labelLarge)
                 }

@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
@@ -73,13 +75,19 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     actionTag: String = "empty-action",
+    titleTag: String? = null,
     onAction: () -> Unit = {},
 ) {
     Column(modifier.padding(horizontal = Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Box(Modifier.size(64.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f), CircleShape), contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.primaryContainer)
         }
-        Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.padding(top = Spacing.sm))
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = Spacing.sm).then(if (titleTag != null) Modifier.testTag(titleTag) else Modifier),
+        )
         if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         if (actionLabel != null) {
             TonalButton(actionLabel, onClick = onAction, modifier = Modifier.padding(top = Spacing.sm).widthIn(max = 240.dp).testTag(actionTag))
@@ -105,3 +113,10 @@ fun LowStockChip(left: Int, modifier: Modifier = Modifier) =
 @Composable
 fun SoldOutChip(modifier: Modifier = Modifier) =
     StockChip("Sold out", MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.colorScheme.onSurfaceVariant, dot = false, modifier = modifier)
+
+/** Lets a row ignore the side padding of the list it sits in, so a header can span the full width. */
+fun Modifier.bleedHorizontally(amount: androidx.compose.ui.unit.Dp): Modifier = layout { measurable, constraints ->
+    val extra = amount.roundToPx()
+    val placeable = measurable.measure(constraints.offset(horizontal = 2 * extra))
+    layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(-extra, 0) }
+}

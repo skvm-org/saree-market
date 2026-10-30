@@ -48,7 +48,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
     val shop by shell.shop.collectAsStateWithLifecycle()
     val pending by shell.pending.collectAsStateWithLifecycle()
     // The shop is read again whenever a screen that shows it comes back, so a UPI ID just saved clears the banner.
-    LaunchedEffect(route) { if (route == HOME || route == SELLER_ORDERS) shell.reload() }
+    LaunchedEffect(route) { if (route == HOME || route == SELLER_ORDERS || route == ROUTE_PROFILE) shell.reload() }
     // The badge: refresh the waiting requests every minute, but only while the app is on screen.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
@@ -70,7 +70,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
             askForPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    val showBar = route == HOME || route == SELLER_ORDERS || route == SHOP || route == ROUTE_PROFILE
+    val showBar = route == HOME || route == SELLER_ORDERS || route == ROUTE_PROFILE
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
         Box(Modifier.weight(1f).then(if (showBar) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)) {
@@ -83,6 +83,8 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                     onOpen = { id -> nav.navigate("collection/$id") },
                     toConfirm = pending,
                     onOpenOrders = { nav.navigate(SELLER_ORDERS) { popUpTo(HOME); launchSingleTop = true } },
+                    hasUpiId = shopHasUpiId(shop),
+                    onAddUpi = { nav.navigate(SHOP) },
                 )
             }
             composable(SELLER_NEW) {
@@ -98,7 +100,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                 SellerOrdersScreen(onOpenSettings = { nav.navigate(SHOP) }, hasUpiId = shopHasUpiId(shop))
             }
             composable(SHOP) { ShopDetailsScreen(onBack = { nav.popBackStack() }) }
-            accountRoutes(nav, onLogout)
+            accountRoutes(nav, onLogout, onOpenShop = { nav.navigate(SHOP) }, missingUpi = { !shopHasUpiId(shop) })
         }
         }
         if (showBar) {
