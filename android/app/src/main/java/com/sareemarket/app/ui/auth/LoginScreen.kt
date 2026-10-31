@@ -70,7 +70,7 @@ fun LoginContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            BrandMark(80.dp)
+            BrandMark(112.dp)
             Spacer(Modifier.height(Spacing.md))
             Text(
                 text = "Saree Market",
