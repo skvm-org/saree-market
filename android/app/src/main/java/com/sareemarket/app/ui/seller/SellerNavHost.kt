@@ -104,14 +104,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
         }
         }
         if (showBar) {
-            SellerBottomBar(current = route, pending = pending) { tab ->
-                when (tab) {
-                    HOME -> nav.popBackStack(HOME, inclusive = false)
-                    // "Add" opens a page with its own back arrow; the other tabs replace each other.
-                    SELLER_NEW -> nav.navigate(SELLER_NEW)
-                    else -> nav.navigate(tab) { popUpTo(HOME); launchSingleTop = true }
-                }
-            }
+            SellerBottomBar(current = route, pending = pending) { tab -> nav.openSellerTab(tab) }
         }
     }
 }
