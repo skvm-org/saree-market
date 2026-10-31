@@ -8,6 +8,9 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -56,6 +59,34 @@ class CatalogScreenTest {
         onTab: (Boolean) -> Unit = {},
     ) = compose.setContent {
         SareeTheme { CatalogContent(state, text, onText, onFilters, onSort, onOpen, {}, onRetry, onClear, onTab, onPhoto, onClearPhoto, onOpenCollection = onOpenCollection) }
+    }
+
+    @Test
+    fun theCardOffersAPlusToFollowAndATickOnceFollowed() {
+        val toggled = mutableListOf<Long>()
+        compose.setContent {
+            SareeTheme {
+                CatalogContent(
+                    CatalogState(collections = listOf(diwali, summer), loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                    followModes = mapOf(1L to com.sareemarket.app.data.NotifyMode.INSTANT), onToggleFollow = { toggled += it },
+                )
+            }
+        }
+
+        // Both cards come from seller 1, who is followed: each has a tick, and tapping it unfollows.
+        compose.onAllNodesWithTag("follow-1").assertCountEquals(2)
+        compose.onNodeWithContentDescription("Following Lakshmi Silks. Tap to unfollow").assertExists()
+        compose.onAllNodesWithTag("follow-1")[0].performClick()
+        assertEquals(listOf(1L), toggled)
+    }
+
+    @Test
+    fun anUnfollowedSellerShowsAPlus() {
+        compose.setContent {
+            SareeTheme { CatalogContent(CatalogState(collections = listOf(diwali), loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
+        }
+
+        compose.onNodeWithContentDescription("Follow Lakshmi Silks").assertExists()
     }
 
     @Test

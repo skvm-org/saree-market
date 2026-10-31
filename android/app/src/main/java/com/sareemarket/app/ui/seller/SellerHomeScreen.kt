@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.material3.IconButton
+import com.sareemarket.app.data.NotifyMode
 import androidx.compose.material.icons.filled.PhotoLibrary
 import com.sareemarket.app.ui.components.EmptyState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -235,7 +239,13 @@ private fun StatTile(label: String, value: Long, numberColor: androidx.compose.u
  * "From" price. On a seller's own dashboard every card is the same shop, so the header is left out.
  */
 @Composable
-internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
+internal fun CollectionCard(
+    collection: CollectionSummary,
+    onClick: () -> Unit,
+    /** Catalog only: how the customer follows this seller, and the tap that follows or unfollows. Null hides the button. */
+    followMode: NotifyMode? = null,
+    onToggleFollow: (() -> Unit)? = null,
+) {
     val catalog = collection.shopName != null
     Surface(
         shape = CardShape,
@@ -249,10 +259,11 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
             collection.shopName?.let { shop ->
                 Row(Modifier.padding(horizontal = Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
                     InitialAvatar(shop, 32.dp)
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(shop, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         collection.createdAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
+                    if (onToggleFollow != null) FollowPlus(shop, followMode != null, onToggleFollow, Modifier.testTag("follow-${collection.sellerId}"))
                 }
             }
             PhotoStrip(collection)
@@ -280,6 +291,34 @@ internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) 
                     }
                 }
             }
+        }
+    }
+}
+
+/** A round + to follow a seller from the card; once followed it is a quiet tick, and a tap undoes it. */
+@Composable
+private fun FollowPlus(shop: String, following: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
+    IconButton(
+        onClick = {
+            haptics.performHapticFeedback(if (following) HapticFeedbackType.ToggleOff else HapticFeedbackType.Confirm)
+            onToggle()
+        },
+        modifier = modifier.size(MinTouchTarget),
+    ) {
+        Box(
+            Modifier.size(32.dp).background(
+                if (following) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+                CircleShape,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (following) Icons.Filled.Check else Icons.Filled.Add,
+                contentDescription = if (following) "Following $shop. Tap to unfollow" else "Follow $shop",
+                tint = if (following) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

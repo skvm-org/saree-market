@@ -121,6 +121,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogSort
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.SareeImage
@@ -190,6 +191,8 @@ fun CatalogScreen(
         onClearPhoto = viewModel::clearImage,
         onRefresh = viewModel::refresh,
         onQueryChange = viewModel::apply,
+        followModes = state.followModes,
+        onToggleFollow = viewModel::toggleFollow,
         alertsUnread = alertsUnread,
         onOpenSellers = onOpenSellers,
         onOpenAlerts = onOpenAlerts,
@@ -240,6 +243,8 @@ fun CatalogContent(
     onRefresh: () -> Unit = {},
     onQueryChange: (CatalogQuery) -> Unit = {},
     onOpenCollection: (Long) -> Unit = {},
+    followModes: Map<Long, NotifyMode> = emptyMap(),
+    onToggleFollow: (Long) -> Unit = {},
     alertsUnread: Long = 0,
     onOpenSellers: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
@@ -283,7 +288,7 @@ fun CatalogContent(
                 )
             }
             else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenCollection, onLoadMore, onRetry)
+                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenCollection, onLoadMore, onRetry, followModes, onToggleFollow)
             }
         }
             }
@@ -515,7 +520,7 @@ private fun PhotoSourceButton(label: String, icon: androidx.compose.ui.graphics.
 }
 
 @Composable
-private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit) {
+private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit, followModes: Map<Long, NotifyMode>, onToggleFollow: (Long) -> Unit) {
     val grid = rememberLazyGridState()
     LaunchedEffect(grid, state.collections.size) {
         snapshotFlow { grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.collect { last ->
@@ -530,7 +535,14 @@ private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, o
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         modifier = Modifier.fillMaxSize().testTag("results"),
     ) {
-        items(state.collections, key = { it.id }) { Box(Modifier.animateItem()) { CollectionCard(it, onClick = { onOpenCollection(it.id) }) } }
+        items(state.collections, key = { it.id }) { Box(Modifier.animateItem()) {
+            CollectionCard(
+                it,
+                onClick = { onOpenCollection(it.id) },
+                followMode = it.sellerId?.let(followModes::get),
+                onToggleFollow = it.sellerId?.let { id -> { onToggleFollow(id) } },
+            )
+        } }
         if (state.loadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() }
