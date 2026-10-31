@@ -1,6 +1,9 @@
 package com.sareemarket.app.ui.reseller
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.ShoppingCart
+import com.sareemarket.app.ui.components.EmptyState
+import com.sareemarket.app.ui.components.ScreenHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -118,26 +121,24 @@ fun CartContent(
     onOpenHold: (Long) -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Text("Cart", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(vertical = Spacing.md).testTag("title"))
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            ScreenHeader("Cart")
+            Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.margin)) {
                 when {
                     state.loading -> SkeletonRows()
                     state.cart.sellers.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
                     }
-                    state.cart.sellers.isEmpty() -> Column(Modifier.align(Alignment.Center).testTag("cart-empty"), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Your cart is empty", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            "Add sarees you like and pay each seller in one go.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(vertical = Spacing.sm),
-                        )
-                        PrimaryButton("Browse sarees", onClick = onDiscover, modifier = Modifier.testTag("browse"))
-                    }
+                    state.cart.sellers.isEmpty() -> EmptyState(
+                        Icons.Filled.ShoppingCart,
+                        "Your cart is empty",
+                        "Add sarees you like and pay each seller in one go.",
+                        Modifier.align(Alignment.Center).testTag("cart-empty"),
+                        actionLabel = "Browse sarees",
+                        actionTag = "browse",
+                        onAction = onDiscover,
+                    )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(Spacing.md),

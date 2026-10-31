@@ -5,7 +5,10 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -25,17 +28,16 @@ internal const val SELLER_NEW = "new"
 internal const val SELLER_SHOP = "shop"
 internal const val SELLER_ORDERS = "orders"
 
-private data class SellerTab(val route: String, val label: String, val icon: ImageVector)
+private data class SellerTab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val sellerTabs = listOf(
-    SellerTab(SELLER_HOME, "Sarees", Icons.Filled.PhotoLibrary),
-    SellerTab(SELLER_ORDERS, "Orders", Icons.Filled.Inbox),
-    SellerTab(SELLER_NEW, "Add", Icons.Filled.AddCircleOutline),
-    SellerTab(SELLER_SHOP, "Shop", Icons.Filled.Storefront),
-    SellerTab(ROUTE_PROFILE, "Profile", Icons.Filled.AccountCircle),
+    SellerTab(SELLER_HOME, "Sarees", Icons.Outlined.PhotoLibrary, Icons.Filled.PhotoLibrary),
+    SellerTab(SELLER_ORDERS, "Orders", Icons.Outlined.Inbox, Icons.Filled.Inbox),
+    SellerTab(SELLER_NEW, "Add", Icons.Outlined.AddCircleOutline, Icons.Filled.AddCircleOutline),
+    SellerTab(ROUTE_PROFILE, "Profile", Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
 )
 
-/** Where a seller works from: collections, orders (with the number waiting for confirmation), a new upload, the shop and the profile. */
+/** Where a seller works from: collections, orders (with the number waiting for confirmation), a new upload, and the profile with the shop details inside it. */
 @Composable
 fun SellerBottomBar(current: String?, pending: Long = 0, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
@@ -48,13 +50,15 @@ fun SellerBottomBar(current: String?, pending: Long = 0, onSelect: (String) -> U
                         if (tab.route == SELLER_ORDERS && pending > 0) {
                             Badge(Modifier.testTag("orders-badge")) { Text(if (pending > 99) "99+" else pending.toString()) }
                         }
-                    }) { Icon(tab.icon, contentDescription = null) }
+                    }) { Icon(if (current == tab.route) tab.selectedIcon else tab.icon, contentDescription = null) }
                 },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedIconColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedTextColor = MaterialTheme.colorScheme.primaryContainer,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
                 modifier = Modifier.testTag("seller-tab-${tab.route}"),
             )

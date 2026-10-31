@@ -63,13 +63,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.FollowItem
+import androidx.compose.material.icons.filled.Storefront
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.components.EmptyState
 import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 
 @Composable
-fun MySellersScreen(onOpenSeller: (Long) -> Unit, onDiscover: () -> Unit, viewModel: MySellersViewModel = hiltViewModel()) {
+fun MySellersScreen(onOpenSeller: (Long) -> Unit, onDiscover: () -> Unit, onBack: (() -> Unit)? = null, viewModel: MySellersViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.load()
@@ -77,7 +80,7 @@ fun MySellersScreen(onOpenSeller: (Long) -> Unit, onDiscover: () -> Unit, viewMo
     }
     MySellersContent(
         state, onOpenSeller, viewModel::setMuted, viewModel::unfollow,
-        onRefresh = viewModel::pullRefresh, onUndo = viewModel::undoUnfollow, onUndoDismissed = viewModel::dismissUndo, onDiscover = onDiscover,
+        onRefresh = viewModel::pullRefresh, onUndo = viewModel::undoUnfollow, onUndoDismissed = viewModel::dismissUndo, onDiscover = onDiscover, onBack = onBack,
     )
 }
 
@@ -87,6 +90,7 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
     onUndo: () -> Unit = {},
     onUndoDismissed: () -> Unit = {},
     onDiscover: () -> Unit = {},
+    onBack: (() -> Unit)? = null,
 ) {
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(state.undo) {
@@ -96,21 +100,14 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
     }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
       Box {
-        Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("My sellers", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f).padding(start = Spacing.sm))
-                Text(
-                    "Followed (${state.sellers.size})",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = Spacing.sm).testTag("followed-count"),
-                )
-            }
+        Column(Modifier.safeDrawingPadding()) {
+          ScreenHeader("My sellers", onBack = onBack)
+          Column(Modifier.weight(1f).padding(horizontal = Spacing.margin)) {
             Text(
-                "You get updates only from sellers you follow. Tap the bell to mute one.",
+                "Following ${state.sellers.size}. You get updates only from sellers you follow; tap the bell to mute one.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = Spacing.sm, bottom = Spacing.sm),
+                modifier = Modifier.padding(bottom = Spacing.sm).testTag("followed-count"),
             )
             if (state.error != null) {
                 Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("error").padding(top = Spacing.sm))
@@ -118,12 +115,15 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading -> SkeletonRows()
-                    state.sellers.isEmpty() -> Text(
-                        "You are not following anyone yet.\nOpen a seller's page and tap Follow.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).testTag("empty"),
+                    state.sellers.isEmpty() -> EmptyState(
+                        Icons.Filled.Storefront,
+                        "You are not following anyone yet.",
+                        "Open a seller's page and tap Follow.",
+                        Modifier.align(Alignment.Center),
+                        actionLabel = "Discover sellers",
+                        actionTag = "discover",
+                        titleTag = "empty",
+                        onAction = onDiscover,
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         LazyColumn(
@@ -147,6 +147,7 @@ fun MySellersContent(state: MySellersState, onOpenSeller: (Long) -> Unit, onMute
                     }
                 }
             }
+          }
         }
         SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).padding(Spacing.margin))
       }
@@ -162,17 +163,18 @@ private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long,
         onClick = { onOpen(seller.sellerId) },
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = CardBorder,
         modifier = modifier.fillMaxWidth().testTag("seller-${seller.sellerId}"),
     ) {
         Row(Modifier.padding(start = Spacing.md, top = Spacing.sm + Spacing.xs, bottom = Spacing.sm + Spacing.xs, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
             InitialAvatar(seller.shopName, 48.dp, filled = notifying)
             Column(Modifier.weight(1f)) {
-                Text(seller.shopName, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(seller.shopName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    listOfNotNull(seller.lastUploadAt?.let { "Last upload ${timeAgo(it)}" }, seller.marketLocation).joinToString(" • "),
+                    listOfNotNull(seller.marketLocation, seller.lastUploadAt?.let { "Last upload ${timeAgo(it)}" }).joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (!notifying) Text("Muted", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

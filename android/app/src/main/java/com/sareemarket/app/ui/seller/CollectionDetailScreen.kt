@@ -21,12 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.components.bleedHorizontally
 import com.sareemarket.app.ui.components.PillChip
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.typeAndFabric
@@ -144,9 +143,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 // The same pieces, placed two ways: stacked above the grid on a phone, in a side panel on a wide screen.
                 val wide = maxWidth >= WIDE_LAYOUT
                 val topBar: @Composable () -> Unit = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                        Spacer(Modifier.weight(1f))
+                    ScreenHeader(detail.title, onBack = onBack, modifier = Modifier.bleedHorizontally(Spacing.margin)) {
                         IconButton(onClick = { editingCollection = true }, modifier = Modifier.testTag("edit")) {
                             Icon(Icons.Filled.Edit, contentDescription = "Edit details", tint = MaterialTheme.colorScheme.primaryContainer)
                         }
@@ -181,7 +178,6 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 }
                 val titleBlock: @Composable () -> Unit = {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(detail.title, style = MaterialTheme.typography.headlineLarge)
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             Text(typeAndFabric(detail.sareeType.name, detail.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -323,14 +319,21 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
     // No pieces left looks sold out whatever the seller's own mark says: checkout lowers the count but not the mark.
     val soldOut = item.status == ItemStatus.SOLD_OUT || item.quantity == 0
     val haptics = LocalHapticFeedback.current
-    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.testTag("item-${item.id}")) {
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.testTag("item-${item.id}")) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Column(Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Box {
                     SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().alpha(if (soldOut) 0.6f else 1f))
                     if (soldOut) ItemStatusPill(ItemStatus.SOLD_OUT, Modifier.padding(Spacing.sm).align(Alignment.TopStart), onPhoto = true)
                 }
-                Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // No colour yet is a prompt to add one, not a label.
+                Text(
+                    item.colour ?: "Add colour",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (item.colour == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     formatRupees(item.effectivePrice),
                     style = MaterialTheme.typography.titleLarge,
@@ -348,14 +351,14 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium,
                     color = if (soldOut) SareeColors.SlateText else SareeColors.AvailableText,
                 )
-                Checkbox(
+                Switch(
                     checked = !soldOut,
                     onCheckedChange = {
                         haptics.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
                         onToggle()
                     },
-                    colors = CheckboxDefaults.colors(checkedColor = SareeColors.Available),
-                    modifier = Modifier.testTag("stock-${item.id}"),
+                    colors = SwitchDefaults.colors(checkedTrackColor = SareeColors.Available),
+                    modifier = Modifier.padding(end = Spacing.sm).testTag("stock-${item.id}"),
                 )
             }
         }

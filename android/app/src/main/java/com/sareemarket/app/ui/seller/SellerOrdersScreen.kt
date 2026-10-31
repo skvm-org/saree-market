@@ -1,6 +1,14 @@
 package com.sareemarket.app.ui.seller
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.Inbox
+import com.sareemarket.app.ui.components.TonalButton
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.components.EmptyState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -144,17 +152,10 @@ fun SellerOrdersContent(
     var ask by remember { mutableStateOf<Ask?>(null) }
     var proofOf by remember { mutableStateOf<Order?>(null) }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text("Orders", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = Spacing.md).testTag("title"))
-            if (!hasUpiId) {
-                Surface(shape = CardShape, color = SareeColors.GoldBg, modifier = Modifier.fillMaxWidth().testTag("no-upi-banner")) {
-                    Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text("Add your UPI ID so customers can pay you", style = MaterialTheme.typography.titleSmall)
-                        Text("Until you do, nobody can order from your shop.", style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = onOpenSettings, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("add-upi")) { Text("Add UPI ID") }
-                    }
-                }
-            }
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            ScreenHeader("Orders")
+            Column(Modifier.weight(1f).padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            if (!hasUpiId) UpiBanner(onOpenSettings)
             FilterTiles(state.summary, state.filter, onFilter)
             state.error?.let { if (state.items.isNotEmpty()) Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -164,23 +165,24 @@ fun SellerOrdersContent(
                         Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
                     }
-                    state.items.isEmpty() -> Text(
+                    state.items.isEmpty() -> EmptyState(
+                        Icons.Filled.Inbox,
                         when (state.filter) {
-                            SellerOrderFilter.TO_CONFIRM -> "No payments to check.\nWhen a customer pays you, the order shows here."
+                            SellerOrderFilter.TO_CONFIRM -> "No payments to check."
                             SellerOrderFilter.TO_PACK -> "Nothing to pack."
                             SellerOrderFilter.TO_SHIP -> "Nothing waiting to be shipped."
                             SellerOrderFilter.SHIPPED -> "Nothing on its way."
                             SellerOrderFilter.ALL -> "No orders yet."
                         },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).testTag("orders-empty"),
+                        if (state.filter == SellerOrderFilter.TO_CONFIRM) "When a customer pays you, the order shows here." else null,
+                        Modifier.align(Alignment.Center),
+                        titleTag = "orders-empty",
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         OrderList(state, now, onCall, onWhatsApp, onPack, onDeliver, { ask = it }, { proofOf = it }, onLoadMore)
                     }
                 }
+            }
             }
         }
     }
@@ -200,40 +202,37 @@ fun SellerOrdersContent(
     proofOf?.let { PhotoViewer(orderProofUrl(it.id, it.updatedAt), "Payment screenshot") { proofOf = null } }
 }
 
-/** The five states an order passes through, each a button that filters the list under it. */
+/** The five states an order passes through, as chips with their counts; each filters the list under it. They wrap, so none is hidden off the edge. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFilter: (SellerOrderFilter) -> Unit) {
-    // Wraps rather than scrolls, so every filter is visible without swiping.
-    FlowRow(maxItemsInEachRow = 3, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.fillMaxWidth().testTag("summary")) {
-        val tiles = listOf(
+    FlowRow(Modifier.fillMaxWidth().testTag("summary"), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        listOf(
             Triple(SellerOrderFilter.TO_CONFIRM, "To confirm", summary.toConfirm),
             Triple(SellerOrderFilter.TO_PACK, "To pack", summary.toPack),
             Triple(SellerOrderFilter.TO_SHIP, "To ship", summary.toShip),
             Triple(SellerOrderFilter.SHIPPED, "Shipped", summary.shipped),
             Triple(SellerOrderFilter.ALL, "All", -1),
-        )
-        tiles.forEach { (filter, label, count) ->
-            Tile(label, count, selected == filter, { onFilter(filter) }, Modifier.weight(1f).testTag("tile-${filter.name.lowercase().replace('_', '-')}"))
-        }
-    }
-}
-
-@Composable
-private fun Tile(label: String, count: Int, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    // The chosen tile gets a crimson outline and a tint, the same way the filter chips elsewhere show their choice.
-    Surface(
-        selected = selected,
-        onClick = onClick,
-        shape = CardShape,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
-        border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer) else null,
-        modifier = modifier.heightIn(min = MinTouchTarget),
-    ) {
-        Column(Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.sm), horizontalAlignment = Alignment.CenterHorizontally) {
-            // "All" has no count of its own; it is just the label, centred.
-            if (count >= 0) Text(count.toString(), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("count-$label"))
-            Text(label, style = if (count >= 0) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall, maxLines = 1, modifier = if (count >= 0) Modifier else Modifier.padding(vertical = Spacing.sm))
+        ).forEach { (filter, label, count) ->
+            // "All" has no count of its own. The count is its own text so it can be read apart from the label.
+            FilterChip(
+                selected = selected == filter,
+                onClick = { onFilter(filter) },
+                label = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = MaterialTheme.typography.labelLarge)
+                        if (count >= 0) Text(count.toString(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.testTag("count-$label"))
+                    }
+                },
+                shape = CircleShape,
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+                    selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
+                ),
+                border = null,
+                modifier = Modifier.heightIn(min = MinTouchTarget).testTag("tile-${filter.name.lowercase().replace('_', '-')}"),
+            )
         }
     }
 }
@@ -283,7 +282,7 @@ private fun OrderCard(
     ask: (Ask) -> Unit,
     onProof: (Order) -> Unit,
 ) {
-    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth().testTag("order-${order.id}")) {
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth().testTag("order-${order.id}")) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Column(Modifier.weight(1f)) {
@@ -345,7 +344,7 @@ private fun Actions(order: Order, busy: Boolean, now: Instant, onPack: (Long) ->
         when (order.status) {
             OrderStatus.PAYMENT_SUBMITTED -> {
                 PrimaryButton("Payment received", onClick = { ask(Ask.ConfirmPayment(order)) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-confirm-$id"))
-                OutlinedButton(onClick = { ask(Ask.Reject(order)) }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("act-reject-$id")) { Text("Not found") }
+                TonalButton("Not found", onClick = { ask(Ask.Reject(order)) }, enabled = !busy, modifier = Modifier.testTag("act-reject-$id"))
             }
             OrderStatus.PAYMENT_REJECTED -> {
                 val left = order.paymentDeadline?.let { timeRemaining(it, now) }.orEmpty()

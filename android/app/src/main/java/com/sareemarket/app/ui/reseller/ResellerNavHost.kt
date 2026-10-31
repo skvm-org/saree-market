@@ -32,6 +32,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.sareemarket.app.ui.profile.accountRoutes
+import com.sareemarket.app.ui.profile.ProfileShortcut
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.People
 import kotlinx.coroutines.delay
 
 /** How often the unread number on the Alerts tab is refreshed while the app is open. */
@@ -70,7 +75,9 @@ fun ResellerNavHost(onLogout: () -> Unit) {
         }
     }
 
-    val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS
+    // Collection and seller pages keep the bar; the tab they were opened from stays highlighted. The saree page has none.
+    val showBar = route in TABS || route == ROUTE_SELLERS || route == ROUTE_ALERTS || route in BROWSE_ROUTES
+    val selectedTab = if (route in BROWSE_ROUTES) nav.currentBackStack.value.lastOrNull { it.destination.route in TABS }?.destination?.route ?: TAB_CATALOG else route
     val openTab: (String) -> Unit = { tab -> nav.openTab(tab) }
     Column(Modifier.fillMaxSize()) {
         // The bar already pads for the system buttons, so the screen above must not pad for them twice.
@@ -90,7 +97,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     }
                 }
                 composable(TAB_WISHLIST) {
-                    WishlistScreen(onOpenItem = { nav.navigate("item/$it") })
+                    WishlistScreen(onOpenItem = { nav.navigate("item/$it") }, onBrowse = { openTab(TAB_CATALOG) })
                 }
                 composable(TAB_CART) {
                     CartScreen(
@@ -101,13 +108,13 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     )
                 }
                 composable(TAB_ORDERS) {
-                    OrdersScreen(onOpenOrder = { nav.navigate("order/$it") }, onOpenHold = { nav.navigate("hold/$it") })
+                    OrdersScreen(onOpenOrder = { nav.navigate("order/$it") }, onOpenHold = { nav.navigate("hold/$it") }, onBrowse = { openTab(TAB_CATALOG) })
                 }
                 composable(ROUTE_SELLERS) {
-                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) })
+                    MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) }, onBack = { nav.popBackStack() })
                 }
                 composable(ROUTE_ALERTS) {
-                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") })
+                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onBack = { nav.popBackStack() })
                 }
                 composable("addresses") {
                     AddressesScreen(onBack = { nav.popBackStack() })
@@ -129,6 +136,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                             onBack = { nav.popBackStack() },
                             onOpenCollection = { nav.navigate("collection/$it") },
                             onOpenSeller = { nav.navigate("seller/$it") },
+                            onOpenCart = { openTab(TAB_CART) },
                         )
                     }
                 }
@@ -140,12 +148,19 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                         ResellerCollectionScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
                     }
                 }
-                accountRoutes(nav, onLogout)
+                accountRoutes(
+                    nav, onLogout,
+                    shortcuts = listOf(
+                        ProfileShortcut(Icons.Filled.Inventory2, "My orders", "shortcut-orders") { openTab(TAB_ORDERS) },
+                        ProfileShortcut(Icons.Filled.People, "My sellers", "shortcut-sellers") { nav.navigate(ROUTE_SELLERS) },
+                        ProfileShortcut(Icons.Filled.Notifications, "Notifications", "shortcut-alerts") { nav.navigate(ROUTE_ALERTS) },
+                    ),
+                )
             }
             }
         }
         if (showBar) {
-            ResellerBottomBar(current = route, cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
+            ResellerBottomBar(current = selectedTab, cartCount = cartCount, orderBadge = orderBadge, onSelect = openTab)
         }
     }
 }

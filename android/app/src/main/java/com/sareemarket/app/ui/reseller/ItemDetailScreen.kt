@@ -18,9 +18,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Favorite
@@ -66,6 +71,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +90,8 @@ import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.ItemStatusPill
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
+import com.sareemarket.app.ui.components.LowStockChip
+import com.sareemarket.app.ui.components.SoldOutChip
 import com.sareemarket.app.ui.components.StatusPill
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
@@ -131,32 +140,32 @@ private fun open(context: Context, action: String, uri: String, failure: String)
         .onFailure { Toast.makeText(context, failure, Toast.LENGTH_SHORT).show() }
 }
 
-/** Call and WhatsApp as two pills. WhatsApp only shows when the seller gave a number. */
+/** Call and WhatsApp as two white pills on the seller card. WhatsApp only shows when the seller gave a number. */
 @Composable
 internal fun ContactButtons(contactPhone: String?, whatsappNumber: String?, onCall: (String) -> Unit, onWhatsApp: (String) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+        val colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.onSurface)
         if (!contactPhone.isNullOrBlank()) {
-            OutlinedButton(
+            Button(
                 onClick = { onCall(contactPhone) },
                 shape = CircleShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.then(if (whatsappNumber.isNullOrBlank()) Modifier.weight(1f) else Modifier).heightIn(min = MinTouchTarget).testTag("call"),
+                colors = colors,
+                modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("call"),
             ) {
-                Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primaryContainer)
                 Text("  Call", style = MaterialTheme.typography.labelLarge)
             }
         }
         if (!whatsappNumber.isNullOrBlank()) {
-            // The green is the brand's trade colour; the label is dark because white on this green is too faint to read.
+            // The green is the brand's trade colour, kept to the icon so the label stays dark and readable.
             Button(
                 onClick = { onWhatsApp(whatsappNumber) },
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = SareeColors.WhatsApp, contentColor = MaterialTheme.colorScheme.onSurface),
+                colors = colors,
                 modifier = Modifier.weight(1f).heightIn(min = MinTouchTarget).testTag("whatsapp"),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("  Chat on WhatsApp", style = MaterialTheme.typography.labelLarge)
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(18.dp), tint = SareeColors.WhatsApp)
+                Text("  WhatsApp", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -168,6 +177,7 @@ fun ItemDetailScreen(
     onBack: () -> Unit,
     onOpenCollection: (Long) -> Unit,
     onOpenSeller: (Long) -> Unit,
+    onOpenCart: () -> Unit = {},
     viewModel: ItemPagerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -183,6 +193,10 @@ fun ItemDetailScreen(
     LaunchedEffect(pager.currentPage, state.ids) {
         listOf(pager.currentPage - 1, pager.currentPage, pager.currentPage + 1).mapNotNull { state.ids.getOrNull(it) }.forEach(viewModel::ensure)
     }
+    // Coming back to this page (from the cart, another tab, or the background) shows the cart and stock as they are now.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh(listOf(pager.currentPage - 1, pager.currentPage, pager.currentPage + 1).mapNotNull { state.ids.getOrNull(it) })
+    }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         HorizontalPager(pager, Modifier.fillMaxSize(), key = { state.ids.getOrElse(it) { -1L } }) { page ->
             val id = state.ids[page]
@@ -192,10 +206,11 @@ fun ItemDetailScreen(
                 val mode = followState.modeOf(detail.seller.id, detail.seller.followMode)
                 ItemDetailContent(
                     detail, onBack, onOpenCollection, onOpenSeller, call, whatsapp, mode, followState.error,
-                    pageLabel = if (state.ids.size > 1) "${page + 1} / ${state.ids.size}" else null,
+                    pageIndex = page, pageCount = state.ids.size,
                     shopping = ShoppingUi(state.shoppingBusy, state.shoppingError),
                     onSetQuantity = { viewModel.setCartQuantity(id, it) },
                     onRemoveFromCart = { viewModel.removeFromCart(id) },
+                    onBuyNow = { qty -> if (detail.inCart == qty) onOpenCart() else viewModel.setCartQuantity(id, qty, onOpenCart) },
                     onToggleWishlist = { viewModel.toggleWishlist(id) },
                 ) { follow.toggle(detail.seller.id, mode) }
             } else if (load?.error != null) {
@@ -234,10 +249,12 @@ fun ItemDetailContent(
     onWhatsApp: (String) -> Unit,
     followMode: NotifyMode?,
     followError: String?,
-    pageLabel: String? = null,
+    pageIndex: Int = 0,
+    pageCount: Int = 1,
     shopping: ShoppingUi = ShoppingUi(),
     onSetQuantity: (Int) -> Unit = {},
     onRemoveFromCart: () -> Unit = {},
+    onBuyNow: (Int) -> Unit = {},
     onToggleWishlist: () -> Unit = {},
     onToggleFollow: () -> Unit,
 ) {
@@ -246,8 +263,8 @@ fun ItemDetailContent(
     var viewing by remember { mutableStateOf(false) }
     if (viewing) PhotoViewer(imageUrl(detail.id, thumb = false), detail.colour ?: detail.collectionTitle) { viewing = false }
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            // The photo runs edge to edge; back and status float over it.
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // The photo runs edge to edge; back, share and save float over it, and the details sheet rises over its foot.
             Box {
                 AsyncImage(
                     model = imageUrl(detail.id, thumb = false),
@@ -256,27 +273,22 @@ fun ItemDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .sharedPhoto(detail.id)
-                        .aspectRatio(4f / 5f)
-                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .aspectRatio(18f / 19f)
                         .background(SareeColors.SurfaceMuted)
                         .clickable(onClickLabel = "Zoom photo", role = Role.Image) { viewing = true }
                         .testTag("photo"),
                 )
-                Surface(
-                    onClick = onBack,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                    modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs).size(44.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                GlassButton(onBack, Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(Spacing.sm + Spacing.xs)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-                Surface(
-                    onClick = onToggleWishlist,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
-                    modifier = Modifier.align(Alignment.BottomStart).padding(Spacing.md).size(44.dp).testTag("wishlist"),
+                Row(
+                    Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.sm + Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    GlassButton({ share(context, ShareText.item(detail)) }, Modifier.testTag("share")) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
+                    }
+                    GlassButton(onToggleWishlist, Modifier.testTag("wishlist")) {
                         Icon(
                             if (detail.inWishlist) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             contentDescription = if (detail.inWishlist) "Remove from wishlist" else "Save to wishlist",
@@ -284,75 +296,77 @@ fun ItemDetailContent(
                         )
                     }
                 }
-                ItemStatusPill(detail.status, Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.md).testTag("status"))
-                pageLabel?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(Spacing.md)
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            .padding(horizontal = Spacing.sm + Spacing.xs, vertical = 4.dp)
-                            .testTag("page-label"),
-                    )
-                }
+                // The top edge of the details sheet: ivory with round corners, laid over the foot of the photo.
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(SheetRise)
+                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)),
+                )
+                if (pageCount > 1) PageDots(pageIndex, pageCount, Modifier.align(Alignment.BottomCenter).padding(bottom = SheetRise + Spacing.sm))
             }
-            Column(Modifier.padding(horizontal = Spacing.margin), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        formatRupees(detail.price),
-                        style = PriceHero.copy(fontSize = 30.sp, lineHeight = 36.sp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        textDecoration = if (soldOut) TextDecoration.LineThrough else null,
-                        modifier = Modifier.weight(1f).testTag("price"),
-                    )
-                    IconButton(onClick = { share(context, ShareText.item(detail)) }, modifier = Modifier.testTag("share")) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share")
-                    }
-                }
+            Column(Modifier.padding(horizontal = Spacing.margin).padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                // What it is, what it costs and whether it can be had: one block, read top to bottom.
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineSmall)
-                    detail.colour?.let { Text("Colour: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        onClick = { onOpenCollection(detail.collectionId) },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        modifier = Modifier.testTag("collection-link"),
-                    ) {
-                        Row(Modifier.padding(horizontal = Spacing.sm + Spacing.xs, vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primaryContainer)
-                            Text(detail.collectionTitle, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineMedium)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            formatRupees(detail.price),
+                            style = PriceHero.copy(fontSize = 32.sp, lineHeight = 40.sp),
+                            color = if (soldOut) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                            textDecoration = if (soldOut) TextDecoration.LineThrough else null,
+                            modifier = Modifier.testTag("price"),
+                        )
+                        // "Available" is the normal state, so only the exceptions get a chip.
+                        when {
+                            soldOut -> SoldOutChip(Modifier.testTag("status"))
+                            detail.inStock && detail.quantity <= LOW_STOCK -> LowStockChip(detail.quantity, Modifier.testTag("low-stock"))
                         }
                     }
-                    detail.createdAt?.let {
-                        Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val meta = listOfNotNull(detail.colour?.let { "Colour: $it" }, detail.createdAt?.let { "Uploaded ${timeAgo(it)}" })
+                    if (meta.isNotEmpty()) {
+                        Text(meta.joinToString("  ·  "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                detail.collectionDescription?.let {
-                    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Text("About this collection", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(it, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-                Surface(
-                    onClick = { onOpenSeller(detail.seller.id) },
-                    shape = CardShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth().testTag("seller-card"),
+                // The collection it came from: a light row on its own.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(SheetRowShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .clickable { onOpenCollection(detail.collectionId) }
+                        .heightIn(min = 56.dp)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm + Spacing.xs)
+                        .testTag("collection-link"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
                 ) {
-                    Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                        InitialAvatar(detail.seller.shopName, 48.dp)
-                        Column(Modifier.weight(1f)) {
-                            Text(detail.seller.shopName, style = MaterialTheme.typography.titleLarge)
-                            Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primaryContainer)
+                    Column(Modifier.weight(1f)) {
+                        Text(detail.collectionTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        detail.collectionDescription?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        FollowPill(followMode, onToggleFollow)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // The seller: who, a quiet Follow, and the two ways to reach them.
+                Surface(shape = SheetRowShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(Spacing.md - 2.dp), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { onOpenSeller(detail.seller.id) }.testTag("seller-card"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+                        ) {
+                            InitialAvatar(detail.seller.shopName, 48.dp)
+                            Column(Modifier.weight(1f)) {
+                                Text(detail.seller.shopName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            FollowPill(followMode, onToggleFollow)
+                        }
+                        ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
                     }
                 }
                 if (followMode == NotifyMode.MUTED) {
@@ -365,14 +379,60 @@ fun ItemDetailContent(
             }
         }
         // Always within reach: the whole point of the page is to buy it or contact the seller.
-        Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shadowElevation = 6.dp) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+            shadowElevation = 6.dp,
+        ) {
             Column(
                 Modifier.navigationBarsPadding().padding(horizontal = Spacing.margin, vertical = Spacing.sm + Spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart)
-                ContactButtons(detail.seller.contactPhone, detail.seller.whatsappNumber, onCall, onWhatsApp)
+                PurchasePanel(detail, shopping, onSetQuantity, onRemoveFromCart, onBuyNow)
             }
+        }
+    }
+}
+
+/** How far the details sheet rises over the foot of the photo. */
+private val SheetRise = 24.dp
+private val SheetRowShape = RoundedCornerShape(20.dp)
+private const val MAX_DOTS = 7
+
+/** A round, translucent button that stays readable over any photo. */
+@Composable
+private fun GlassButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f),
+        modifier = modifier.size(44.dp),
+    ) { Box(contentAlignment = Alignment.Center) { content() } }
+}
+
+/** Where you are among the photos of the collection: dots up to seven photos, a count beyond that. */
+@Composable
+private fun PageDots(index: Int, count: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .background(Color.Black.copy(alpha = 0.38f), CircleShape)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .semantics { contentDescription = "Photo ${index + 1} of $count" }
+            .testTag("page-label"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (count <= MAX_DOTS) {
+            repeat(count) { i ->
+                Box(
+                    Modifier
+                        .height(6.dp)
+                        .width(if (i == index) 18.dp else 6.dp)
+                        .background(Color.White.copy(alpha = if (i == index) 1f else 0.6f), CircleShape),
+                )
+            }
+        } else {
+            Text("${index + 1} / $count", style = MaterialTheme.typography.labelMedium, color = Color.White)
         }
     }
 }

@@ -4,6 +4,9 @@ import com.sareemarket.app.ui.components.ItemStatusPill
 import com.sareemarket.app.ui.components.sharedPhoto
 import com.sareemarket.app.ui.theme.GRID_MIN_CELL
 import androidx.compose.material3.Surface
+import com.sareemarket.app.ui.components.LowStockChip
+import com.sareemarket.app.ui.components.SoldOutChip
+import com.sareemarket.app.ui.components.ScreenHeader
 import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.typeAndFabric
@@ -52,47 +55,50 @@ fun ResellerCollectionScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit, vie
 
 @Composable
 fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, onOpenItem: (Long) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
-        modifier = Modifier.safeDrawingPadding(),
-        contentPadding = PaddingValues(horizontal = Spacing.margin, vertical = Spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md),
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                BackHeader(collection.title, onBack)
-                Text(typeAndFabric(collection.sareeType.name, collection.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(formatRupees(collection.price), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primaryContainer)
-                collection.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+    Column(Modifier.safeDrawingPadding()) {
+        ScreenHeader(collection.title, onBack = onBack)
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = GRID_MIN_CELL),
+            contentPadding = PaddingValues(start = Spacing.margin, end = Spacing.margin, top = Spacing.xs, bottom = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(typeAndFabric(collection.sareeType.name, collection.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatRupees(collection.price), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primaryContainer)
+                    collection.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                }
             }
+            items(collection.items, key = { it.id }) { Box(Modifier.animateItem()) { PhotoTile(it, onClick = { onOpenItem(it.id) }) } }
         }
-        items(collection.items, key = { it.id }) { Box(Modifier.animateItem()) { PhotoTile(it, onClick = { onOpenItem(it.id) }) } }
     }
 }
 
+/** The photo first, with a heart-free, border-free footer: the price, the colour when there is one, and a chip only for low stock or sold out. */
 @Composable
 private fun PhotoTile(item: Item, onClick: () -> Unit) {
     val soldOut = item.status == ItemStatus.SOLD_OUT
-    Surface(
-        shape = CardShape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = CardBorder,
-        modifier = Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("tile-${item.id}"),
+    Column(
+        Modifier.clickable(onClickLabel = "Open saree", role = Role.Button, onClick = onClick).testTag("tile-${item.id}"),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Box {
-                SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
-                if (item.status != ItemStatus.AVAILABLE) ItemStatusPill(item.status, Modifier.padding(Spacing.sm).align(Alignment.TopStart))
+        Box {
+            SareeImage(imageUrl(item.id, thumb = true), contentDescription = item.colour ?: "Saree photo", modifier = Modifier.fillMaxWidth().sharedPhoto(item.id).alpha(if (soldOut) 0.6f else 1f))
+            when {
+                soldOut -> SoldOutChip(Modifier.padding(Spacing.sm).align(Alignment.BottomStart))
+                // A single piece is the usual case for a saree, so "only 1 left" is kept for the saree page itself.
+                item.quantity in 2..LOW_STOCK -> LowStockChip(item.quantity, Modifier.padding(Spacing.sm).align(Alignment.BottomStart))
             }
-            Text(item.colour ?: "No colour", style = MaterialTheme.typography.titleSmall, maxLines = 1, modifier = Modifier.padding(horizontal = Spacing.xs))
+        }
+        Column(Modifier.padding(horizontal = Spacing.xs)) {
             Text(
                 formatRupees(item.effectivePrice),
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = if (soldOut) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
                 textDecoration = if (soldOut) TextDecoration.LineThrough else null,
-                modifier = Modifier.padding(horizontal = Spacing.xs).padding(bottom = Spacing.xs),
             )
+            item.colour?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
         }
     }
 }

@@ -5,6 +5,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.material3.IconButton
+import com.sareemarket.app.data.NotifyMode
+import androidx.compose.material.icons.filled.PhotoLibrary
+import com.sareemarket.app.ui.components.EmptyState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,6 +84,8 @@ fun SellerHomeScreen(
     onOpen: (Long) -> Unit,
     toConfirm: Long = 0,
     onOpenOrders: () -> Unit = {},
+    hasUpiId: Boolean = true,
+    onAddUpi: () -> Unit = {},
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,7 +94,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi)
 }
 
 @Composable
@@ -96,6 +108,8 @@ fun SellerHomeContent(
     location: String = "",
     toConfirm: Long = 0,
     onOpenOrders: () -> Unit = {},
+    hasUpiId: Boolean = true,
+    onAddUpi: () -> Unit = {},
 ) {
     // The Add tab is always on screen, so there is no floating button to cover a card; an empty shop gets a button in the page itself.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
@@ -107,7 +121,7 @@ fun SellerHomeContent(
                 .padding(padding)
                 .safeDrawingPadding(),
         ) {
-            ShopHeader(sellerName, location, state, wide)
+            ShopHeader(sellerName, location, state, wide, hasUpiId, onAddUpi)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> SkeletonCollections()
@@ -117,16 +131,15 @@ fun SellerHomeContent(
                     }
                     is SellerHomeState.Loaded ->
                         if (state.collections.isEmpty()) {
-                            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                                Text(
-                                    "No collections yet.\nUpload your first photos.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.testTag("empty"),
-                                )
-                                PrimaryButton("New collection", onClick = onNewCollection, modifier = Modifier.testTag("new-collection"))
-                            }
+                            EmptyState(
+                                Icons.Filled.PhotoLibrary,
+                                "No collections yet",
+                                "Upload your first photos.",
+                                Modifier.align(Alignment.Center).testTag("empty"),
+                                actionLabel = "New collection",
+                                actionTag = "new-collection",
+                                onAction = onNewCollection,
+                            )
                         } else {
                             PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                                 // One column on a phone; two or three on a wide screen.
@@ -139,7 +152,7 @@ fun SellerHomeContent(
                                 ) {
                                     if (toConfirm > 0) item(span = { GridItemSpan(maxLineSpan) }) {
                                         Surface(
-                                            onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg, border = CardBorder,
+                                            onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg,
                                             modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("confirm-banner"),
                                         ) {
                                             Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -153,7 +166,7 @@ fun SellerHomeContent(
                                     }
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                                            Text("Active collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
+                                            Text("Your collections (${state.collections.size})", style = MaterialTheme.typography.headlineSmall)
                                             Text("Newest first", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
@@ -169,21 +182,18 @@ fun SellerHomeContent(
     }
 }
 
-/** Shop name and place on a warm panel, with the two stock totals as tiles underneath. */
+/** Shop name and place, the UPI prompt while it is missing, then the two stock totals as tiles. */
 @Composable
-private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean) {
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean, hasUpiId: Boolean, onAddUpi: () -> Unit) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
     Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .padding(horizontal = Spacing.margin, vertical = Spacing.sm),
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.margin).padding(top = Spacing.sm),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         val identity: @Composable (Modifier) -> Unit = { modifier ->
-            Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
                 InitialAvatar(shopName, 44.dp)
                 Column(Modifier.weight(1f)) {
                     Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
@@ -195,19 +205,20 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
         }
         val totals: @Composable (Modifier) -> Unit = { modifier ->
             Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-                StatTile("Available", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
+                StatTile("In stock", available, SareeColors.AvailableText, Modifier.weight(1f).testTag("stat-available"))
                 StatTile("Sold out", soldOut, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).testTag("stat-sold-out"))
             }
         }
         if (wide) {
-            // Name on the left, totals on the right: one short band instead of two tall ones.
-            Row(Modifier.padding(bottom = Spacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 identity(Modifier.weight(1f))
                 totals(Modifier.width(360.dp))
             }
+            if (!hasUpiId) UpiBanner(onAddUpi)
         } else {
             identity(Modifier)
-            totals(Modifier.padding(bottom = Spacing.sm))
+            if (!hasUpiId) UpiBanner(onAddUpi)
+            totals(Modifier)
         }
     }
 }
@@ -223,78 +234,118 @@ private fun StatTile(label: String, value: Long, numberColor: androidx.compose.u
     }
 }
 
+/**
+ * A collection as a card. In the catalog the seller leads (who, and when), then the photos, then the title with
+ * "From" price. On a seller's own dashboard every card is the same shop, so the header is left out.
+ */
 @Composable
-internal fun CollectionCard(collection: CollectionSummary, onClick: () -> Unit) {
+internal fun CollectionCard(
+    collection: CollectionSummary,
+    onClick: () -> Unit,
+    /** Catalog only: how the customer follows this seller, and the tap that follows or unfollows. Null hides the button. */
+    followMode: NotifyMode? = null,
+    onToggleFollow: (() -> Unit)? = null,
+) {
+    val catalog = collection.shopName != null
     Surface(
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        border = CardBorder,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClickLabel = "Open collection", role = Role.Button, onClick = onClick)
             .testTag("collection-${collection.id}"),
     ) {
-        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Column(Modifier.weight(1f)) {
-                    Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        typeAndFabric(collection.sareeType, collection.fabric),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    // Only the reseller catalog fills this in; a seller's own dashboard is all one shop.
-                    collection.shopName?.let {
-                        Row(Modifier.padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                            Icon(Icons.Filled.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(18.dp))
-                            Text(it, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+        Column(Modifier.padding(vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+            collection.shopName?.let { shop ->
+                Row(Modifier.padding(horizontal = Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
+                    InitialAvatar(shop, 32.dp)
+                    Column(Modifier.weight(1f)) {
+                        Text(shop, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        collection.createdAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
+                    if (onToggleFollow != null) FollowPlus(shop, followMode != null, onToggleFollow, Modifier.testTag("follow-${collection.sellerId}"))
                 }
-                Text(formatRupees(collection.price), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primaryContainer)
             }
             PhotoStrip(collection)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    buildString {
-                        append("${collection.availableCount} available")
-                        if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                collection.createdAt?.let {
-                    Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.padding(horizontal = Spacing.md), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(collection.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(
+                        if (catalog) "From ${formatRupees(collection.price)}" else formatRupees(collection.price),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                }
+                Text(typeAndFabric(collection.sareeType, collection.fabric), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        buildString {
+                            append("${collection.availableCount} available")
+                            if (collection.soldOutCount > 0) append(" · ${collection.soldOutCount} sold out")
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!catalog) collection.createdAt?.let {
+                        Text("Uploaded ${timeAgo(it)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
     }
 }
 
-/** Up to three photos side by side; a collection with fewer photos shows what it has. */
+/** A round + to follow a seller from the card; once followed it is a quiet tick, and a tap undoes it. */
+@Composable
+private fun FollowPlus(shop: String, following: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
+    IconButton(
+        onClick = {
+            haptics.performHapticFeedback(if (following) HapticFeedbackType.ToggleOff else HapticFeedbackType.Confirm)
+            onToggle()
+        },
+        modifier = modifier.size(MinTouchTarget),
+    ) {
+        Box(
+            Modifier.size(32.dp).background(
+                if (following) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
+                CircleShape,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (following) Icons.Filled.Check else Icons.Filled.Add,
+                contentDescription = if (following) "Following $shop. Tap to unfollow" else "Follow $shop",
+                tint = if (following) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+/** The collection's photos in a row that scrolls sideways; the edge of the next one shows when there is more. */
 @Composable
 private fun PhotoStrip(collection: CollectionSummary) {
     val ids = collection.previewItemIds.ifEmpty { listOfNotNull(collection.coverItemId) }
     if (ids.isEmpty()) return
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        ids.take(3).forEach { id ->
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        ids.forEach { id ->
             AsyncImage(
                 model = imageUrl(id, thumb = true),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .weight(1f)
-                    .aspectRatioPortrait()
-                    .clip(PhotoShape)
+                    .width(128.dp)
+                    .height(164.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(SareeColors.SurfaceMuted),
             )
         }
-        // Keep the photos the same width when there are fewer than three.
-        repeat(3 - ids.take(3).size) { Box(Modifier.weight(1f)) }
     }
 }
-
-private fun Modifier.aspectRatioPortrait() = this.aspectRatio(4f / 5f)
 
 
 @Preview(showBackground = true)

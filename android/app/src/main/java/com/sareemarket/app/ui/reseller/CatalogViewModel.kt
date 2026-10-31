@@ -7,6 +7,7 @@ import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CollectionSummary
 import com.sareemarket.app.data.FollowRepository
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,8 @@ data class CatalogState(
     val sellers: List<SellerListItem> = emptyList(),
     /** How many sellers the reseller follows: the number on the Following tab. */
     val followedCount: Int = 0,
+    /** Which sellers are followed and how, so each card can show a + or a tick. */
+    val followModes: Map<Long, NotifyMode> = emptyMap(),
 ) {
     /** True when the current search found nothing to list. */
     val noResults get() = if (imageUri != null) items.isEmpty() else collections.isEmpty()
@@ -64,8 +67,8 @@ class CatalogViewModel @Inject constructor(
     /** A reseller who follows anyone lands on "New from sellers you follow"; everyone else sees all sellers. */
     private fun startOnTheRightTab() {
         viewModelScope.launch {
-            val count = follows.follows().getOrNull()?.size ?: 0
-            _state.update { it.copy(followedCount = count, query = it.query.copy(followingOnly = count > 0)) }
+            val list = follows.follows().getOrNull().orEmpty()
+            _state.update { it.copy(followedCount = list.size, followModes = list.associate { f -> f.sellerId to f.notifyMode }, query = it.query.copy(followingOnly = list.isNotEmpty())) }
             reload()
         }
     }
@@ -73,10 +76,29 @@ class CatalogViewModel @Inject constructor(
     /** Called when the catalog comes back into view, since follows may have changed on another screen. */
     fun refreshFollowCount() {
         viewModelScope.launch {
-            val count = follows.follows().getOrNull()?.size ?: return@launch
-            if (count == _state.value.followedCount) return@launch
-            _state.update { it.copy(followedCount = count) }
-            if (count == 0 && _state.value.query.followingOnly) setFollowingOnly(false)
+            val list = follows.follows().getOrNull() ?: return@launch
+            _state.update { it.copy(followedCount = list.size, followModes = list.associate { f -> f.sellerId to f.notifyMode }) }
+            if (list.isEmpty() && _state.value.query.followingOnly) setFollowingOnly(false)
+        }
+    }
+
+    /**
+     * The + on a card: follows the seller, or unfollows one already followed. The card flips at once and goes back
+     * if the server refuses. The list itself is not reloaded, so a card does not vanish from under a thumb.
+     */
+    fun toggleFollow(sellerId: Long) {
+        val before = _state.value
+        val was = before.followModes[sellerId]
+        val after = if (was == null) before.followModes + (sellerId to NotifyMode.INSTANT) else before.followModes - sellerId
+        _state.update { it.copy(followModes = after, followedCount = after.size) }
+        viewModelScope.launch {
+            val result = if (was == null) follows.follow(sellerId, NotifyMode.INSTANT) else follows.unfollow(sellerId)
+            if (result.isFailure) {
+                _state.update { s ->
+                    val back = if (was == null) s.followModes - sellerId else s.followModes + (sellerId to was)
+                    s.copy(followModes = back, followedCount = back.size)
+                }
+            }
         }
     }
 

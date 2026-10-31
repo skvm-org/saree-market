@@ -12,6 +12,16 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import com.sareemarket.app.data.CatalogQuery
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.components.EmptyState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -79,6 +89,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -110,6 +121,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sareemarket.app.data.CatalogItem
 import com.sareemarket.app.data.CatalogSort
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.SareeImage
@@ -179,6 +191,8 @@ fun CatalogScreen(
         onClearPhoto = viewModel::clearImage,
         onRefresh = viewModel::refresh,
         onQueryChange = viewModel::apply,
+        followModes = state.followModes,
+        onToggleFollow = viewModel::toggleFollow,
         alertsUnread = alertsUnread,
         onOpenSellers = onOpenSellers,
         onOpenAlerts = onOpenAlerts,
@@ -200,7 +214,8 @@ fun CatalogScreen(
         )
     }
     if (showFilters) {
-        ModalBottomSheet(onDismissRequest = { showFilters = false }, containerColor = MaterialTheme.colorScheme.surface) {
+        // Open all the way, so the Show results button at the foot is on screen from the start.
+        ModalBottomSheet(onDismissRequest = { showFilters = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surface) {
             FilterSheetContent(
                 query = state.query,
                 reference = state.reference,
@@ -228,6 +243,8 @@ fun CatalogContent(
     onRefresh: () -> Unit = {},
     onQueryChange: (CatalogQuery) -> Unit = {},
     onOpenCollection: (Long) -> Unit = {},
+    followModes: Map<Long, NotifyMode> = emptyMap(),
+    onToggleFollow: (Long) -> Unit = {},
     alertsUnread: Long = 0,
     onOpenSellers: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
@@ -237,7 +254,6 @@ fun CatalogContent(
             // On a wide screen (landscape, tablet) the controls move to a side panel, so the sarees get the height.
             val wide = maxWidth >= WIDE_LAYOUT
             val controls: @Composable ColumnScope.() -> Unit = {
-                CatalogHeader(alertsUnread, onOpenSellers, onOpenAlerts)
                 SearchField(searchText, onSearchText, onPhotoSearch)
                 FilterChips(state, onFollowingTab, onOpenFilters, onSort)
                 ActiveFilterRow(state, onQueryChange)
@@ -250,44 +266,46 @@ fun CatalogContent(
                 Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                 PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
             }
-            state.noResults -> Column(Modifier.align(Alignment.Center).testTag("empty"), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
+            state.noResults -> {
+                val hasFilters = state.query.activeFilterCount > 0
+                val offerAll = state.query.followingOnly && state.imageUri == null && !hasFilters
+                EmptyState(
+                    Icons.Filled.Search,
                     when {
-                        state.imageUri != null -> "No similar sarees found.\nTry a clearer photo, or fewer filters."
+                        state.imageUri != null -> "No similar sarees found."
                         state.query.followingOnly -> "Nothing new from sellers you follow."
                         else -> "No sarees match."
                     },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                    if (state.imageUri != null) "Try a clearer photo, or fewer filters." else null,
+                    Modifier.align(Alignment.Center).testTag("empty"),
+                    actionLabel = when {
+                        hasFilters -> "Clear filters"
+                        offerAll -> "Show all sellers"
+                        else -> null
+                    },
+                    actionTag = if (offerAll) "show-all" else "clear-filters",
+                    onAction = if (hasFilters) onClearFilters else ({ onFollowingTab(false) }),
                 )
-                if (state.query.followingOnly && state.imageUri == null && state.query.activeFilterCount == 0) {
-                    TextButton(onClick = { onFollowingTab(false) }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("show-all")) {
-                        Text("Show all sellers")
-                    }
-                }
-                if (state.query.activeFilterCount > 0) {
-                    TextButton(onClick = onClearFilters, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Clear filters") }
-                }
             }
             else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenCollection, onLoadMore, onRetry)
+                if (state.imageUri != null) MatchList(state, onOpenItem, onLoadMore) else ResultsGrid(state, onOpenCollection, onLoadMore, onRetry, followModes, onToggleFollow)
             }
         }
             }
-            if (wide) {
-                Row(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
-                    Column(Modifier.width(CONTROLS_PANEL).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = Spacing.md)) {
-                        Spacer(Modifier.height(Spacing.sm))
-                        controls()
+            Column(Modifier.fillMaxSize()) {
+                CatalogHeader(alertsUnread, onOpenSellers, onOpenAlerts)
+                if (wide) {
+                    Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.margin)) {
+                        Column(Modifier.width(CONTROLS_PANEL).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = Spacing.md)) {
+                            controls()
+                        }
+                        Box(Modifier.weight(1f).fillMaxHeight().padding(top = Spacing.sm)) { results() }
                     }
-                    Box(Modifier.weight(1f).fillMaxHeight().padding(top = Spacing.sm)) { results() }
-                }
-            } else {
-                Column(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
-                    Spacer(Modifier.height(Spacing.sm))
-                    controls()
-                    Box(Modifier.weight(1f).fillMaxWidth()) { results() }
+                } else {
+                    Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.margin)) {
+                        controls()
+                        Box(Modifier.weight(1f).fillMaxWidth()) { results() }
+                    }
                 }
             }
         }
@@ -298,106 +316,126 @@ fun CatalogContent(
 private val WIDE_LAYOUT = 600.dp
 private val CONTROLS_PANEL = 320.dp
 
-/** The one search bar, with the camera at the end, so the sarees start high on the screen. */
 /** The page title, with the two places that used to be tabs: the sellers the customer follows, and the bell. */
 @Composable
 internal fun CatalogHeader(alertsUnread: Long, onOpenSellers: () -> Unit, onOpenAlerts: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("Saree Market", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).testTag("catalog-title"))
+    ScreenHeader("Saree Market", titleTag = "catalog-title") {
         IconButton(onClick = onOpenSellers, modifier = Modifier.size(MinTouchTarget).testTag("open-sellers")) {
-            Icon(Icons.Filled.Person, contentDescription = "My sellers")
+            Icon(Icons.Outlined.People, contentDescription = "My sellers")
         }
         IconButton(onClick = onOpenAlerts, modifier = Modifier.size(MinTouchTarget).testTag("open-alerts")) {
             BadgedBox(badge = {
                 if (alertsUnread > 0) Badge(Modifier.testTag("badge")) { Text(if (alertsUnread > 99) "99+" else alertsUnread.toString()) }
-            }) { Icon(Icons.Filled.Notifications, contentDescription = "Alerts") }
+            }) { Icon(Icons.Outlined.Notifications, contentDescription = "Alerts") }
         }
     }
 }
 
+/** The one search bar: a tonal pill with the camera at the end; it turns white with a crimson edge while typing. */
 @Composable
 private fun SearchField(text: String, onText: (String) -> Unit, onPhotoSearch: () -> Unit) {
-    OutlinedTextField(
+    var focused by remember { mutableStateOf(false) }
+    BasicTextField(
         value = text,
         onValueChange = onText,
-        placeholder = { Text("Search sarees, colours, fabrics", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-        trailingIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primaryContainer),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = {}),
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.testTag("search"),
+        decorationBox = { field ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .background(if (focused) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerLow, CircleShape)
+                    .then(if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape) else Modifier)
+                    .padding(start = Spacing.md + 2.dp, end = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
+            ) {
+                Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Box(Modifier.weight(1f)) {
+                    if (text.isEmpty()) Text("Search sarees, colours, fabrics", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    field()
+                }
                 if (text.isNotEmpty()) {
                     IconButton(onClick = { onText("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
                 }
-                IconButton(onClick = onPhotoSearch, modifier = Modifier.testTag("photo-search")) {
-                    Icon(Icons.Filled.PhotoCamera, contentDescription = "Search by photo", tint = MaterialTheme.colorScheme.primaryContainer)
+                Box(Modifier.size(MinTouchTarget).clickable(onClickLabel = "Search by photo", role = Role.Button, onClick = onPhotoSearch).testTag("photo-search"), Alignment.Center) {
+                    Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.10f), CircleShape), Alignment.Center) {
+                        Icon(Icons.Filled.PhotoCamera, contentDescription = "Search by photo", tint = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         },
-        singleLine = true,
-        shape = FieldShape,
-        colors = sareeFieldColors(),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {}),
-        modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("search"),
     )
 }
 
 /**
- * Following / All sellers as one warm switch, then a scrolling row with Filters and the sort order, then what is
- * being shown and how many. The chips are neutral; only the chosen tab and active filters take the brand colour.
+ * Following / All sellers as two text tabs with a crimson mark under the chosen one, then one row: Filters and the sort
+ * order on the left, how many are shown on the right. The chips are neutral; only active filters take the brand colour.
  */
 @Composable
 private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onOpenFilters: () -> Unit, onSort: (CatalogSort) -> Unit) {
     var sortOpen by remember { mutableStateOf(false) }
     val count = state.query.activeFilterCount
-    PillSegmented(
-        options = listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})"),
-        selected = state.query.followingOnly,
-        onSelect = onFollowing,
-        tagFor = { if (it) "tab-following" else "tab-all" },
-        modifier = Modifier.fillMaxWidth().padding(top = Spacing.sm),
-    )
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = Spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PillChip(if (count > 0) "Filters ($count)" else "Filters", count > 0, "filters", onClick = onOpenFilters)
-        // A photo search lists the closest match first, so there is no sort order to choose.
-        if (state.imageUri == null) {
-            Box {
-                PillChip(state.query.sort.label, false, "sort") { sortOpen = true }
-                DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
-                    CatalogSort.entries.forEach { sort ->
-                        DropdownMenuItem(
-                            text = { Text(sort.label) },
-                            onClick = { sortOpen = false; onSort(sort) },
-                            modifier = Modifier.heightIn(min = MinTouchTarget),
-                        )
+    Row(Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
+        listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})").forEach { (following, label) ->
+            val on = following == state.query.followingOnly
+            Column(
+                Modifier
+                    .heightIn(min = MinTouchTarget)
+                    .clickable(role = Role.Tab, onClick = { onFollowing(following) })
+                    .padding(horizontal = Spacing.md)
+                    .testTag(if (following) "tab-following" else "tab-all"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (on) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box(Modifier.padding(top = 4.dp).height(3.dp).width(if (on) 28.dp else 0.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape))
+            }
+        }
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            PillChip(if (count > 0) "Filters ($count)" else "Filters", count > 0, "filters", icon = Icons.Filled.Tune, onClick = onOpenFilters)
+            // A photo search lists the closest match first, so there is no sort order to choose.
+            if (state.imageUri == null) {
+                Box {
+                    PillChip(state.query.sort.label, false, "sort", icon = Icons.AutoMirrored.Filled.Sort) { sortOpen = true }
+                    DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                        CatalogSort.entries.forEach { sort ->
+                            DropdownMenuItem(
+                                text = { Text(sort.label) },
+                                onClick = { sortOpen = false; onSort(sort) },
+                                modifier = Modifier.heightIn(min = MinTouchTarget),
+                            )
+                        }
                     }
                 }
             }
         }
-    }
-    if (state.imageUri == null && !state.loading && state.collections.isNotEmpty()) {
-        Row(Modifier.fillMaxWidth().padding(bottom = Spacing.sm), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-            Text(
-                if (state.query.followingOnly) "New from sellers you follow" else "All collections",
-                style = MaterialTheme.typography.headlineSmall,
-            )
+        if (state.imageUri == null && !state.loading && state.collections.isNotEmpty()) {
             Text(
                 "${state.collections.size} of ${state.totalItems} collections",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("count"),
+                modifier = Modifier.padding(start = Spacing.sm).testTag("count"),
+            )
+        } else if (state.imageUri != null && !state.loading && state.items.isNotEmpty()) {
+            Text(
+                "${state.items.size} of ${state.totalItems} sarees",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = Spacing.sm).testTag("count"),
             )
         }
-    } else if (state.imageUri != null && !state.loading && state.items.isNotEmpty()) {
-        Text(
-            "${state.items.size} of ${state.totalItems} sarees",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = Spacing.sm).testTag("count"),
-        )
     }
 }
 
@@ -482,7 +520,7 @@ private fun PhotoSourceButton(label: String, icon: androidx.compose.ui.graphics.
 }
 
 @Composable
-private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit) {
+private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, onLoadMore: () -> Unit, onRetry: () -> Unit, followModes: Map<Long, NotifyMode>, onToggleFollow: (Long) -> Unit) {
     val grid = rememberLazyGridState()
     LaunchedEffect(grid, state.collections.size) {
         snapshotFlow { grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index }.collect { last ->
@@ -497,7 +535,14 @@ private fun ResultsGrid(state: CatalogState, onOpenCollection: (Long) -> Unit, o
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
         modifier = Modifier.fillMaxSize().testTag("results"),
     ) {
-        items(state.collections, key = { it.id }) { Box(Modifier.animateItem()) { CollectionCard(it, onClick = { onOpenCollection(it.id) }) } }
+        items(state.collections, key = { it.id }) { Box(Modifier.animateItem()) {
+            CollectionCard(
+                it,
+                onClick = { onOpenCollection(it.id) },
+                followMode = it.sellerId?.let(followModes::get),
+                onToggleFollow = it.sellerId?.let { id -> { onToggleFollow(id) } },
+            )
+        } }
         if (state.loadingMore) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() }

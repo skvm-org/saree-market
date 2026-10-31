@@ -5,6 +5,7 @@ import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CatalogSort
 import com.sareemarket.app.data.FakeFollowsApi
 import com.sareemarket.app.data.FollowRepository
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.followItem
 import com.sareemarket.app.data.FakeCatalogApi
 import com.sareemarket.app.data.FakeCollectionsApi
@@ -291,6 +292,41 @@ class CatalogViewModelTest {
         assertEquals(2, vm.state.value.followedCount)
         assertEquals(true, api.calls.first().following)
         assertEquals(1, api.calls.size) // one search, not one for "all" and then another for "following"
+    }
+
+    @Test
+    fun thePlusOnACardFollowsTheSellerAndCountsThemAtOnce() {
+        assertEquals(0, vm.state.value.followedCount)
+
+        vm.toggleFollow(7)
+
+        assertEquals(NotifyMode.INSTANT, vm.state.value.followModes[7])
+        assertEquals(1, vm.state.value.followedCount)
+        assertEquals(listOf("follow 7 INSTANT"), followsApi.calls)
+    }
+
+    @Test
+    fun tappingAFollowedSellerAgainUnfollowsWithoutReloadingTheList() {
+        followsApi.list = { listOf(followItem(7)) }
+        assertEquals(1, vm.state.value.followedCount)
+        val searches = api.calls.size
+
+        vm.toggleFollow(7)
+
+        assertNull(vm.state.value.followModes[7])
+        assertEquals(0, vm.state.value.followedCount)
+        assertEquals(listOf("unfollow 7"), followsApi.calls)
+        assertEquals(searches, api.calls.size) // the card stays where it is
+    }
+
+    @Test
+    fun aRefusedFollowGoesBackToWhatItWas() {
+        followsApi.onFollow = { _, _ -> throw networkError() }
+
+        vm.toggleFollow(7)
+
+        assertNull(vm.state.value.followModes[7])
+        assertEquals(0, vm.state.value.followedCount)
     }
 
     @Test

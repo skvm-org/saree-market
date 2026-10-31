@@ -36,7 +36,7 @@ class FilterSheetTest {
     }
 
     private fun apply(): CatalogQuery {
-        compose.onNodeWithTag("apply").performScrollTo().performClick()
+        compose.onNodeWithTag("apply").performClick()
         return applied!!
     }
 
