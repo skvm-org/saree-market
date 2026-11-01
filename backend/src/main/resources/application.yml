@@ -15,8 +15,17 @@ spring:
 
 app:
   storage:
-    # Local disk for now (ImageStorage); repo-root data/uploads when run from backend/.
+    # "local" keeps photos on disk (root below, repo-root data/uploads when run from backend/); "s3" uses the bucket.
+    type: local
     root: ../data/uploads
+    s3:
+      bucket: ""
+      prefix: saree-collections/
+      # Payment proofs live here, outside prefix, so the photo folder could be opened up without exposing them.
+      proofs-prefix: payment-proofs/
+      region: us-east-1
+      # While true, a photo not found in S3 is read from root, so earlier uploads keep working until they are copied over.
+      fallback-to-local: true
   jwt:
     secret: ${JWT_SECRET}
     expiry: 24h

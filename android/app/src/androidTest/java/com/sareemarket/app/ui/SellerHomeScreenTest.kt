@@ -21,7 +21,7 @@ class SellerHomeScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val diwali = CollectionSummary(7, "Diwali soft silks", "Soft silk", "Pure silk", 125000, 18, 15, 3, 1)
+    private val diwali = CollectionSummary(7, "Diwali soft silks", 125000, 18, 15, 3, 1)
 
     private fun show(
         state: SellerHomeState,
@@ -72,7 +72,6 @@ class SellerHomeScreenTest {
         show(SellerHomeState.Loaded(listOf(diwali)))
 
         compose.onNodeWithText("Diwali soft silks").assertExists()
-        compose.onNodeWithText("Soft silk · Pure silk").assertExists()
         compose.onNodeWithText("₹1,25,000").assertExists()
         compose.onNodeWithText("15 available · 3 sold out").assertExists()
     }

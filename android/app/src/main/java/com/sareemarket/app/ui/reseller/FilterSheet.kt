@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
@@ -48,7 +47,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.PriceBand
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import com.sareemarket.app.ui.auth.digitsOnly
 import com.sareemarket.app.ui.components.PrimaryButton
@@ -66,10 +64,12 @@ private const val MAX_PRICE_DIGITS = 9
 /** The filters from the brief. Edits stay in a draft and only apply when the reseller taps "Show results". */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: List<SellerListItem>, onApply: (CatalogQuery) -> Unit) {
+fun FilterSheetContent(query: CatalogQuery, sellers: List<SellerListItem>, onApply: (CatalogQuery) -> Unit) {
     var draft by remember { mutableStateOf(query) }
+    // The button stays at the bottom while the filters scroll above it.
+    Column(Modifier.imePadding().navigationBarsPadding()) {
     Column(
-        Modifier.imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg),
+        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -92,20 +92,6 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
             ) { Text("Reset", style = MaterialTheme.typography.labelLarge) }
         }
 
-        Section("Saree type") {
-            reference?.sareeTypes.orEmpty().forEach { type ->
-                Chip(type.name, type.id in draft.typeIds, "type-${type.id}") {
-                    draft = draft.copy(typeIds = draft.typeIds.toggle(type.id))
-                }
-            }
-        }
-        Section("Fabric") {
-            reference?.fabrics.orEmpty().forEach { fabric ->
-                Chip(fabric.name, fabric.id in draft.fabricIds, "fabric-${fabric.id}") {
-                    draft = draft.copy(fabricIds = draft.fabricIds.toggle(fabric.id))
-                }
-            }
-        }
         Section("Price") {
             PriceBand.entries.forEach { band ->
                 val selected = draft.minPrice == band.min && draft.maxPrice == band.max
@@ -132,21 +118,27 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
             }
         }
         Row(
-            Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape).padding(start = Spacing.md),
+            Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).background(MaterialTheme.colorScheme.surfaceContainerLow, CircleShape).padding(start = Spacing.md, end = Spacing.sm + Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Include sold out", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            Checkbox(
+            Switch(
                 checked = draft.includeSoldOut,
                 onCheckedChange = { draft = draft.copy(includeSoldOut = it) },
+                colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primaryContainer),
                 modifier = Modifier.testTag("include-sold-out"),
             )
         }
-        PrimaryButton("Show results", onClick = { onApply(draft) }, trailingIcon = Icons.AutoMirrored.Filled.ArrowForward, modifier = Modifier.testTag("apply"))
+    }
+    PrimaryButton(
+        "Show results",
+        onClick = { onApply(draft) },
+        trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+        modifier = Modifier.padding(horizontal = Spacing.margin).padding(top = Spacing.sm, bottom = Spacing.md).testTag("apply"),
+    )
     }
 }
 
-private fun Set<Long>.toggle(id: Long) = if (id in this) this - id else this + id
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -175,10 +167,7 @@ private fun Chip(label: String, selected: Boolean, tag: String, onClick: () -> U
             selectedLabelColor = MaterialTheme.colorScheme.primaryContainer,
             selectedLeadingIconColor = MaterialTheme.colorScheme.primaryContainer,
         ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true, selected = selected, borderColor = SareeColors.Hairline,
-            selectedBorderColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-        ),
+        border = null,
         modifier = Modifier.heightIn(min = MinTouchTarget).testTag(tag),
     )
 }

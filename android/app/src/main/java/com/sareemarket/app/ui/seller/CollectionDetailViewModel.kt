@@ -9,7 +9,6 @@ import com.sareemarket.app.data.CollectionRepository
 import com.sareemarket.app.data.Item
 import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.MAX_PHOTOS
-import com.sareemarket.app.data.ReferenceData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +24,6 @@ data class BulkUndo(val message: String, val previous: Map<Long, ItemStatus>)
 
 data class DetailState(
     val detail: CollectionDetail? = null,
-    val reference: ReferenceData? = null,
     val loading: Boolean = true,
     /** A failure to show on screen (load failed, or a save or upload failed). */
     val error: String? = null,
@@ -68,7 +66,6 @@ class CollectionDetailViewModel @Inject constructor(
 
     fun load() {
         viewModelScope.launch {
-            repository.referenceData().onSuccess { ref -> _state.update { it.copy(reference = ref) } }
             repository.collection(id).fold(
                 onSuccess = { d -> _state.update { it.copy(detail = d, loading = false, error = null) } },
                 onFailure = { e -> _state.update { it.copy(loading = false, error = e.message) } },

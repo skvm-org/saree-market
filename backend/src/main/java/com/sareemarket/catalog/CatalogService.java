@@ -41,8 +41,6 @@ public class CatalogService {
 	private static final String FROM = """
 			FROM item i
 			JOIN collection c ON c.id = i.collection_id
-			JOIN saree_type t ON t.id = c.saree_type_id
-			JOIN fabric f ON f.id = c.fabric_id
 			JOIN seller_profile sp ON sp.user_id = c.seller_id
 			JOIN app_user u ON u.id = c.seller_id
 			""";
@@ -51,7 +49,7 @@ public class CatalogService {
 	static final int MAX_DISTANCE = 12;
 
 	private static final String CARD_COLUMNS = """
-			SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
+			SELECT i.id, i.collection_id, c.title, i.colour,
 			       COALESCE(i.price_override, c.price) AS price, i.status, i.quantity, c.seller_id, sp.shop_name,
 			       i.created_at
 			""";
@@ -70,7 +68,7 @@ public class CatalogService {
 
 	private static RowMapper<CatalogItemDto> card(boolean withDistance) {
 		return (rs, n) -> new CatalogItemDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
-				rs.getString("saree_type"), rs.getString("fabric"), rs.getString("colour"), rs.getInt("price"),
+				rs.getString("colour"), rs.getInt("price"),
 				ItemStatus.valueOf(rs.getString("status")), rs.getLong("seller_id"), rs.getString("shop_name"),
 				instant(rs, "created_at"), withDistance ? rs.getInt("distance") : null, rs.getInt("quantity"),
 				inStock(rs));
@@ -109,20 +107,18 @@ public class CatalogService {
 
 		params.addValue("limit", PAGE_SIZE).addValue("offset", (long) filter.page() * PAGE_SIZE);
 		List<CatalogCollectionDto> cards = jdbc.query("""
-				SELECT cc.id, cc.title, tt.name AS saree_type, ff.name AS fabric, cc.price, cc.created_at,
+				SELECT cc.id, cc.title, cc.price, cc.created_at,
 				       cc.seller_id, sp.shop_name,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'SOLD_OUT') AS sold_out,
 				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
 				FROM collection cc
-				JOIN saree_type tt ON tt.id = cc.saree_type_id
-				JOIN fabric ff ON ff.id = cc.fabric_id
 				JOIN seller_profile sp ON sp.user_id = cc.seller_id
 				""" + matching + " ORDER BY " + filter.sort().collectionOrderBy()
 				+ ", cc.id DESC LIMIT :limit OFFSET :offset", params, (rs, n) -> {
-					return new CatalogCollectionDto(rs.getLong("id"), rs.getString("title"), rs.getString("saree_type"),
-							rs.getString("fabric"), rs.getInt("price"), instant(rs, "created_at"),
+					return new CatalogCollectionDto(rs.getLong("id"), rs.getString("title"),
+							rs.getInt("price"), instant(rs, "created_at"),
 							rs.getLong("item_count"), rs.getLong("available"), rs.getLong("sold_out"),
 							rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
 							rs.getString("shop_name"));
@@ -140,7 +136,7 @@ public class CatalogService {
 			previews.computeIfAbsent(((Number) row[0]).longValue(), k -> new ArrayList<>()).add(((Number) row[1]).longValue());
 		}
 		return cards.stream()
-			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.sareeType(), c.fabric(), c.price(), c.createdAt(),
+			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.price(), c.createdAt(),
 					c.itemCount(), c.availableCount(), c.soldOutCount(), c.coverItemId(),
 					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName()))
 			.toList();
@@ -181,14 +177,6 @@ public class CatalogService {
 		if (keywords != null) {
 			conditions.add("i.search_vector @@ to_tsquery('simple', :keywords)");
 			params.addValue("keywords", keywords);
-		}
-		if (f.typeIds() != null && !f.typeIds().isEmpty()) {
-			conditions.add("c.saree_type_id IN (:typeIds)");
-			params.addValue("typeIds", f.typeIds());
-		}
-		if (f.fabricIds() != null && !f.fabricIds().isEmpty()) {
-			conditions.add("c.fabric_id IN (:fabricIds)");
-			params.addValue("fabricIds", f.fabricIds());
 		}
 		if (f.colour() != null && !f.colour().isBlank()) {
 			conditions.add("i.colour ILIKE :colour");
@@ -242,7 +230,7 @@ public class CatalogService {
 		boolean seller = "SELLER".equals(role);
 		MapSqlParameterSource byId = new MapSqlParameterSource("id", itemId);
 		List<ItemDetailDto> found = jdbc.query("""
-				SELECT i.id, i.collection_id, c.title, c.description, t.name AS saree_type, f.name AS fabric,
+				SELECT i.id, i.collection_id, c.title, c.description,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
 				       i.quantity, i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
 				       sp.whatsapp_number, u.enabled
@@ -258,7 +246,7 @@ public class CatalogService {
 			boolean contact = !seller;
 			Integer override = rs.getObject("price_override", Integer.class);
 			return new ItemDetailDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
-					rs.getString("description"), rs.getString("saree_type"), rs.getString("fabric"),
+					rs.getString("description"),
 					rs.getString("colour"), override, rs.getInt("price"), ItemStatus.valueOf(rs.getString("status")),
 					rs.getInt("quantity"), inStock(rs), instant(rs, "created_at"),
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),

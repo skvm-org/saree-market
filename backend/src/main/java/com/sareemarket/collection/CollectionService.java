@@ -23,18 +23,11 @@ import com.sareemarket.item.ItemStatus;
 import com.sareemarket.item.ProcessedImage;
 import com.sareemarket.notification.event.CollectionPublished;
 import com.sareemarket.notification.event.ItemsAdded;
-import com.sareemarket.reference.FabricRepository;
-import com.sareemarket.reference.RefDto;
-import com.sareemarket.reference.SareeTypeRepository;
 
 @Service
 public class CollectionService {
 
 	private final SareeCollectionRepository collections;
-
-	private final SareeTypeRepository types;
-
-	private final FabricRepository fabrics;
 
 	private final ItemService items;
 
@@ -42,22 +35,19 @@ public class CollectionService {
 
 	private final ApplicationEventPublisher events;
 
-	CollectionService(SareeCollectionRepository collections, SareeTypeRepository types, FabricRepository fabrics,
+	CollectionService(SareeCollectionRepository collections,
 			ItemService items, TransactionTemplate tx, ApplicationEventPublisher events) {
 		this.events = events;
 		this.collections = collections;
-		this.types = types;
-		this.fabrics = fabrics;
 		this.items = items;
 		this.tx = tx;
 	}
 
 	public CollectionDetailDto create(long sellerId, CreateCollectionForm form) {
-		checkReferences(form.sareeTypeId(), form.fabricId());
 		List<ProcessedImage> images = items.process(form.files());
 		int quantity = form.quantity() == null ? 1 : form.quantity();
 		Long id = saveWithPhotos(sellerId, images, quantity, () -> collections.save(new SareeCollection(sellerId,
-				form.title().strip(), form.sareeTypeId(), form.fabricId(), form.price(), blankToNull(form.description()))),
+				form.title().strip(), form.price(), blankToNull(form.description()))),
 				collectionId -> new CollectionPublished(sellerId, collectionId, images.size()));
 		return detail(id);
 	}
@@ -93,9 +83,7 @@ public class CollectionService {
 
 	public CollectionDetailDto update(long sellerId, long id, UpdateCollectionRequest request) {
 		SareeCollection collection = owned(id, sellerId);
-		checkReferences(request.sareeTypeId(), request.fabricId());
-		collection.update(request.title().strip(), request.sareeTypeId(), request.fabricId(), request.price(),
-				blankToNull(request.description()));
+		collection.update(request.title().strip(), request.price(), blankToNull(request.description()));
 		return detail(collections.save(collection));
 	}
 
@@ -134,28 +122,13 @@ public class CollectionService {
 		}
 	}
 
-	private void checkReferences(Long typeId, Long fabricId) {
-		Map<String, String> errors = new LinkedHashMap<>();
-		if (types.findById(typeId).filter(t -> t.isActive()).isEmpty()) {
-			errors.put("sareeTypeId", "Unknown saree type");
-		}
-		if (fabrics.findById(fabricId).filter(f -> f.isActive()).isEmpty()) {
-			errors.put("fabricId", "Unknown fabric");
-		}
-		if (!errors.isEmpty()) {
-			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid", errors);
-		}
-	}
-
 	private CollectionDetailDto detail(Long id) {
 		return detail(find(id));
 	}
 
 	private CollectionDetailDto detail(SareeCollection c) {
-		RefDto type = types.findById(c.getSareeTypeId()).map(t -> new RefDto(t.getId(), t.getName())).orElseThrow();
-		RefDto fabric = fabrics.findById(c.getFabricId()).map(f -> new RefDto(f.getId(), f.getName())).orElseThrow();
 		List<ItemDto> photos = items.dtosFor(c.getId(), c.getPrice());
-		return new CollectionDetailDto(c.getId(), c.getSellerId(), c.getTitle(), type, fabric, c.getPrice(),
+		return new CollectionDetailDto(c.getId(), c.getSellerId(), c.getTitle(), c.getPrice(),
 				c.getDescription(), c.getCreatedAt(), c.getUpdatedAt(), photos);
 	}
 

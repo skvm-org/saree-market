@@ -53,11 +53,15 @@ import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.Icons
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.components.EmptyState
 
 private const val LOAD_MORE_AHEAD = 4
 
 @Composable
-fun NotificationsScreen(onOpenCollection: (Long) -> Unit, viewModel: NotificationsViewModel = hiltViewModel()) {
+fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onBack: (() -> Unit)? = null, viewModel: NotificationsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
@@ -69,47 +73,48 @@ fun NotificationsScreen(onOpenCollection: (Long) -> Unit, viewModel: Notificatio
         onMarkAllRead = viewModel::markAllRead,
         onLoadMore = viewModel::loadMore,
         onRefresh = viewModel::pullRefresh,
+        onBack = onBack,
     )
 }
 
 @Composable
-fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit, onRefresh: () -> Unit = {}) {
+fun NotificationsContent(state: NotificationsState, onOpen: (AppNotification) -> Unit, onMarkAllRead: () -> Unit, onLoadMore: () -> Unit, onRefresh: () -> Unit = {}, onBack: (() -> Unit)? = null) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Notifications", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = Spacing.sm))
-                val unread = state.items.count { !it.read }
-                if (unread > 0) {
-                    Box(
-                        Modifier.padding(start = Spacing.sm).size(24.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape).testTag("unread-count"),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(unread.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary) }
-                }
-                Spacer(Modifier.weight(1f))
-                if (state.hasUnread) {
-                    TextButton(onClick = onMarkAllRead, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all-read")) {
-                        Text("Mark all read", style = MaterialTheme.typography.labelLarge)
-                    }
+        Column(Modifier.safeDrawingPadding()) {
+          ScreenHeader("Notifications", onBack = onBack) {
+            val unread = state.items.count { !it.read }
+            if (unread > 0) {
+                Box(
+                    Modifier.padding(end = Spacing.xs).size(24.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape).testTag("unread-count"),
+                    contentAlignment = Alignment.Center,
+                ) { Text(unread.toString(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary) }
+            }
+            if (state.hasUnread) {
+                TextButton(onClick = onMarkAllRead, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("mark-all-read")) {
+                    Text("Mark all read", style = MaterialTheme.typography.labelLarge)
                 }
             }
+          }
+          Column(Modifier.weight(1f).padding(horizontal = Spacing.margin)) {
             if (state.error != null) {
                 Text(state.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("error"))
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.loading -> SkeletonRows()
-                    state.items.isEmpty() -> Text(
-                        "No notifications yet.\nFollow sellers to hear when they add new sarees.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).testTag("empty"),
+                    state.items.isEmpty() -> EmptyState(
+                        Icons.Filled.Notifications,
+                        "No notifications yet.",
+                        "Follow sellers to hear when they add new sarees.",
+                        Modifier.align(Alignment.Center),
+                        titleTag = "empty",
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         NotificationList(state, onOpen, onLoadMore)
                     }
                 }
             }
+          }
         }
     }
 }
@@ -151,7 +156,7 @@ private fun NotificationRow(notification: AppNotification, onOpen: (AppNotificat
     Surface(
         onClick = { onOpen(notification) },
         shape = CardShape,
-        color = if (unread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("note-${notification.id}"),
     ) {
         Row(Modifier.padding(Spacing.sm + Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {

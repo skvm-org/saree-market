@@ -10,7 +10,7 @@ import com.sareemarket.app.data.ItemStatus
 object ShareText {
 
     fun item(detail: ItemDetail): String = buildString {
-        append(detail.collectionTitle).append(" · ").appendLine(typeAndFabric(detail.sareeType, detail.fabric))
+        appendLine(detail.collectionTitle)
         detail.colour?.let { append(it).append(" · ") }
         append(formatRupees(detail.price))
         if (detail.status == ItemStatus.SOLD_OUT) append(" (sold out)")
@@ -18,8 +18,8 @@ object ShareText {
         append(detail.seller.shopName).append(", ").append(detail.seller.marketLocation)
     }
 
-    fun collection(title: String, type: String, fabric: String, price: Int, available: Int): String = buildString {
-        appendLine("$title · ${typeAndFabric(type, fabric)}")
+    fun collection(title: String, price: Int, available: Int): String = buildString {
+        appendLine(title)
         append(formatRupees(price))
         append(" · ").append(if (available == 1) "1 saree available" else "$available sarees available")
     }

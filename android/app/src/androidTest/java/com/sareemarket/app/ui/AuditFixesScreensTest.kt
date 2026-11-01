@@ -77,7 +77,7 @@ class AuditFixesScreensTest {
 
     @Test
     fun collectionCardsAreAnnouncedAsButtons() {
-        val collection = com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", "Soft silk", "Pure silk", 125000, 18, 15, 3)
+        val collection = com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", 125000, 18, 15, 3)
         compose.setContent { SareeTheme { CollectionCard(collection, onClick = {}) } }
 
         compose.onNodeWithTag("collection-5").assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))

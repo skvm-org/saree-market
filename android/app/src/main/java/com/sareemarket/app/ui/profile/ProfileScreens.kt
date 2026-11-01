@@ -25,6 +25,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
+import com.sareemarket.app.ui.components.ScreenHeader
+import com.sareemarket.app.ui.seller.UpiBanner
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,25 +69,15 @@ private fun ProfilePage(title: String, onBack: (() -> Unit)?, message: String?, 
     }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box {
-            Column(
-                Modifier
-                    .safeDrawingPadding()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Spacing.margin),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md),
-            ) {
-                Row(Modifier.heightIn(min = MinTouchTarget), verticalAlignment = Alignment.CenterVertically) {
-                    // A tab is a top-level place, so it has no back arrow; pages opened from it do.
-                    if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.padding(end = Spacing.sm)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = if (onBack == null) Spacing.xs else 0.dp))
+            Column(Modifier.safeDrawingPadding().imePadding()) {
+                ScreenHeader(title, onBack = onBack)
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    content()
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
                 }
-                content()
-                androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = Spacing.lg))
             }
             SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(Spacing.margin))
         }
@@ -102,10 +95,13 @@ private fun ErrorText(error: String?) {
 fun ProfileScreen(
     onLogout: () -> Unit,
     onChangePassword: () -> Unit,
+    onOpenShop: (() -> Unit)? = null,
+    missingUpi: Boolean = false,
+    shortcuts: List<ProfileShortcut> = emptyList(),
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword)
+    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts)
 }
 
 /** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
@@ -119,6 +115,10 @@ fun ProfileContent(
     onSavedShown: () -> Unit = {},
     onLogout: () -> Unit = {},
     onChangePassword: () -> Unit = {},
+    /** A seller's shop settings live here too: set, they add a Shop details row. */
+    onOpenShop: (() -> Unit)? = null,
+    missingUpi: Boolean = false,
+    shortcuts: List<ProfileShortcut> = emptyList(),
 ) {
     var confirmingLogout by remember { mutableStateOf(false) }
     ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
@@ -140,8 +140,17 @@ fun ProfileContent(
         SareeTextField(state.name, onNameChange, "Full name", tag = "name", imeAction = ImeAction.Done, onDone = onSave, onBlur = onBlur)
         ErrorText(state.error)
         PrimaryButton("Save", onSave, loading = state.saving, enabled = state.dirty, modifier = Modifier.testTag("save"))
-        Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
+        if (onOpenShop != null && missingUpi) UpiBanner(onOpenShop)
+        Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
             Column {
+                shortcuts.forEach {
+                    ProfileRow(it.icon, it.label, it.tag, it.onClick)
+                    HorizontalDivider(color = SareeColors.Hairline)
+                }
+                if (onOpenShop != null) {
+                    ProfileRow(Icons.Filled.Storefront, "Shop details", "shop-details", onOpenShop)
+                    HorizontalDivider(color = SareeColors.Hairline)
+                }
                 ProfileRow(Icons.Filled.Lock, "Change password", "change-password", onChangePassword)
                 HorizontalDivider(color = SareeColors.Hairline)
                 ProfileRow(Icons.AutoMirrored.Filled.ExitToApp, "Log out", "logout", { confirmingLogout = true }, destructive = true)

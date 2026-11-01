@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.ApiFailure
 import com.sareemarket.app.data.CollectionRepository
 import com.sareemarket.app.data.MAX_PHOTOS
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.ui.auth.digitsOnly
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,7 +16,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class NewCollectionState(
-    val reference: ReferenceData? = null,
     val fields: CollectionFields = CollectionFields(),
     val photos: List<String> = emptyList(),
     val fieldErrors: Map<String, String> = emptyMap(),
@@ -40,8 +38,6 @@ class NewCollectionViewModel @Inject constructor(
         NewCollectionState(
             fields = CollectionFields(
                 title = draft[KEY_TITLE] ?: "",
-                sareeTypeId = draft[KEY_TYPE],
-                fabricId = draft[KEY_FABRIC],
                 price = draft[KEY_PRICE] ?: "",
                 description = draft[KEY_DESCRIPTION] ?: "",
                 quantity = draft[KEY_QUANTITY] ?: "1",
@@ -50,25 +46,10 @@ class NewCollectionViewModel @Inject constructor(
     )
     val state: StateFlow<NewCollectionState> = _state.asStateFlow()
 
-    init {
-        loadReference()
-    }
-
-    fun loadReference() {
-        viewModelScope.launch {
-            repository.referenceData().fold(
-                onSuccess = { ref -> _state.update { it.copy(reference = ref, error = null) } },
-                onFailure = { e -> _state.update { it.copy(error = e.message) } },
-            )
-        }
-    }
-
     private fun edit(key: String? = null, change: (CollectionFields) -> CollectionFields) {
         _state.update { it.copy(fields = change(it.fields), fieldErrors = it.fieldErrors - key.orEmpty(), error = null) }
         _state.value.fields.let {
             draft[KEY_TITLE] = it.title
-            draft[KEY_TYPE] = it.sareeTypeId
-            draft[KEY_FABRIC] = it.fabricId
             draft[KEY_PRICE] = it.price
             draft[KEY_DESCRIPTION] = it.description
             draft[KEY_QUANTITY] = it.quantity
@@ -76,8 +57,6 @@ class NewCollectionViewModel @Inject constructor(
     }
 
     fun onTitle(v: String) = edit("title") { it.copy(title = v) }
-    fun onType(id: Long) = edit("sareeTypeId") { it.copy(sareeTypeId = id) }
-    fun onFabric(id: Long) = edit("fabricId") { it.copy(fabricId = id) }
     fun onPrice(v: String) = edit("price") { it.copy(price = digitsOnly(v, MAX_PRICE_DIGITS)) }
     fun onDescription(v: String) = edit { it.copy(description = v) }
     fun onQuantity(v: String) = edit("quantity") { it.copy(quantity = digitsOnly(v, MAX_QUANTITY_DIGITS)) }
@@ -120,8 +99,6 @@ class NewCollectionViewModel @Inject constructor(
 
     private companion object {
         const val KEY_TITLE = "title"
-        const val KEY_TYPE = "sareeTypeId"
-        const val KEY_FABRIC = "fabricId"
         const val KEY_PRICE = "price"
         const val KEY_DESCRIPTION = "description"
         const val KEY_QUANTITY = "quantity"

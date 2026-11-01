@@ -9,8 +9,6 @@ import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.CatalogSort
 import com.sareemarket.app.data.PriceBand
-import com.sareemarket.app.data.RefItem
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import com.sareemarket.app.ui.reseller.FilterSheetContent
 import com.sareemarket.app.ui.theme.SareeTheme
@@ -23,44 +21,17 @@ class FilterSheetTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val reference = ReferenceData(
-        sareeTypes = listOf(RefItem(1, "Kanjivaram"), RefItem(2, "Banarasi")),
-        fabrics = listOf(RefItem(1, "Pure silk"), RefItem(2, "Silk cotton")),
-    )
     private val sellers = listOf(SellerListItem(7, "Lakshmi Silks", "Chinnalapatti"))
 
     private var applied: CatalogQuery? = null
 
     private fun show(query: CatalogQuery = CatalogQuery()) = compose.setContent {
-        SareeTheme { FilterSheetContent(query, reference, sellers) { applied = it } }
+        SareeTheme { FilterSheetContent(query, sellers) { applied = it } }
     }
 
     private fun apply(): CatalogQuery {
-        compose.onNodeWithTag("apply").performScrollTo().performClick()
+        compose.onNodeWithTag("apply").performClick()
         return applied!!
-    }
-
-    @Test
-    fun severalTypesAndFabricsCanBePicked() {
-        show()
-
-        compose.onNodeWithTag("type-1").performClick()
-        compose.onNodeWithTag("type-2").performClick()
-        compose.onNodeWithTag("fabric-2").performClick()
-
-        val query = apply()
-        assertEquals(setOf(1L, 2L), query.typeIds)
-        assertEquals(setOf(2L), query.fabricIds)
-    }
-
-    @Test
-    fun tappingAChipAgainTurnsItOff() {
-        show()
-
-        compose.onNodeWithTag("type-1").performClick()
-        compose.onNodeWithTag("type-1").performClick()
-
-        assertEquals(emptySet<Long>(), apply().typeIds)
     }
 
     @Test
@@ -114,7 +85,7 @@ class FilterSheetTest {
 
     @Test
     fun clearAllResetsTheFiltersButKeepsTheKeywordAndSort() {
-        show(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_DESC, typeIds = setOf(1), colour = "red", includeSoldOut = true))
+        show(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_DESC, colour = "red", includeSoldOut = true))
 
         compose.onNodeWithTag("clear").performScrollTo().performClick()
 
@@ -123,9 +94,9 @@ class FilterSheetTest {
 
     @Test
     fun existingFiltersAreShownAsSelected() {
-        show(CatalogQuery(typeIds = setOf(2)))
+        show(CatalogQuery(minPrice = 1000, maxPrice = 3000))
 
         // applying without touching anything gives back what was already on
-        assertEquals(setOf(2L), apply().typeIds)
+        assertEquals(1000, apply().minPrice)
     }
 }

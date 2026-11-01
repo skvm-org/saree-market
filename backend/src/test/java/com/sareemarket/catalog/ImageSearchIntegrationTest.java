@@ -51,11 +51,9 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	}
 
 	/** Uploads a one-photo collection and returns the new item's id. */
-	private long upload(String seller, String title, int typeId, int price, byte[] photo) throws Exception {
+	private long upload(String seller, String title, int price, byte[] photo) throws Exception {
 		String json = mvc.perform(multipart("/api/v1/collections").file(file("p.jpg", photo))
 			.param("title", title)
-			.param("sareeTypeId", String.valueOf(typeId))
-			.param("fabricId", "1")
 			.param("price", String.valueOf(price))
 			.header("Authorization", "Bearer " + seller)).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		return ((Number) JsonPath.read(json, "$.items[0].id")).longValue();
@@ -82,8 +80,8 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void theSamePictureIsFoundFirstWithDistanceZero() throws Exception {
 		String seller = registerSeller();
-		long mine = upload(seller, "Original", 1, 2000, jpeg(original));
-		upload(seller, "Different", 1, 2000, jpeg(TestImages.blocks(640, 800, 2)));
+		long mine = upload(seller, "Original", 2000, jpeg(original));
+		upload(seller, "Different", 2000, jpeg(TestImages.blocks(640, 800, 2)));
 
 		search(registerCustomer(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
 			.andExpect(jsonPath("$.items.length()").value(1))
@@ -96,7 +94,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void resizedRecompressedAndCroppedCopiesStillFindThePhoto() throws Exception {
 		String seller = registerSeller();
-		long mine = upload(seller, "Original", 1, 2000, jpeg(original));
+		long mine = upload(seller, "Original", 2000, jpeg(original));
 		String reseller = registerCustomer();
 		String shop = "?sellerId=" + sellerId(seller);
 
@@ -108,7 +106,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void aDifferentPictureFindsNothing() throws Exception {
 		String seller = registerSeller();
-		upload(seller, "Original", 1, 2000, jpeg(original));
+		upload(seller, "Original", 2000, jpeg(original));
 
 		assertThat(ids(search(registerCustomer(), jpeg(TestImages.blocks(640, 800, 99)), "?sellerId=" + sellerId(seller)))).isEmpty();
 	}
@@ -116,9 +114,9 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void closestMatchComesFirst() throws Exception {
 		String seller = registerSeller();
-		long far = upload(seller, "Far", 1, 2000, jpeg(Thumbnails.of(TestImages.blocks(640, 800, 1)).sourceRegion(0, 0, 400, 800).size(640, 800).asBufferedImage()));
-		long exact = upload(seller, "Exact", 1, 2000, jpeg(original));
-		long near = upload(seller, "Near", 1, 2000, resized());
+		long far = upload(seller, "Far", 2000, jpeg(Thumbnails.of(TestImages.blocks(640, 800, 1)).sourceRegion(0, 0, 400, 800).size(640, 800).asBufferedImage()));
+		long exact = upload(seller, "Exact", 2000, jpeg(original));
+		long near = upload(seller, "Near", 2000, resized());
 
 		String json = search(registerCustomer(), jpeg(original), "?sellerId=" + sellerId(seller)).andExpect(status().isOk())
 			.andReturn().getResponse().getContentAsString();
@@ -134,16 +132,16 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void theUsualFiltersStillApplyToTheMatches() throws Exception {
 		String seller = registerSeller();
-		long soft = upload(seller, "Soft silk copy", 3, 3000, jpeg(original));
-		long cotton = upload(seller, "Cotton copy", 4, 800, jpeg(original));
-		long sold = upload(seller, "Sold out copy", 3, 3000, jpeg(original));
+		long soft = upload(seller, "Soft silk copy", 3000, jpeg(original));
+		long cotton = upload(seller, "Cotton copy", 800, jpeg(original));
+		long sold = upload(seller, "Sold out copy", 3000, jpeg(original));
 		jdbc.update("UPDATE item SET status = 'SOLD_OUT' WHERE id = ?", sold);
 		String reseller = registerCustomer();
 		String shop = "?sellerId=" + sellerId(seller);
 
 		assertThat(ids(search(reseller, jpeg(original), shop))).containsExactlyInAnyOrder(soft, cotton); // sold out hidden by default
 		assertThat(ids(search(reseller, jpeg(original), shop + "&status=ALL"))).containsExactlyInAnyOrder(soft, cotton, sold);
-		assertThat(ids(search(reseller, jpeg(original), shop + "&typeIds=3"))).containsExactly(soft);
+		assertThat(ids(search(reseller, jpeg(original), shop + "&minPrice=1000"))).containsExactly(soft);
 		assertThat(ids(search(reseller, jpeg(original), shop + "&maxPrice=1000"))).containsExactly(cotton);
 		assertThat(ids(search(reseller, jpeg(original), shop + "&q=cotton"))).containsExactly(cotton);
 	}
@@ -151,7 +149,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void theDistanceLimitIsTwelveBitsInclusive() throws Exception {
 		String seller = registerSeller();
-		long exact = upload(seller, "Anchor", 1, 2000, jpeg(original));
+		long exact = upload(seller, "Anchor", 2000, jpeg(original));
 		long hash = jdbc.queryForObject("SELECT image_hash FROM item WHERE id = ?", Long.class, exact);
 		long sellerId = sellerId(seller);
 		long collection = jdbc.queryForObject("SELECT collection_id FROM item WHERE id = ?", Long.class, exact);
@@ -173,7 +171,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void photosOfADisabledSellerAreNotMatched() throws Exception {
 		String seller = registerSeller();
-		upload(seller, "Original", 1, 2000, jpeg(original));
+		upload(seller, "Original", 2000, jpeg(original));
 		long id = sellerId(seller); // ask before the account is switched off
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", id);
 
@@ -183,7 +181,7 @@ class ImageSearchIntegrationTest extends IntegrationTestBase {
 	@Test
 	void resultsArePagedLikeTheCatalog() throws Exception {
 		String seller = registerSeller();
-		long anchor = upload(seller, "Anchor", 1, 2000, jpeg(original));
+		long anchor = upload(seller, "Anchor", 2000, jpeg(original));
 		long hash = jdbc.queryForObject("SELECT image_hash FROM item WHERE id = ?", Long.class, anchor);
 		long collection = jdbc.queryForObject("SELECT collection_id FROM item WHERE id = ?", Long.class, anchor);
 		long sellerId = sellerId(seller);

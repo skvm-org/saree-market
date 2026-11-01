@@ -19,8 +19,8 @@ class SellerPageIntegrationTest extends IntegrationTestBase {
 
 	void collection(long sellerId, String title) {
 		Long c = jdbc.queryForObject("""
-				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price)
-				VALUES (?, ?, 1, 1, 1000) RETURNING id""", Long.class, sellerId, title);
+				INSERT INTO collection (seller_id, title, price)
+				VALUES (?, ?, 1000) RETURNING id""", Long.class, sellerId, title);
 		jdbc.update("""
 				INSERT INTO item (collection_id, seller_id, image_path, thumb_path, image_hash)
 				VALUES (?, ?, 'a', 'b', 1)""", c, sellerId);

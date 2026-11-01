@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
  * Query parameters of GET /catalog. Everything is optional; absent means "do not filter on this".
  * following=true limits the results to the sellers the logged-in reseller follows.
  */
-public record CatalogFilter(@Size(max = 200) String q, List<Long> typeIds, List<Long> fabricIds,
+public record CatalogFilter(@Size(max = 200) String q,
 		@Size(max = 50) String colour, @Min(0) Integer minPrice, @Min(0) Integer maxPrice, Long sellerId,
 		StatusFilter status, @Min(1) @Max(3650) Integer since, CatalogSort sort, @Min(0) Integer page, Boolean following) {
 

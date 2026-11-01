@@ -38,7 +38,7 @@ class SellerBottomBarTest {
     }
 
     @Test
-    fun theFirstTabIsCalledSareesSoTheLabelFitsFiveTabsOnAPhone() {
+    fun theFirstTabIsCalledSarees() {
         compose.setContent { SareeTheme { SellerBottomBar(current = "home") {} } }
 
         compose.onNodeWithText("Sarees").assertExists()
@@ -53,10 +53,16 @@ class SellerBottomBarTest {
         compose.onNodeWithTag("seller-tab-home").performClick()
         compose.onNodeWithTag("seller-tab-orders").performClick()
         compose.onNodeWithTag("seller-tab-new").performClick()
-        compose.onNodeWithTag("seller-tab-shop").performClick()
         compose.onNodeWithTag("seller-tab-profile").performClick()
 
-        assertEquals(listOf("home", "orders", "new", "shop", "profile"), picked)
+        assertEquals(listOf("home", "orders", "new", "profile"), picked)
+    }
+
+    @Test
+    fun shopDetailsLiveInProfileSoThereIsNoShopTab() {
+        compose.setContent { SareeTheme { SellerBottomBar(current = "home") {} } }
+
+        compose.onNodeWithTag("seller-tab-shop").assertDoesNotExist()
     }
 
     @Test

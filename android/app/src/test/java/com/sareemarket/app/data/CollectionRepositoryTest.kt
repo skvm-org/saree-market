@@ -16,7 +16,7 @@ class CollectionRepositoryTest {
     private val api = FakeCollectionsApi()
     private val photos = FakePhotoSource(mapOf("a" to ByteArray(150_000), "b" to ByteArray(50_000)))
     private val repo = CollectionRepository(api, photos, testJson)
-    private val form = CollectionForm("Diwali silks", 1, 2, 2500, "Festive")
+    private val form = CollectionForm("Diwali silks", 2500, "Festive")
 
     @Test
     fun createSendsFormFieldsAndOneFilesPartPerPhoto() = runTest {
@@ -30,7 +30,7 @@ class CollectionRepositoryTest {
 
         assertTrue(repo.create(form, listOf("a", "b")) {}.isSuccess)
 
-        assertEquals(mapOf("title" to "Diwali silks", "sareeTypeId" to "1", "fabricId" to "2", "price" to "2500", "description" to "Festive", "quantity" to "1"), sentFields)
+        assertEquals(mapOf("title" to "Diwali silks", "price" to "2500", "description" to "Festive", "quantity" to "1"), sentFields)
         assertEquals(2, partCount)
     }
 
@@ -148,7 +148,7 @@ class CollectionRepositoryTest {
     @Test
     fun aSummaryWithoutAnOnHoldCountDecodes() {
         val summary = testJson.decodeFromString<CollectionSummary>(
-            """{"id":5,"title":"Diwali silks","sareeType":"Kanjivaram","fabric":"Pure silk","price":2500,"itemCount":3,
+            """{"id":5,"title":"Diwali silks","price":2500,"itemCount":3,
             "availableCount":2,"soldOutCount":1,"coverItemId":10,"previewItemIds":[10,11]}""",
         )
 

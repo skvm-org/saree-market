@@ -40,18 +40,6 @@ class AdminListsAndLimitsIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void adminListsReferenceDataIncludingDeactivatedEntries() throws Exception {
-		String admin = adminToken();
-		jdbc.update("INSERT INTO fabric (name, active) VALUES ('Hidden fabric list test', FALSE)");
-
-		getWith("/api/v1/admin/fabrics", admin).andExpect(status().isOk())
-			.andExpect(jsonPath("$[?(@.name=='Hidden fabric list test')].active").value(false));
-		getWith("/api/v1/reference/fabrics", admin).andExpect(jsonPath("$[?(@.name=='Hidden fabric list test')]").doesNotExist());
-		getWith("/api/v1/admin/saree-types", admin).andExpect(status().isOk()).andExpect(jsonPath("$[0].name").exists());
-		getWith("/api/v1/admin/fabrics", registerCustomer()).andExpect(status().isForbidden());
-	}
-
-	@Test
 	void sinceAboveTenYearsIsAValidationErrorNotAServerError() throws Exception {
 		String reseller = registerCustomer();
 

@@ -37,8 +37,6 @@ class NewCollectionViewModelTest {
 
     private fun fillValid() {
         vm.onTitle("Diwali silks")
-        vm.onType(1)
-        vm.onFabric(1)
         vm.onPrice("2500")
         vm.onPhotosPicked(listOf("p1", "p2"))
     }
@@ -80,16 +78,10 @@ class NewCollectionViewModelTest {
     }
 
     @Test
-    fun loadsTypesAndFabricsForTheDropdowns() {
-        assertEquals(api.types, vm.state.value.reference?.sareeTypes)
-        assertEquals(api.fabrics, vm.state.value.reference?.fabrics)
-    }
-
-    @Test
     fun emptyFormListsEveryProblemAndSendsNothing() {
         vm.submit()
 
-        assertEquals(setOf("title", "sareeTypeId", "fabricId", "price", "files"), vm.state.value.fieldErrors.keys)
+        assertEquals(setOf("title", "price", "files"), vm.state.value.fieldErrors.keys)
         assertTrue(api.calls.isEmpty())
     }
 
@@ -149,13 +141,13 @@ class NewCollectionViewModelTest {
     @Test
     fun serverFieldErrorsAppearOnTheirFields() {
         api.onCreate = { _, _ ->
-            throw httpError(400, """{"code":"VALIDATION_ERROR","message":"Some fields are invalid","fields":{"sareeTypeId":"Unknown saree type"}}""")
+            throw httpError(400, """{"code":"VALIDATION_ERROR","message":"Some fields are invalid","fields":{"title":"Title already used"}}""")
         }
         fillValid()
 
         vm.submit()
 
-        assertEquals("Unknown saree type", vm.state.value.fieldErrors["sareeTypeId"])
+        assertEquals("Title already used", vm.state.value.fieldErrors["title"])
         assertNull(vm.state.value.error)
     }
 }

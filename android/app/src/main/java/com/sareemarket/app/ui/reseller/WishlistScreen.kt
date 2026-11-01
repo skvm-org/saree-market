@@ -53,6 +53,9 @@ import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SkeletonRows
 import com.sareemarket.app.ui.components.StatusPill
+import com.sareemarket.app.ui.components.EmptyState
+import com.sareemarket.app.ui.components.ScreenHeader
+import androidx.compose.material.icons.filled.FavoriteBorder
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
 import com.sareemarket.app.ui.theme.CardShape
@@ -61,20 +64,19 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.typeAndFabric
 
 private const val LOAD_MORE_AHEAD_WISHLIST = 4
 
 /** The sarees the customer saved for later. */
 @Composable
-fun WishlistScreen(onOpenItem: (Long) -> Unit, viewModel: WishlistViewModel = hiltViewModel()) {
+fun WishlistScreen(onOpenItem: (Long) -> Unit, onBrowse: () -> Unit = {}, viewModel: WishlistViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // A saree can be saved from its page while this tab is away, so look again whenever it comes back.
     LifecycleResumeEffect(Unit) {
         viewModel.reload()
         onPauseOrDispose {}
     }
-    WishlistContent(state, onOpenItem, viewModel::remove, viewModel::loadMore, viewModel::reload, viewModel::pullRefresh)
+    WishlistContent(state, onOpenItem, viewModel::remove, viewModel::loadMore, viewModel::reload, viewModel::pullRefresh, onBrowse)
 }
 
 @Composable
@@ -85,23 +87,25 @@ fun WishlistContent(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
+    onBrowse: () -> Unit = {},
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin)) {
-            Text("Wishlist", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(vertical = Spacing.md).testTag("title"))
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            ScreenHeader("Wishlist")
+            Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Spacing.margin)) {
                 when {
                     state.loading -> SkeletonRows()
                     state.items.isEmpty() && state.error != null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(state.error, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
                         PrimaryButton("Retry", onClick = onRetry, modifier = Modifier.padding(top = Spacing.md))
                     }
-                    state.items.isEmpty() -> Text(
-                        "Nothing saved yet.\nTap the heart on a saree to keep it here.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).testTag("wishlist-empty"),
+                    state.items.isEmpty() -> EmptyState(
+                        Icons.Filled.FavoriteBorder,
+                        "Nothing saved yet",
+                        "Tap the heart on any saree to keep it here.",
+                        Modifier.align(Alignment.Center).testTag("wishlist-empty"),
+                        actionLabel = "Browse sarees",
+                        onAction = onBrowse,
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
                         WishlistList(state, onOpenItem, onRemove, onLoadMore)
@@ -153,7 +157,7 @@ private fun WishlistRow(item: CatalogItem, busy: Boolean, onOpenItem: (Long) -> 
                     color = MaterialTheme.colorScheme.primaryContainer,
                     textDecoration = if (item.inStock) null else TextDecoration.LineThrough,
                 )
-                Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.collectionTitle, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (!item.inStock) Text("Out of stock", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("out-of-stock-${item.id}"))
             }

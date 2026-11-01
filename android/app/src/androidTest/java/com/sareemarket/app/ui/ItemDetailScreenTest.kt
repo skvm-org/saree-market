@@ -2,6 +2,8 @@ package com.sareemarket.app.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,7 +25,7 @@ class ItemDetailScreenTest {
 
     private val seller = SellerContact(7, "Lakshmi Silks", "Chinnalapatti", "9876543210", "9876543211")
     private val detail = ItemDetail(
-        10, 5, "Diwali silks", "Festive wear", "Soft silk", "Pure silk", "maroon", 4000, 4000, ItemStatus.AVAILABLE, seller,
+        10, 5, "Diwali silks", "Festive wear", "maroon", 4000, 4000, ItemStatus.AVAILABLE, seller,
     )
 
     private var called: String? = null
@@ -43,8 +45,7 @@ class ItemDetailScreenTest {
     fun showsTheDetailsAndSellerShop() {
         show()
 
-        compose.onNodeWithText("Diwali silks").assertExists()
-        compose.onNodeWithText("Soft silk · Pure silk").assertExists()
+        compose.onAllNodesWithText("Diwali silks").assertCountEquals(2) // the headline and the collection link
         compose.onNodeWithText("Colour: maroon").assertExists()
         compose.onNodeWithTag("price").assertExists()
         compose.onNodeWithText("₹4,000").assertExists()

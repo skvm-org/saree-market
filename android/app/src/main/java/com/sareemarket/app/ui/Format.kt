@@ -9,7 +9,6 @@ fun formatRupees(amount: Int): String {
 }
 
 /** "Cotton · Silk", or just "Cotton" when the type and the fabric are the same word. */
-fun typeAndFabric(type: String, fabric: String) = if (type.equals(fabric, ignoreCase = true)) type else "$type · $fabric"
 
 /** How long a hold has left: "ends in 5 h", "ends in 40 min", or "ended" once it is over. */
 fun timeLeft(iso: String, now: java.time.Instant = java.time.Instant.now()): String {

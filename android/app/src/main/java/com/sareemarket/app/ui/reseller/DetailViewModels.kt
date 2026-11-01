@@ -85,6 +85,11 @@ class ItemPagerViewModel @Inject constructor(
         viewModelScope.launch { fetch(id) }
     }
 
+    /** Re-reads photos that are already showing, so a cart or wishlist change made elsewhere (or stock that moved) is not stale. */
+    fun refresh(ids: List<Long>) {
+        ids.forEach { id -> if (_state.value.details[id]?.value != null) viewModelScope.launch { fetch(id) } }
+    }
+
     private suspend fun fetch(id: Long): ItemDetail? = repository.item(id).fold(
         onSuccess = { d ->
             _state.update { it.copy(details = it.details + (id to LoadState(d, loading = false))) }
@@ -97,7 +102,8 @@ class ItemPagerViewModel @Inject constructor(
     )
 
     /** Puts [quantity] of this photo in the cart (or changes it). The page reloads either way, since its stock may have changed. */
-    fun setCartQuantity(id: Long, quantity: Int) = shopping(id) { cart.setQuantity(id, quantity) }
+    /** [onSaved] runs only when the save worked ("Buy now" opens the cart then). */
+    fun setCartQuantity(id: Long, quantity: Int, onSaved: () -> Unit = {}) = shopping(id, onSaved) { cart.setQuantity(id, quantity) }
 
     fun removeFromCart(id: Long) = shopping(id) { cart.remove(id) }
 
@@ -107,13 +113,14 @@ class ItemPagerViewModel @Inject constructor(
         shopping(id) { if (saved) wishlist.remove(id) else wishlist.add(id) }
     }
 
-    private fun shopping(id: Long, call: suspend () -> Result<Unit>) {
+    private fun shopping(id: Long, onSaved: () -> Unit = {}, call: suspend () -> Result<Unit>) {
         if (_state.value.shoppingBusy) return
         _state.update { it.copy(shoppingBusy = true, shoppingError = null) }
         viewModelScope.launch {
             val error = call().exceptionOrNull()?.message
             fetch(id)
             _state.update { it.copy(shoppingBusy = false, shoppingError = error) }
+            if (error == null) onSaved()
         }
     }
 

@@ -15,12 +15,6 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 
 interface CollectionsApi {
-    @GET("api/v1/reference/saree-types")
-    suspend fun sareeTypes(): List<RefItem>
-
-    @GET("api/v1/reference/fabrics")
-    suspend fun fabrics(): List<RefItem>
-
     @GET("api/v1/sellers/me/collections")
     suspend fun myCollections(): List<CollectionSummary>
 
@@ -31,8 +25,6 @@ interface CollectionsApi {
     @POST("api/v1/collections")
     suspend fun create(
         @Part("title") title: RequestBody,
-        @Part("sareeTypeId") sareeTypeId: RequestBody,
-        @Part("fabricId") fabricId: RequestBody,
         @Part("price") price: RequestBody,
         @Part("description") description: RequestBody,
         @Part("quantity") quantity: RequestBody,

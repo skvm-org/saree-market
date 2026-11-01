@@ -145,7 +145,18 @@ class MigrationFromProductionTest {
 	}
 
 	@Test
-	void everyMigrationFromSixToThirteenRanOnce() throws Exception {
+	void collectionsSurviveTheDropOfSareeTypeAndFabric() throws Exception {
+		try (Connection c = connect(); Statement s = c.createStatement()) {
+			assertThat(count(s, "collection")).isPositive();
+		}
+		assertThat(text("SELECT count(*) FROM information_schema.columns WHERE table_name = 'collection' "
+				+ "AND column_name IN ('saree_type_id', 'fabric_id')")).isEqualTo("0");
+		assertThat(text("SELECT to_regclass('saree_type')::text")).isNull();
+		assertThat(text("SELECT to_regclass('fabric')::text")).isNull();
+	}
+
+	@Test
+	void everyMigrationFromSixOnwardRanOnce() throws Exception {
 		List<String> versions = new java.util.ArrayList<>();
 		try (Connection c = connect(); Statement s = c.createStatement();
 				ResultSet rs = s.executeQuery("SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank")) {
@@ -153,7 +164,7 @@ class MigrationFromProductionTest {
 				versions.add(rs.getString(1));
 			}
 		}
-		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15");
 	}
 
 }

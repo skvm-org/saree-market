@@ -18,8 +18,6 @@ class CatalogQueryTest {
     @Test
     fun eachKindOfFilterCountsOnce() {
         val query = CatalogQuery(
-            typeIds = setOf(1, 2, 3), // three types are still one filter
-            fabricIds = setOf(1),
             colour = "blue",
             minPrice = 1000,
             maxPrice = 3000, // a price range is one filter
@@ -27,7 +25,7 @@ class CatalogQueryTest {
             includeSoldOut = true,
             sinceDays = 7,
         )
-        assertEquals(7, query.activeFilterCount)
+        assertEquals(5, query.activeFilterCount)
     }
 
     @Test

@@ -48,8 +48,6 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 			request.file(file);
 		}
 		return mvc.perform(request.param("title", title)
-			.param("sareeTypeId", "1")
-			.param("fabricId", "1")
 			.param("price", "2500")
 			.param("description", "Festive soft silks")
 			.header("Authorization", "Bearer " + token));
@@ -79,7 +77,8 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 
 		String json = create(seller, "Diwali soft silks", photos(2)).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.title").value("Diwali soft silks"))
-			.andExpect(jsonPath("$.sareeType.name").value("Kanjivaram"))
+			.andExpect(jsonPath("$.sareeType").doesNotExist())
+			.andExpect(jsonPath("$.fabric").doesNotExist())
 			.andExpect(jsonPath("$.items.length()").value(2))
 			.andExpect(jsonPath("$.items[0].status").value("AVAILABLE"))
 			.andExpect(jsonPath("$.items[0].effectivePrice").value(2500))
@@ -113,22 +112,11 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 		create(seller, "Too many", photos(31)).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.files").exists());
 		mvc.perform(multipart("/api/v1/collections").file(photo(1))
-			.param("title", "Bad refs")
-			.param("sareeTypeId", "9999")
-			.param("fabricId", "9999")
+			.param("title", "Bad price")
 			.param("price", "0")
 			.header("Authorization", "Bearer " + seller))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.price").exists());
-		mvc.perform(multipart("/api/v1/collections").file(photo(1))
-			.param("title", "Bad refs")
-			.param("sareeTypeId", "9999")
-			.param("fabricId", "9999")
-			.param("price", "100")
-			.header("Authorization", "Bearer " + seller))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.fields.sareeTypeId").exists())
-			.andExpect(jsonPath("$.fields.fabricId").exists());
 	}
 
 	@Test
@@ -168,7 +156,7 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 		long id = createdId(owner, "Private", 1);
 		long itemId = itemIds(owner, id).get(0);
 		String update = """
-				{"title":"Hijacked","sareeTypeId":1,"fabricId":1,"price":1}""";
+				{"title":"Hijacked","price":1}""";
 
 		getWith("/api/v1/collections/" + id, intruder).andExpect(status().isForbidden());
 		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + intruder)
@@ -208,6 +196,27 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void olderAppsThatStillSendSareeTypeAndFabricAreAcceptedAndTheyAreIgnored() throws Exception {
+		String seller = registerSeller();
+
+		mvc.perform(multipart("/api/v1/collections").file(photo(1))
+			.param("title", "Old app upload")
+			.param("sareeTypeId", "1")
+			.param("fabricId", "1")
+			.param("price", "2500")
+			.header("Authorization", "Bearer " + seller))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.title").value("Old app upload"))
+			.andExpect(jsonPath("$.sareeType").doesNotExist());
+		long id = createdId(seller, "Diwali silks", 1);
+		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + seller)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"title\":\"Pongal silks\",\"sareeTypeId\":9999,\"fabricId\":1,\"price\":900}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.title").value("Pongal silks"));
+	}
+
+	@Test
 	void sellerCanEditTheCollectionAndSearchFollowsTheNewTitle() throws Exception {
 		String seller = registerSeller();
 		long id = createdId(seller, "Diwali silks", 1);
@@ -215,17 +224,16 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + seller)
 			.contentType(MediaType.APPLICATION_JSON)
 			.content("""
-					{"title":"Pongal cottons","sareeTypeId":4,"fabricId":3,"price":900,"description":""}"""))
+					{"title":"Pongal cottons","price":900,"description":""}"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.title").value("Pongal cottons"))
-			.andExpect(jsonPath("$.sareeType.name").value("Cotton"))
 			.andExpect(jsonPath("$.items[0].effectivePrice").value(900));
 
 		assertThat(jdbc.queryForObject("SELECT search_vector @@ plainto_tsquery('simple', 'pongal') FROM item WHERE collection_id = ?",
 				Boolean.class, id)).isTrue();
 		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + seller)
 			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"title\":\"\",\"sareeTypeId\":4,\"fabricId\":3,\"price\":900}"))
+			.content("{\"title\":\"\",\"price\":900}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.title").exists());
 	}
@@ -305,27 +313,6 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 		paths.forEach(path -> assertThat(exists(path)).isFalse());
 		getWith("/api/v1/collections/" + id, seller).andExpect(status().isNotFound());
 	}
-
-	@Test
-	void referenceListsNeedALoginAndHideInactiveEntries() throws Exception {
-		String reseller = registerCustomer();
-
-		getWith("/api/v1/reference/saree-types", reseller).andExpect(status().isOk())
-			.andExpect(jsonPath("$[?(@.name == 'Kanjivaram')]").exists());
-		getWith("/api/v1/reference/fabrics", reseller).andExpect(status().isOk())
-			.andExpect(jsonPath("$[?(@.name == 'Pure silk')]").exists());
-		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/reference/fabrics"))
-			.andExpect(status().isUnauthorized());
-
-		jdbc.update("UPDATE fabric SET active = FALSE WHERE name = 'Linen'");
-		try {
-			getWith("/api/v1/reference/fabrics", reseller).andExpect(jsonPath("$[?(@.name == 'Linen')]").doesNotExist());
-		}
-		finally {
-			jdbc.update("UPDATE fabric SET active = TRUE WHERE name = 'Linen'");
-		}
-	}
-
 
 	@Test
 	void sellerCanToggleOneItemAndTheDashboardFollows() throws Exception {

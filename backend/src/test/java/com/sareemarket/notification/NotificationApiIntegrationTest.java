@@ -28,8 +28,8 @@ class NotificationApiIntegrationTest extends IntegrationTestBase {
 				INSERT INTO app_user (phone, password_hash, name, role) VALUES (?, 'x', 'S', 'SELLER') RETURNING id""", Long.class, newPhone());
 		jdbc.update("INSERT INTO seller_profile VALUES (?, 'Page Silks', 'Erode', '9876543210', NULL)", seller);
 		return jdbc.queryForObject("""
-				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price)
-				VALUES (?, 'Diwali silks', 1, 1, 1000) RETURNING id""", Long.class, seller);
+				INSERT INTO collection (seller_id, title, price)
+				VALUES (?, 'Diwali silks', 1000) RETURNING id""", Long.class, seller);
 	}
 
 	long note(long reseller, long collection, String type, int count, String ageUpdated, boolean read) {

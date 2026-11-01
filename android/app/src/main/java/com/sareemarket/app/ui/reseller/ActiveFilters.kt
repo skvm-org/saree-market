@@ -2,7 +2,6 @@ package com.sareemarket.app.ui.reseller
 
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.PriceBand
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import com.sareemarket.app.ui.formatRupees
 
@@ -10,15 +9,7 @@ import com.sareemarket.app.ui.formatRupees
 data class ActiveFilter(val key: String, val label: String, val clear: (CatalogQuery) -> CatalogQuery)
 
 /** The filters currently applied, in the order the filter sheet lists them. The keyword and the sort are not filters. */
-fun activeFilters(query: CatalogQuery, reference: ReferenceData?, sellers: List<SellerListItem>): List<ActiveFilter> = buildList {
-    query.typeIds.forEach { id ->
-        val name = reference?.sareeTypes?.firstOrNull { it.id == id }?.name ?: return@forEach
-        add(ActiveFilter("type-$id", "Type: $name") { it.copy(typeIds = it.typeIds - id) })
-    }
-    query.fabricIds.forEach { id ->
-        val name = reference?.fabrics?.firstOrNull { it.id == id }?.name ?: return@forEach
-        add(ActiveFilter("fabric-$id", "Fabric: $name") { it.copy(fabricIds = it.fabricIds - id) })
-    }
+fun activeFilters(query: CatalogQuery, sellers: List<SellerListItem>): List<ActiveFilter> = buildList {
     if (query.minPrice != null || query.maxPrice != null) {
         val band = PriceBand.entries.firstOrNull { it.min == query.minPrice && it.max == query.maxPrice }
         val label = band?.label ?: when {

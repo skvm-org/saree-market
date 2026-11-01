@@ -5,6 +5,7 @@ import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CatalogSort
 import com.sareemarket.app.data.FakeFollowsApi
 import com.sareemarket.app.data.FollowRepository
+import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.data.followItem
 import com.sareemarket.app.data.FakeCatalogApi
 import com.sareemarket.app.data.FakeCollectionsApi
@@ -54,7 +55,6 @@ class CatalogViewModelTest {
         assertEquals(6L, vm.state.value.totalItems)
         assertTrue(vm.state.value.hasMore)
         assertFalse(vm.state.value.loading)
-        assertNotNull(vm.state.value.reference)
         assertEquals(1, vm.state.value.sellers.size)
     }
 
@@ -87,11 +87,11 @@ class CatalogViewModelTest {
     fun newFiltersStartOverFromThePageOne() {
         vm.loadNextPage()
 
-        vm.apply(CatalogQuery(typeIds = setOf(1), includeSoldOut = true))
+        vm.apply(CatalogQuery(colour = "red", includeSoldOut = true))
 
         assertEquals(0, api.calls.last().page)
         assertEquals("ALL", api.calls.last().status)
-        assertEquals(listOf(1L), api.calls.last().typeIds)
+        assertEquals("red", api.calls.last().colour)
         assertEquals(listOf(0L, 1L), ids()) // the old pages are gone
     }
 
@@ -110,12 +110,12 @@ class CatalogViewModelTest {
 
     @Test
     fun clearingFiltersKeepsTheKeywordAndTheSort() {
-        vm.apply(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC, typeIds = setOf(2), colour = "red"))
+        vm.apply(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC, colour = "red"))
 
         vm.clearFilters()
 
         assertEquals(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC), vm.state.value.query)
-        assertNull(api.calls.last().typeIds)
+        assertNull(api.calls.last().colour)
         assertEquals("silk", api.calls.last().q)
     }
 
@@ -197,11 +197,11 @@ class CatalogViewModelTest {
     fun filtersAndKeywordStillApplyDuringAPhotoSearch() {
         vm.searchByImage("photo-1")
 
-        vm.apply(vm.state.value.query.copy(typeIds = setOf(2), includeSoldOut = true))
+        vm.apply(vm.state.value.query.copy(colour = "blue", includeSoldOut = true))
         vm.setKeyword("silk")
 
         val last = api.imageCalls.last().call
-        assertEquals(listOf(2L), last.typeIds)
+        assertEquals("blue", last.colour)
         assertEquals("ALL", last.status)
         assertEquals("silk", last.q)
         assertEquals("photo-1", vm.state.value.imageUri) // still searching with the same picture
@@ -291,6 +291,41 @@ class CatalogViewModelTest {
         assertEquals(2, vm.state.value.followedCount)
         assertEquals(true, api.calls.first().following)
         assertEquals(1, api.calls.size) // one search, not one for "all" and then another for "following"
+    }
+
+    @Test
+    fun thePlusOnACardFollowsTheSellerAndCountsThemAtOnce() {
+        assertEquals(0, vm.state.value.followedCount)
+
+        vm.toggleFollow(7)
+
+        assertEquals(NotifyMode.INSTANT, vm.state.value.followModes[7])
+        assertEquals(1, vm.state.value.followedCount)
+        assertEquals(listOf("follow 7 INSTANT"), followsApi.calls)
+    }
+
+    @Test
+    fun tappingAFollowedSellerAgainUnfollowsWithoutReloadingTheList() {
+        followsApi.list = { listOf(followItem(7)) }
+        assertEquals(1, vm.state.value.followedCount)
+        val searches = api.calls.size
+
+        vm.toggleFollow(7)
+
+        assertNull(vm.state.value.followModes[7])
+        assertEquals(0, vm.state.value.followedCount)
+        assertEquals(listOf("unfollow 7"), followsApi.calls)
+        assertEquals(searches, api.calls.size) // the card stays where it is
+    }
+
+    @Test
+    fun aRefusedFollowGoesBackToWhatItWas() {
+        followsApi.onFollow = { _, _ -> throw networkError() }
+
+        vm.toggleFollow(7)
+
+        assertNull(vm.state.value.followModes[7])
+        assertEquals(0, vm.state.value.followedCount)
     }
 
     @Test

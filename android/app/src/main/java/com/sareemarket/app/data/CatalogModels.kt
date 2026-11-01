@@ -7,8 +7,6 @@ data class CatalogItem(
     val id: Long,
     val collectionId: Long,
     val collectionTitle: String,
-    val sareeType: String,
-    val fabric: String,
     val colour: String? = null,
     val price: Int,
     val status: ItemStatus,
@@ -57,8 +55,6 @@ data class ItemDetail(
     val collectionId: Long,
     val collectionTitle: String,
     val collectionDescription: String? = null,
-    val sareeType: String,
-    val fabric: String,
     val colour: String? = null,
     val priceOverride: Int? = null,
     val price: Int,
@@ -106,8 +102,6 @@ enum class PriceBand(val label: String, val min: Int?, val max: Int?) {
 /** Everything the search box and the filter sheet can set. */
 data class CatalogQuery(
     val q: String = "",
-    val typeIds: Set<Long> = emptySet(),
-    val fabricIds: Set<Long> = emptySet(),
     val colour: String = "",
     val minPrice: Int? = null,
     val maxPrice: Int? = null,
@@ -121,8 +115,6 @@ data class CatalogQuery(
     /** How many filters are on, for the badge on the Filters button. The keyword and the sort do not count. */
     val activeFilterCount: Int
         get() = listOf(
-            typeIds.isNotEmpty(),
-            fabricIds.isNotEmpty(),
             colour.isNotBlank(),
             minPrice != null || maxPrice != null,
             sellerId != null,

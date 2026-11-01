@@ -19,7 +19,7 @@ The app moves the order and the paperwork, not the money: customers pay the sell
 | --- | --- |
 | Seller | Register, manage shop profile (UPI ID, shipping fee), create collections, upload photos with a quantity, edit items, mark available / sold out, receive and process orders |
 | Customer | Register (a reseller is just a customer), browse and search the catalog (all sellers), search by image, see seller name and contact number, follow chosen sellers and get notified of their new sarees, save to a wishlist, add to a cart, check out, pay and track orders |
-| Admin | Seeded by migration; manage saree types and fabrics; disable a user |
+| Admin | Seeded by migration; disable a user |
 | Anonymous | Can only see the login and register pages |
 
 Seller contact details are visible only to logged-in customers and admins. A seller sees a customer's name and phone only on orders placed with them. A seller cannot buy on the same account; a seller who wants to buy registers a second account.
@@ -27,23 +27,20 @@ Seller contact details are visible only to logged-in customers and admins. A sel
 ## Core concepts
 
 - **Seller** — a shop in the market (shop name, market location, contact phone, optional WhatsApp number)
-- **Collection** — a group of sarees a seller uploads together, e.g. "Diwali soft silks". Holds shared defaults: title, saree type, fabric, price, description
+- **Collection** — a group of sarees a seller uploads together, e.g. "Diwali soft silks". Holds shared defaults: title, price, description
 - **Item** — one saree design = one photo. Inherits collection defaults; can override colour and price. The seller sets a **quantity** (pieces in stock, 0 to 10,000) and a mark, `AVAILABLE` or `SOLD_OUT`. A saree can be ordered only when it is marked available and has at least one piece
 - **Cart** — sarees a customer means to buy, grouped by seller. Nothing is reserved while it sits in the cart
 - **Payment hold** — checkout reserves the pieces for 2 hours, one hold per seller, while the customer pays that seller's UPI ID. No order exists until the customer submits the UTR
 - **Order** — made when the customer submits the UTR; the seller confirms the payment, packs, ships and delivers it. Prices, address and shipping fee are copied into the order so later edits do not change it
 - **Follow** — a customer subscribes to a seller, like joining that seller's WhatsApp group. Sellers are publishers, customers are subscribers. Following controls notifications only; search always covers every seller
 - **Notification** — an in-app message to a follower when a followed seller publishes new sarees
-- **Reference data** — saree types (Kanjivaram, Banarasi, Soft silk, Cotton, Chiffon, Georgette, Linen, Organza, Tussar...) and fabrics, seeded by Flyway and editable by admin
 
 ## Data model
 
 ```
 app_user        id, phone (unique), password_hash, name, role (SELLER | CUSTOMER | ADMIN), enabled, created_at
 seller_profile  user_id (PK/FK), shop_name, market_location, contact_phone, whatsapp_number, upi_id, shipping_fee
-saree_type      id, name (unique), active
-fabric          id, name (unique), active
-collection      id, seller_id, title, saree_type_id, fabric_id, price, description, created_at, updated_at
+collection      id, seller_id, title, price, description, created_at, updated_at
 item            id, collection_id, seller_id, colour, price_override, status (AVAILABLE | SOLD_OUT), quantity,
                 image_path, thumb_path, image_hash (BIGINT), created_at, updated_at
 seller_follow   reseller_id (the following customer), seller_id, notify_mode (INSTANT | MUTED), created_at   PK (reseller_id, seller_id)
@@ -67,7 +64,7 @@ order_status_history  id, order_id, status, at
 
 - Effective item price = `price_override` if set, else the collection price
 - Prices in whole rupees (integer), > 0; an order from one seller is at most ₹1,00,00,000
-- Index: `item(status)`, `item(seller_id)`, `collection(saree_type_id)`, `collection(fabric_id)`, and a full-text index over collection title + description + item colour
+- Index: `item(status)`, `item(seller_id)`, and a full-text index over collection title + description + item colour
 
 ## Features
 
@@ -79,7 +76,7 @@ order_status_history  id, order_id, status, at
 - No OTP, no admin approval in MVP
 
 ### 2. Seller: collections and items
-- Create a collection: title, saree type, fabric, price, description, and 1–30 photos in one multi-file upload (Android Photo Picker, multi-select)
+- Create a collection: title, price, description, and 1–30 photos in one multi-file upload (Android Photo Picker, multi-select)
 - Each photo becomes an item marked `AVAILABLE`, with the quantity the seller entered for the upload (default 1; each saree's count can be changed later)
 - On upload: validate JPG/PNG/WebP, max 10 MB each, resize the stored original to max 1600 px, create a 400 px thumbnail, compute the image hash
 - Seller dashboard: list of own collections with item counts (available / sold out)
@@ -88,11 +85,9 @@ order_status_history  id, order_id, status, at
 - Edit collection fields; edit item colour, price override and quantity; delete an item or a whole collection (deletes image files too)
 
 ### 3. Customer: catalog search
-- Results are whole collections, as the seller posted them: a card per collection with title, price, saree type, fabric, seller shop name, a strip of its first photos and how many are available. A collection is listed when at least one of its photos matches the filters; tapping it opens the collection page. Photo (image) search still lists single photos, closest first
+- Results are whole collections, as the seller posted them: a card per collection with title, price, seller shop name, a strip of its first photos and how many are available. A collection is listed when at least one of its photos matches the filters; tapping it opens the collection page. Photo (image) search still lists single photos, closest first
 - Filters (combinable):
   - Keyword (full-text over title, description, colour)
-  - Saree type (multi-select)
-  - Fabric (multi-select)
   - Colour (text match)
   - Price category: Under ₹1,000 · ₹1,000–3,000 · ₹3,000–7,000 · ₹7,000–15,000 · Above ₹15,000, plus custom min/max
   - Seller (select)
@@ -166,7 +161,6 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 ### 9. Admin (minimal, backend only in the MVP)
 - No admin screens in the Android app. Admin is the seeded user plus the endpoints below, covered by integration tests; admin screens come with the Angular app
 - Seeded admin user via Flyway with a dev password from config
-- Add, rename, deactivate saree types and fabrics
 - Disable or enable a user
 
 ## API outline (`/api/v1`)
@@ -182,7 +176,7 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 | PATCH | /items/{id} (colour, priceOverride, quantity, status) | Seller (own) |
 | PATCH | /collections/{id}/items/status (bulk status) | Seller (own) |
 | DELETE | /items/{id} | Seller (own) |
-| GET | /catalog?q=&typeIds=&fabricIds=&colour=&minPrice=&maxPrice=&sellerId=&status=&since=&sort=&page= (single photos) | Customer, Admin |
+| GET | /catalog?q=&colour=&minPrice=&maxPrice=&sellerId=&status=&since=&sort=&page= (single photos) | Customer, Admin |
 | GET | /catalog/collections (same filters; whole collections) | Customer, Admin |
 | POST | /catalog/image-search (multipart image + same filter params) | Customer, Admin |
 | GET | /items/{id} | Customer, Admin, owning Seller |
@@ -205,13 +199,11 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 | GET | /orders/summary | Customer, Seller |
 | POST | /orders/seen | Customer, Seller |
 | GET | /images/{itemId}/full, /images/{itemId}/thumb | Logged-in users |
-| GET | /reference/saree-types, /reference/fabrics | Logged-in users |
 | PUT/DELETE | /follows/{sellerId} (PUT body: notifyMode) | Customer |
 | GET | /follows | Customer |
 | GET | /notifications?page=, /notifications/unread-count | Customer |
 | POST | /notifications/{id}/read, /notifications/read-all | Customer |
-| POST/PUT | /admin/saree-types, /admin/fabrics | Admin |
-| GET | /admin/users?q=&role=&page=, /admin/saree-types, /admin/fabrics (all, including deactivated) | Admin |
+| GET | /admin/users?q=&role=&page= | Admin |
 | PATCH | /admin/users/{id}/enabled | Admin |
 | GET/PATCH | /auth/me (PATCH: name) | Logged-in users |
 | PUT | /auth/me/password | Logged-in users |
@@ -236,7 +228,7 @@ Layouts come from `docs/design/stitch/v2/code.html` (one `screen-*` section each
 | Payment hold, Orders, Order detail (customer app, no Stitch screen) | /holds/:id, /orders, /orders/:id | Customer | Pay by UPI and enter the UTR; list and follow orders; resend a corrected UTR; cancel |
 | Orders, Shop settings (seller app, no Stitch screen) | /seller/orders, /seller/shop | Seller | Confirm, reject, pack, ship, deliver; UPI ID and shipping fee |
 | Desktop catalog (`screen-desktop-catalog`) | /catalog (wide) | Customer | Web layout only; not built in Android |
-| Admin (`screen-admin`) | /admin | Admin | Phase 2 only; reference data and users |
+| Admin (`screen-admin`) | /admin | Admin | Phase 2 only; users |
 
 On phones the filters panel is a bottom sheet. The customer's bottom bar is Catalog, Wishlist, Cart, Orders, Profile; "My sellers" and the notification bell sit in the catalog header. The seller's bottom bar is Collections, Orders, Add, Shop, Profile.
 
@@ -244,12 +236,12 @@ On phones the filters panel is a bottom sheet. The customer's bottom bar is Cata
 
 1. **Skeleton** — Maven project with health endpoint and configurable CORS, docker-compose PostgreSQL, Flyway V1 with all tables, seed data and the admin user, `./mvnw verify` passing; Android project that builds, applies the DESIGN.md theme and shows a placeholder screen calling the health endpoint
 2. **Auth** — register, login, JWT filter, role-based access (backend); login and register screens, DataStore token, role-based flows (Android); tests
-3. **Seller collections** — create with photo upload, local storage, thumbnails, image hash, dashboard, edit, delete, tests
+3. **Seller collections** — create with photo upload, local storage (S3 in production), thumbnails, image hash, dashboard, edit, delete, tests
 4. **Availability** — per-item and bulk status toggles, tests
 5. **Catalog search** — filters, keyword, sort, paging, item detail, seller page, tests for each filter
 6. **Image search** — dHash, Hamming match, gallery and camera capture in the app, tests with sample images
 7. **Follow and notifications** — follows, events, fan-out with coalescing, bell, notifications screen, WorkManager local notifications, Following filter, tests
-8. **Admin (backend only)** — reference data and user enable/disable endpoints with integration tests
+8. **Admin (backend only)** — user enable/disable endpoints with integration tests
 9. **Side menu and profile** — shared drawer for all roles (profile, change password, log out; sellers also edit shop details), with the endpoints above
 
 Each slice: plan → build → unit + integration tests → summary and how to try it → stop for review. The ponytail review (`/ponytail-review`) runs once on the whole backend after slice 9, not per slice.
@@ -266,7 +258,7 @@ Next: Angular web app (`frontend/`) with the admin screens.
 
 ## Out of scope (later add-ons)
 
-A payment gateway and automatic payment verification (the seller checks the UTR in their own bank app), refunds, courier integration and live shipping rates, returns and exchanges, ratings and reviews, coupons, tax invoices, a seller buying on the same account, WhatsApp API, SMS / OTP, push notifications (Firebase) and WhatsApp / email channels, daily digest mode, message broker, AWS / S3, AI quick-fill, similarity search with embeddings, disputes, admin approval of sellers, bulk quantity editing.
+A payment gateway and automatic payment verification (the seller checks the UTR in their own bank app), refunds, courier integration and live shipping rates, returns and exchanges, ratings and reviews, coupons, tax invoices, a seller buying on the same account, WhatsApp API, SMS / OTP, push notifications (Firebase) and WhatsApp / email channels, daily digest mode, message broker, AI quick-fill, similarity search with embeddings, disputes, admin approval of sellers, bulk quantity editing.
 
 ## Done means
 

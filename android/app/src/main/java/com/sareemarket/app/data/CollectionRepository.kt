@@ -16,9 +16,6 @@ class CollectionRepository @Inject constructor(
     private val photos: PhotoSource,
     private val json: Json,
 ) {
-    suspend fun referenceData(): Result<ReferenceData> =
-        apiCall(json) { ReferenceData(api.sareeTypes(), api.fabrics()) }
-
     suspend fun myCollections(): Result<List<CollectionSummary>> = apiCall(json) { api.myCollections() }
 
     suspend fun collection(id: Long): Result<CollectionDetail> = apiCall(json) { api.collection(id) }
@@ -28,8 +25,6 @@ class CollectionRepository @Inject constructor(
         apiCall(json) {
             api.create(
                 title = form.title.text(),
-                sareeTypeId = form.sareeTypeId.toString().text(),
-                fabricId = form.fabricId.toString().text(),
                 price = form.price.toString().text(),
                 description = form.description.text(),
                 quantity = quantity.toString().text(),
@@ -38,7 +33,7 @@ class CollectionRepository @Inject constructor(
         }
 
     suspend fun update(id: Long, form: CollectionForm): Result<CollectionDetail> = apiCall(json) {
-        api.update(id, UpdateCollectionBody(form.title, form.sareeTypeId, form.fabricId, form.price, form.description))
+        api.update(id, UpdateCollectionBody(form.title, form.price, form.description))
     }
 
     suspend fun delete(id: Long): Result<Unit> = apiCall(json) { api.delete(id).requireSuccess() }

@@ -69,7 +69,8 @@ internal fun FollowPill(mode: NotifyMode?, onToggle: () -> Unit, modifier: Modif
         Button(
             onClick = toggle,
             shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimary),
+            // Quiet on purpose: once followed it is a status, and the filled crimson belongs to the main action on the page.
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.primaryContainer),
             modifier = modifier.heightIn(min = MinTouchTarget).testTag("follow"),
         ) {
             Text("Following", style = MaterialTheme.typography.labelLarge)

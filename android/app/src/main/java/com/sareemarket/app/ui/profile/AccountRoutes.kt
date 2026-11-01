@@ -13,18 +13,25 @@ import androidx.navigation.compose.composable
 import com.sareemarket.app.data.Role
 import com.sareemarket.app.ui.theme.MinTouchTarget
 
+/** A row on the profile page that opens somewhere else in the app. */
+class ProfileShortcut(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val tag: String, val onClick: () -> Unit)
+
 const val ROUTE_PROFILE = "profile"
 const val ROUTE_PASSWORD = "password"
 
 /**
  * Adds the profile and change-password screens to a role's navigation graph. Every role reaches Profile from its
  * bottom bar, so the profile screen is a tab and has no back arrow; Change password opens from it and does.
+ * A seller passes [onOpenShop], which adds a Shop details row, and [missingUpi] to show the UPI prompt above it.
  */
-fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit) {
+fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit, onOpenShop: (() -> Unit)? = null, missingUpi: () -> Boolean = { false }, shortcuts: List<ProfileShortcut> = emptyList()) {
     composable(ROUTE_PROFILE) {
         ProfileScreen(
             onLogout = onLogout,
             onChangePassword = { nav.navigate(ROUTE_PASSWORD) { launchSingleTop = true } },
+            onOpenShop = onOpenShop,
+            missingUpi = missingUpi(),
+            shortcuts = shortcuts,
         )
     }
     composable(ROUTE_PASSWORD) { ChangePasswordScreen(onBack = { nav.popBackStack() }) }

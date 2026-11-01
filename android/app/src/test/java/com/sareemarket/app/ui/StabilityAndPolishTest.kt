@@ -48,12 +48,6 @@ class StabilityAndPolishTest {
     // ----- wording
 
     @Test
-    fun typeAndFabricShowsASharedWordOnce() {
-        assertEquals("Cotton", typeAndFabric("Cotton", "cotton"))
-        assertEquals("Kanjivaram · Pure silk", typeAndFabric("Kanjivaram", "Pure silk"))
-    }
-
-    @Test
     fun dayLabelGroupsNotificationsByCalendarDay() {
         val now = java.time.Instant.parse("2026-10-25T10:00:00Z")
         val utc = java.time.ZoneOffset.UTC
@@ -81,8 +75,8 @@ class StabilityAndPolishTest {
     @Test
     fun shareTextMarksSoldOutItemsAndPluralisesCollections() {
         assertTrue(ShareText.item(itemDetail().copy(status = ItemStatus.SOLD_OUT)).contains("sold out"))
-        assertTrue(ShareText.collection("Diwali", "Silk", "Silk", 4500, 1).endsWith("1 saree available"))
-        assertTrue(ShareText.collection("Diwali", "Silk", "Cotton", 4500, 3).endsWith("3 sarees available"))
+        assertTrue(ShareText.collection("Diwali", 4500, 1).endsWith("1 saree available"))
+        assertTrue(ShareText.collection("Diwali", 4500, 3).endsWith("3 sarees available"))
     }
 
     // ----- Save only when something changed
@@ -144,8 +138,6 @@ class StabilityAndPolishTest {
         val repo = CollectionRepository(FakeCollectionsApi(), FakePhotoSource(emptyMap()), testJson)
         val first = NewCollectionViewModel(repo, saved)
         first.onTitle("Diwali silks")
-        first.onType(2)
-        first.onFabric(3)
         first.onPrice("4500")
         first.onDescription("Soft and light")
 
@@ -153,8 +145,6 @@ class StabilityAndPolishTest {
 
         val fields = second.state.value.fields
         assertEquals("Diwali silks", fields.title)
-        assertEquals(2L, fields.sareeTypeId)
-        assertEquals(3L, fields.fabricId)
         assertEquals("4500", fields.price)
         assertEquals("Soft and light", fields.description)
         assertTrue(second.state.value.photos.isEmpty())

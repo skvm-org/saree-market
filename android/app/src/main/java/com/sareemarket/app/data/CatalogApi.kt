@@ -13,8 +13,6 @@ interface CatalogApi {
     @GET("api/v1/catalog/collections")
     suspend fun catalogCollections(
         @Query("q") q: String?,
-        @Query("typeIds") typeIds: List<Long>?,
-        @Query("fabricIds") fabricIds: List<Long>?,
         @Query("colour") colour: String?,
         @Query("minPrice") minPrice: Int?,
         @Query("maxPrice") maxPrice: Int?,
@@ -32,8 +30,6 @@ interface CatalogApi {
     suspend fun imageSearch(
         @Part image: MultipartBody.Part,
         @Query("q") q: String?,
-        @Query("typeIds") typeIds: List<Long>?,
-        @Query("fabricIds") fabricIds: List<Long>?,
         @Query("colour") colour: String?,
         @Query("minPrice") minPrice: Int?,
         @Query("maxPrice") maxPrice: Int?,

@@ -16,8 +16,6 @@ class CatalogRepositoryTest {
 
         val call = api.calls.single()
         assertNull(call.q)
-        assertNull(call.typeIds)
-        assertNull(call.fabricIds)
         assertNull(call.colour)
         assertNull(call.minPrice)
         assertNull(call.sellerId)
@@ -30,7 +28,7 @@ class CatalogRepositoryTest {
     @Test
     fun everyFilterIsPassedOn() = runTest {
         val query = CatalogQuery(
-            q = " soft silk ", typeIds = setOf(3, 1), fabricIds = setOf(2), colour = " blue ",
+            q = " soft silk ", colour = " blue ",
             minPrice = 1000, maxPrice = 3000, sellerId = 9, includeSoldOut = true, sinceDays = 30,
             sort = CatalogSort.PRICE_DESC,
         )
@@ -38,7 +36,7 @@ class CatalogRepositoryTest {
         repo.collections(query, page = 2)
 
         assertEquals(
-            CatalogCall("soft silk", listOf(1, 3), listOf(2), "blue", 1000, 3000, 9, "ALL", 30, "PRICE_DESC", 2),
+            CatalogCall("soft silk", "blue", 1000, 3000, 9, "ALL", 30, "PRICE_DESC", 2),
             api.calls.single(),
         )
     }
@@ -70,19 +68,18 @@ class CatalogRepositoryTest {
         assertEquals(10L, repo.item(10).getOrNull()?.id)
         assertEquals("Lakshmi Silks", repo.seller(1).getOrNull()?.shopName)
         assertEquals(1, repo.sellers().getOrNull()?.size)
-        assertEquals(1, repo.referenceData().getOrNull()?.sareeTypes?.size)
     }
 
     @Test
     fun photoSearchSendsThePictureAsTheImagePartAlongWithTheFilters() = runTest {
-        val query = CatalogQuery(q = "silk", typeIds = setOf(3), colour = "blue", minPrice = 1000, sellerId = 9, includeSoldOut = true, sinceDays = 7, sort = CatalogSort.PRICE_ASC)
+        val query = CatalogQuery(q = "silk", colour = "blue", minPrice = 1000, sellerId = 9, includeSoldOut = true, sinceDays = 7, sort = CatalogSort.PRICE_ASC)
 
         val result = repo.imageSearch(query, "photo-1", page = 1)
 
         val sent = api.imageCalls.single()
         assertEquals("image", sent.partName)
         assertEquals("photo-1.jpg", sent.fileName)
-        assertEquals(CatalogCall("silk", listOf(3), null, "blue", 1000, null, 9, "ALL", 7, "", 1), sent.call)
+        assertEquals(CatalogCall("silk", "blue", 1000, null, 9, "ALL", 7, "", 1), sent.call)
         assertEquals(3, result.getOrNull()?.items?.first()?.distance)
     }
 
@@ -92,7 +89,6 @@ class CatalogRepositoryTest {
 
         val call = api.imageCalls.single().call
         assertNull(call.q)
-        assertNull(call.typeIds)
         assertEquals("AVAILABLE", call.status)
         assertEquals(0, call.page)
     }
