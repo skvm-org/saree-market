@@ -27,7 +27,7 @@ class CollectionQuantityIntegrationTest extends IntegrationTestBase {
 		for (MockMultipartFile file : files) {
 			request.file(file);
 		}
-		request.param("title", "Quantity silks").param("sareeTypeId", "1").param("fabricId", "1").param("price", "2500");
+		request.param("title", "Quantity silks").param("price", "2500");
 		if (quantity != null) {
 			request.param("quantity", quantity);
 		}

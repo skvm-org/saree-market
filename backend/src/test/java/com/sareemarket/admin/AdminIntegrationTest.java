@@ -30,47 +30,11 @@ class AdminIntegrationTest extends IntegrationTestBase {
 
 	@Test
 	void onlyAdminsReachTheAdminEndpoints() throws Exception {
-		String body = "{\"name\":\"Nope\"}";
-		send(post("/api/v1/admin/saree-types"), null, body).andExpect(status().isUnauthorized());
+		send(patch("/api/v1/admin/users/1/enabled"), null, "{\"enabled\":false}").andExpect(status().isUnauthorized());
 		for (String token : new String[] { registerSeller(), registerCustomer() }) {
-			send(post("/api/v1/admin/saree-types"), token, body).andExpect(status().isForbidden());
-			send(put("/api/v1/admin/fabrics/1"), token, body).andExpect(status().isForbidden());
 			send(patch("/api/v1/admin/users/1/enabled"), token, "{\"enabled\":false}")
 				.andExpect(status().isForbidden());
 		}
-	}
-
-	@Test
-	void adminAddsASareeTypeThatResellersThenSee() throws Exception {
-		send(post("/api/v1/admin/saree-types"), adminToken(), "{\"name\":\" Paithani Test \"}")
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.name").value("Paithani Test"))
-			.andExpect(jsonPath("$.active").value(true));
-
-		getWith("/api/v1/reference/saree-types", registerCustomer()).andExpect(jsonPath("$[?(@.name=='Paithani Test')]").exists());
-	}
-
-	@Test
-	void adminRenamesAndDeactivatesAFabricWhichDisappearsFromTheReferenceList() throws Exception {
-		String admin = adminToken();
-		int id = idOf(send(post("/api/v1/admin/fabrics"), admin, "{\"name\":\"Crepe Test\"}").andExpect(status().isCreated()));
-
-		send(put("/api/v1/admin/fabrics/" + id), admin, "{\"name\":\"Crepe Test 2\",\"active\":false}")
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.name").value("Crepe Test 2"))
-			.andExpect(jsonPath("$.active").value(false));
-
-		getWith("/api/v1/reference/fabrics", registerCustomer()).andExpect(jsonPath("$[?(@.id==" + id + ")]").doesNotExist());
-	}
-
-	@Test
-	void referenceWritesValidateNameDuplicatesAndUnknownIds() throws Exception {
-		String admin = adminToken();
-		send(post("/api/v1/admin/saree-types"), admin, "{\"name\":\"  \"}").andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.fields.name").exists());
-		send(post("/api/v1/admin/saree-types"), admin, "{\"name\":\"kanjivaram\"}").andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("NAME_TAKEN"));
-		send(put("/api/v1/admin/saree-types/999999"), admin, "{\"name\":\"X\"}").andExpect(status().isNotFound());
 	}
 
 	@Test

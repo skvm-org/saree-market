@@ -43,7 +43,7 @@ class UploadLimitRealServerTest {
 	private HttpResponse<String> upload(HttpClient http, String token, byte[] photo) throws Exception {
 		String boundary = "----test" + System.nanoTime();
 		var out = new ByteArrayOutputStream();
-		String[][] fields = { { "title", "Big" }, { "sareeTypeId", "1" }, { "fabricId", "1" }, { "price", "1000" } };
+		String[][] fields = { { "title", "Big" }, { "price", "1000" } };
 		for (String[] f : fields) {
 			out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + f[0] + "\"\r\n\r\n" + f[1]
 					+ "\r\n").getBytes(StandardCharsets.UTF_8));

@@ -35,7 +35,7 @@ class SmokeTest {
 	void flywayCreatedAllTables() {
 		var tables = jdbc.queryForList("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
 				String.class);
-		assertThat(tables).contains("app_user", "seller_profile", "saree_type", "fabric", "collection", "item",
+		assertThat(tables).contains("app_user", "seller_profile", "collection", "item",
 				"seller_follow", "notification");
 	}
 
@@ -45,9 +45,6 @@ class SmokeTest {
 			.isEqualTo("ADMIN");
 		assertThat(jdbc.queryForObject("SELECT password_hash FROM app_user WHERE phone = '9999999999'", String.class))
 			.startsWith("$2a$10$");
-		assertThat(jdbc.queryForObject("SELECT count(*) FROM saree_type WHERE name = 'Kanjivaram'", Integer.class))
-			.isEqualTo(1);
-		assertThat(jdbc.queryForObject("SELECT count(*) FROM fabric", Integer.class)).isPositive();
 	}
 
 	@Test
@@ -56,8 +53,8 @@ class SmokeTest {
 		Long sellerId = jdbc.queryForObject("SELECT id FROM app_user WHERE phone = '1111111111'", Long.class);
 		jdbc.update("INSERT INTO seller_profile VALUES (?, 'Shop', 'Market', '1111111111', NULL)", sellerId);
 		jdbc.update("""
-				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price, description)
-				VALUES (?, 'Diwali soft silks', 1, 1, 2500, 'festive wear')""", sellerId);
+				INSERT INTO collection (seller_id, title, price, description)
+				VALUES (?, 'Diwali soft silks', 2500, 'festive wear')""", sellerId);
 		Long collectionId = jdbc.queryForObject("SELECT max(id) FROM collection", Long.class);
 		jdbc.update("""
 				INSERT INTO item (collection_id, seller_id, colour, image_path, thumb_path, image_hash)

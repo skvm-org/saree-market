@@ -49,7 +49,7 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 
 ## Backend conventions
 
-- Package by feature: `auth`, `seller`, `collection`, `item`, `catalog`, `imagesearch`, `follow`, `notification`, `reference`, `address`, `wishlist`, `cart`, `order`, `common`
+- Package by feature: `auth`, `seller`, `collection`, `item`, `catalog`, `imagesearch`, `follow`, `notification`, `address`, `wishlist`, `cart`, `order`, `common`
 - Cross-feature side effects (e.g. notifying followers) go through Spring application events, not direct service calls
 - Inside each feature: `Controller`, `Service`, `Repository`, `dto/`, `entity`
 - Controllers never return entities; use DTO records
@@ -107,7 +107,7 @@ Applies only once the Angular app begins, after the MVP. Do not scaffold `fronte
 - One `ApiService` per feature; an HTTP interceptor adds the JWT
 - Route guards by role (SELLER, CUSTOMER, ADMIN)
 - Mobile-first layouts: most users are on phones
-- Admin screens (reference data, users) are built here
+- Admin screens (users) are built here
 - Dev server on 4200, proxying `/api` to 8080; add its origin to `app.cors.allowed-origins` if it calls the API directly
 
 | Skill | Use for | When |

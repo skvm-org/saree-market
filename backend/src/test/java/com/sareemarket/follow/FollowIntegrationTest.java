@@ -28,8 +28,8 @@ class FollowIntegrationTest extends IntegrationTestBase {
 
 	long listing(long sellerId, String title) {
 		Long c = jdbc.queryForObject("""
-				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price)
-				VALUES (?, ?, 1, 1, 1000) RETURNING id""", Long.class, sellerId, title);
+				INSERT INTO collection (seller_id, title, price)
+				VALUES (?, ?, 1000) RETURNING id""", Long.class, sellerId, title);
 		return jdbc.queryForObject("""
 				INSERT INTO item (collection_id, seller_id, image_path, thumb_path, image_hash)
 				VALUES (?, ?, 'a', 'b', 1) RETURNING id""", Long.class, c, sellerId);
