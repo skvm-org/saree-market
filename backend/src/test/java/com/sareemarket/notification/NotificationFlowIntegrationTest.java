@@ -49,7 +49,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 		for (int i = 0; i < photos; i++) {
 			request.file(photo(i + 1));
 		}
-		String json = mvc.perform(request.param("title", title).param("sareeTypeId", "1").param("fabricId", "1")
+		String json = mvc.perform(request.param("title", title)
 			.param("price", "2500").header("Authorization", "Bearer " + seller))
 			.andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 		return ((Number) JsonPath.read(json, "$.id")).longValue();
@@ -249,7 +249,7 @@ class NotificationFlowIntegrationTest extends IntegrationTestBase {
 
 		mvc.perform(multipart("/api/v1/collections").file(photo(1))
 			.file(new MockMultipartFile("files", "notes.jpg", "image/jpeg", "not a picture".getBytes()))
-			.param("title", "Broken").param("sareeTypeId", "1").param("fabricId", "1").param("price", "100")
+			.param("title", "Broken").param("price", "100")
 			.header("Authorization", "Bearer " + seller)).andExpect(status().isBadRequest());
 		publish(seller, "Good one", 1); // the fence
 		waitForUnread(reseller, 1);

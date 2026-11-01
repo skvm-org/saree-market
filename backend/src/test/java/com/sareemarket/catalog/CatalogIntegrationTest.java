@@ -18,7 +18,6 @@ import com.sareemarket.IntegrationTestBase;
  */
 class CatalogIntegrationTest extends IntegrationTestBase {
 
-	// saree_type ids: 1 Kanjivaram, 2 Banarasi, 3 Soft silk, 4 Cotton. fabric ids: 1 Pure silk, 2 Silk cotton, 3 Cotton.
 	private static final AtomicInteger WORDS = new AtomicInteger();
 
 	long seller(String shop) {
@@ -29,10 +28,10 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		return id;
 	}
 
-	long collection(long sellerId, String title, int typeId, int fabricId, int price, String description) {
+	long collection(long sellerId, String title, int price, String description) {
 		return jdbc.queryForObject("""
-				INSERT INTO collection (seller_id, title, saree_type_id, fabric_id, price, description)
-				VALUES (?, ?, ?, ?, ?, ?) RETURNING id""", Long.class, sellerId, title, typeId, fabricId, price, description);
+				INSERT INTO collection (seller_id, title, price, description)
+				VALUES (?, ?, ?, ?) RETURNING id""", Long.class, sellerId, title, price, description);
 	}
 
 	long item(long collectionId, long sellerId, String colour, Integer priceOverride, String status, int daysAgo) {
@@ -63,28 +62,6 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void aCollectionWithoutSareeTypeAndFabricStillListsWithEmptyStrings() throws Exception {
-		String reseller = registerCustomer();
-		long s = seller("Lakshmi Silks");
-		Long c = jdbc.queryForObject("""
-				INSERT INTO collection (seller_id, title, price) VALUES (?, 'Plain collection', 1200) RETURNING id""",
-				Long.class, s);
-		long i = item(c, s, "ivory");
-
-		getWith("/api/v1/catalog?sellerId=" + s, reseller).andExpect(status().isOk())
-			.andExpect(jsonPath("$.items[0].id").value(i))
-			.andExpect(jsonPath("$.items[0].sareeType").value(""))
-			.andExpect(jsonPath("$.items[0].fabric").value(""));
-		getWith("/api/v1/catalog/collections?sellerId=" + s, reseller).andExpect(status().isOk())
-			.andExpect(jsonPath("$.items[0].id").value(c))
-			.andExpect(jsonPath("$.items[0].sareeType").value(""))
-			.andExpect(jsonPath("$.items[0].fabric").value(""));
-		getWith("/api/v1/items/" + i, reseller).andExpect(status().isOk())
-			.andExpect(jsonPath("$.sareeType").value(""))
-			.andExpect(jsonPath("$.fabric").value(""));
-	}
-
-	@Test
 	void onlyResellersAndAdminsCanSearch() throws Exception {
 		getWith("/api/v1/catalog", registerCustomer()).andExpect(status().isOk());
 		getWith("/api/v1/catalog", adminToken()).andExpect(status().isOk());
@@ -97,14 +74,14 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void cardsCarryTheFieldsTheGridShows() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Lakshmi Silks");
-		long c = collection(s, "Diwali soft silks", 3, 1, 4500, "festive");
+		long c = collection(s, "Diwali soft silks", 4500, "festive");
 		long i = item(c, s, "peacock blue", 3800, "AVAILABLE", 0);
 
 		getWith("/api/v1/catalog?sellerId=" + s, reseller).andExpect(jsonPath("$.items[0].id").value(i))
 			.andExpect(jsonPath("$.items[0].collectionId").value(c))
 			.andExpect(jsonPath("$.items[0].collectionTitle").value("Diwali soft silks"))
-			.andExpect(jsonPath("$.items[0].sareeType").value("Soft silk"))
-			.andExpect(jsonPath("$.items[0].fabric").value("Pure silk"))
+			.andExpect(jsonPath("$.items[0].sareeType").doesNotExist())
+			.andExpect(jsonPath("$.items[0].fabric").doesNotExist())
 			.andExpect(jsonPath("$.items[0].colour").value("peacock blue"))
 			.andExpect(jsonPath("$.items[0].price").value(3800)) // the photo's own price beats the collection's
 			.andExpect(jsonPath("$.items[0].status").value("AVAILABLE"))
@@ -116,7 +93,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void showsAvailableFirstByDefaultAndSoldOutOnRequest() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Stock", 1, 1, 1000, null);
+		long c = collection(s, "Stock", 1000, null);
 		long older = item(c, s, "red", null, "AVAILABLE", 2);
 		long newer = item(c, s, "blue", null, "AVAILABLE", 1);
 		long sold = item(c, s, "green", null, "SOLD_OUT", 0);
@@ -132,8 +109,8 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
-		long festive = collection(s, "Diwali " + tag, 3, 1, 1000, "festive wear");
-		long summer = collection(s, "Summer " + tag, 4, 3, 1000, "light and airy");
+		long festive = collection(s, "Diwali " + tag, 1000, "festive wear");
+		long summer = collection(s, "Summer " + tag, 1000, "light and airy");
 		long a = item(festive, s, "maroon");
 		long b = item(summer, s, "mango yellow");
 
@@ -147,9 +124,9 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
-		long c = collection(s, "Soft silks " + tag, 3, 1, 1000, null);
+		long c = collection(s, "Soft silks " + tag, 1000, null);
 		long match = item(c, s, "maroon");
-		long other = collection(s, "Cotton " + tag, 4, 3, 1000, null);
+		long other = collection(s, "Cotton " + tag, 1000, null);
 		item(other, s, "maroon");
 
 		assertThat(ids(reseller, s, "q=sil")).containsExactly(match);
@@ -162,7 +139,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void oddKeywordTextIsHarmless() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		item(collection(s, "Plain", 1, 1, 1000, null), s, "red");
+		item(collection(s, "Plain", 1000, null), s, "red");
 
 		for (String odd : new String[] { "'; drop table item; --", "(|!&:*", "\u0000", "%%%", "a & b | c", "\\" }) {
 			mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/catalog")
@@ -177,8 +154,8 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void tamilWordsCanBeSearchedByTheirFirstLetters() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long silk = item(collection(s, "காஞ்சிபுரம் பட்டு புடவை", 1, 1, 1000, null), s, "சிவப்பு");
-		item(collection(s, "Cotton", 4, 3, 1000, null), s, "red");
+		long silk = item(collection(s, "காஞ்சிபுரம் பட்டு புடவை", 1000, null), s, "சிவப்பு");
+		item(collection(s, "Cotton", 1000, null), s, "red");
 
 		assertThat(ids(reseller, s, "q=பட்டு")).containsExactly(silk);
 		assertThat(ids(reseller, s, "q=பட்")).containsExactly(silk);
@@ -187,26 +164,10 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void sareeTypeAndFabricFiltersAcceptSeveralValues() throws Exception {
-		String reseller = registerCustomer();
-		long s = seller("Shop");
-		long kanji = item(collection(s, "K", 1, 1, 1000, null), s, "red");
-		long banarasi = item(collection(s, "B", 2, 2, 1000, null), s, "red");
-		long cotton = item(collection(s, "C", 4, 3, 1000, null), s, "red");
-
-		assertThat(ids(reseller, s, "typeIds=1")).containsExactly(kanji);
-		assertThat(ids(reseller, s, "typeIds=1&typeIds=2")).containsExactlyInAnyOrder(kanji, banarasi);
-		assertThat(ids(reseller, s, "typeIds=1,4")).containsExactlyInAnyOrder(kanji, cotton);
-		assertThat(ids(reseller, s, "fabricIds=2,3")).containsExactlyInAnyOrder(banarasi, cotton);
-		assertThat(ids(reseller, s, "typeIds=1,2,4&fabricIds=3")).containsExactly(cotton); // both must hold
-		assertThat(ids(reseller, s, "typeIds=7")).isEmpty();
-	}
-
-	@Test
 	void colourMatchesPartsOfTheNameIgnoringCaseAndTreatsPercentLiterally() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Colours", 1, 1, 1000, null);
+		long c = collection(s, "Colours", 1000, null);
 		long peacock = item(c, s, "Peacock Blue");
 		long mustard = item(c, s, "mustard yellow");
 		item(c, s, null);
@@ -222,8 +183,8 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void priceRangeUsesWhatEachSareeActuallyCosts() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long dear = collection(s, "Dear", 1, 1, 5000, null);
-		long cheap = collection(s, "Cheap", 4, 3, 800, null);
+		long dear = collection(s, "Dear", 5000, null);
+		long cheap = collection(s, "Cheap", 800, null);
 		long discounted = item(dear, s, "a", 1000, "AVAILABLE", 0); // 5000 collection, priced 1000 on its own
 		long full = item(dear, s, "b");
 		long low = item(cheap, s, "c");
@@ -241,8 +202,8 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String reseller = registerCustomer();
 		long one = seller("One");
 		long two = seller("Two");
-		long a = item(collection(one, "A", 1, 1, 1000, null), one, "red");
-		long b = item(collection(two, "B", 1, 1, 1000, null), two, "red");
+		long a = item(collection(one, "A", 1000, null), one, "red");
+		long b = item(collection(two, "B", 1000, null), two, "red");
 
 		assertThat(ids(reseller, one, "")).containsExactly(a);
 		assertThat(ids(reseller, two, "")).containsExactly(b);
@@ -252,7 +213,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void uploadedWithinFilterCountsDays() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Dates", 1, 1, 1000, null);
+		long c = collection(s, "Dates", 1000, null);
 		long today = item(c, s, "a", null, "AVAILABLE", 0);
 		long tenDays = item(c, s, "b", null, "AVAILABLE", 10);
 		long fortyDays = item(c, s, "c", null, "AVAILABLE", 40);
@@ -266,7 +227,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void sortsNewestFirstByDefaultOrByPrice() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Sorting", 1, 1, 2000, null);
+		long c = collection(s, "Sorting", 2000, null);
 		long mid = item(c, s, "a", null, "AVAILABLE", 3); // 2000
 		long low = item(c, s, "b", 500, "AVAILABLE", 2);
 		long high = item(c, s, "c", 9000, "AVAILABLE", 1);
@@ -281,7 +242,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void equalPricesKeepAStableOrder() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Ties", 1, 1, 1000, null);
+		long c = collection(s, "Ties", 1000, null);
 		long first = item(c, s, "a");
 		long second = item(c, s, "b");
 		long third = item(c, s, "c");
@@ -294,7 +255,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void resultsComeIn24sWithTotals() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Many", 1, 1, 1000, null);
+		long c = collection(s, "Many", 1000, null);
 		for (int n = 0; n < 30; n++) {
 			item(c, s, "colour" + n);
 		}
@@ -316,20 +277,20 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
-		long wanted = item(collection(s, "Wanted " + tag, 3, 1, 3000, null), s, "maroon", null, "AVAILABLE", 1);
-		item(collection(s, "Wrong type " + tag, 4, 1, 3000, null), s, "maroon", null, "AVAILABLE", 1);
-		item(collection(s, "Too dear " + tag, 3, 1, 9000, null), s, "maroon", null, "AVAILABLE", 1);
-		item(collection(s, "Sold " + tag, 3, 1, 3000, null), s, "maroon", null, "SOLD_OUT", 1);
-		item(collection(s, "Old " + tag, 3, 1, 3000, null), s, "maroon", null, "AVAILABLE", 90);
+		long wanted = item(collection(s, "Wanted " + tag, 3000, null), s, "maroon", null, "AVAILABLE", 1);
+		item(collection(s, "Wrong colour " + tag, 3000, null), s, "teal", null, "AVAILABLE", 1);
+		item(collection(s, "Too dear " + tag, 9000, null), s, "maroon", null, "AVAILABLE", 1);
+		item(collection(s, "Sold " + tag, 3000, null), s, "maroon", null, "SOLD_OUT", 1);
+		item(collection(s, "Old " + tag, 3000, null), s, "maroon", null, "AVAILABLE", 90);
 
-		assertThat(ids(reseller, s, "q=" + tag + "&typeIds=3&colour=maro&maxPrice=5000&since=30")).containsExactly(wanted);
+		assertThat(ids(reseller, s, "q=" + tag + "&colour=maro&maxPrice=5000&since=30")).containsExactly(wanted);
 	}
 
 	@Test
 	void photosOfADisabledSellerLeaveTheCatalog() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Gone soon");
-		long a = item(collection(s, "Visible", 1, 1, 1000, null), s, "red");
+		long a = item(collection(s, "Visible", 1000, null), s, "red");
 		assertThat(ids(reseller, s, "")).containsExactly(a);
 
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", s);
@@ -341,7 +302,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void badParametersAreRejected() throws Exception {
 		String reseller = registerCustomer();
 		for (String bad : new String[] { "sort=CHEAPEST", "status=MAYBE", "page=-1", "minPrice=-5", "since=0",
-				"typeIds=abc", "sellerId=x" }) {
+				"sellerId=x" }) {
 			getWith("/api/v1/catalog?" + bad, reseller).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 		}
@@ -352,15 +313,15 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	@Test
 	void resellersAndAdminsSeeTheSellersContactDetails() throws Exception {
 		long s = seller("Lakshmi Silks");
-		long c = collection(s, "Diwali silks", 3, 1, 4500, "festive");
+		long c = collection(s, "Diwali silks", 4500, "festive");
 		long i = item(c, s, "maroon", 4000, "AVAILABLE", 0);
 
 		for (String token : new String[] { registerCustomer(), adminToken() }) {
 			getWith("/api/v1/items/" + i, token).andExpect(status().isOk())
 				.andExpect(jsonPath("$.collectionTitle").value("Diwali silks"))
 				.andExpect(jsonPath("$.collectionDescription").value("festive"))
-				.andExpect(jsonPath("$.sareeType").value("Soft silk"))
-				.andExpect(jsonPath("$.fabric").value("Pure silk"))
+				.andExpect(jsonPath("$.sareeType").doesNotExist())
+				.andExpect(jsonPath("$.fabric").doesNotExist())
 				.andExpect(jsonPath("$.colour").value("maroon"))
 				.andExpect(jsonPath("$.priceOverride").value(4000))
 				.andExpect(jsonPath("$.price").value(4000))
@@ -375,7 +336,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void theOwningSellerSeesThePhotoButNotTheContactNumbers() throws Exception {
 		String ownerToken = registerSeller();
 		long ownerId = jdbc.queryForObject("SELECT max(id) FROM app_user WHERE role = 'SELLER'", Long.class);
-		long i = item(collection(ownerId, "Mine", 1, 1, 1000, null), ownerId, "red");
+		long i = item(collection(ownerId, "Mine", 1000, null), ownerId, "red");
 
 		getWith("/api/v1/items/" + i, ownerToken).andExpect(status().isOk())
 			.andExpect(jsonPath("$.seller.shopName").value("Lakshmi Silks"))
@@ -386,7 +347,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	@Test
 	void anotherSellerCannotOpenTheItemAndUnknownItemsAre404() throws Exception {
 		long s = seller("Shop");
-		long i = item(collection(s, "Theirs", 1, 1, 1000, null), s, "red");
+		long i = item(collection(s, "Theirs", 1000, null), s, "red");
 		String intruder = registerSeller();
 
 		getWith("/api/v1/items/" + i, intruder).andExpect(status().isForbidden());
@@ -398,7 +359,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	@Test
 	void anItemOfADisabledSellerIsGoneForResellers() throws Exception {
 		long s = seller("Disabled");
-		long i = item(collection(s, "Hidden", 1, 1, 1000, null), s, "red");
+		long i = item(collection(s, "Hidden", 1000, null), s, "red");
 		jdbc.update("UPDATE app_user SET enabled = FALSE WHERE id = ?", s);
 
 		getWith("/api/v1/items/" + i, registerCustomer()).andExpect(status().isNotFound());
@@ -428,7 +389,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void aCollectionCardShowsTheWholeCollectionAsTheSellerPostedIt() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Lakshmi Silks");
-		long c = collection(s, "Diwali soft silks", 3, 1, 4500, "festive");
+		long c = collection(s, "Diwali soft silks", 4500, "festive");
 		long first = item(c, s, "maroon");
 		long second = item(c, s, "peacock blue");
 		long third = item(c, s, "gold", null, "SOLD_OUT", 0);
@@ -439,8 +400,8 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 			.andExpect(jsonPath("$.items.length()").value(1))
 			.andExpect(jsonPath("$.items[0].id").value(c))
 			.andExpect(jsonPath("$.items[0].title").value("Diwali soft silks"))
-			.andExpect(jsonPath("$.items[0].sareeType").value("Soft silk"))
-			.andExpect(jsonPath("$.items[0].fabric").value("Pure silk"))
+			.andExpect(jsonPath("$.items[0].sareeType").doesNotExist())
+			.andExpect(jsonPath("$.items[0].fabric").doesNotExist())
 			.andExpect(jsonPath("$.items[0].price").value(4500))
 			.andExpect(jsonPath("$.items[0].shopName").value("Lakshmi Silks"))
 			.andExpect(jsonPath("$.items[0].sellerId").value(s))
@@ -458,7 +419,7 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void aCollectionIsListedOnceNoMatterHowManyPhotosMatch() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long c = collection(s, "Reds", 1, 1, 1000, null);
+		long c = collection(s, "Reds", 1000, null);
 		item(c, s, "red");
 		item(c, s, "red");
 		item(c, s, "red");
@@ -473,17 +434,16 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
 		String tag = word();
-		long silk = collection(s, "Silk " + tag, 3, 1, 5000, null);
-		long cotton = collection(s, "Cotton " + tag, 4, 3, 900, null);
-		long soldOutOnly = collection(s, "Gone " + tag, 1, 1, 2000, null);
+		long silk = collection(s, "Silk " + tag, 5000, null);
+		long cotton = collection(s, "Cotton " + tag, 900, null);
+		long soldOutOnly = collection(s, "Gone " + tag, 2000, null);
 		item(silk, s, "maroon");
 		item(cotton, s, "white");
 		item(soldOutOnly, s, "red", null, "SOLD_OUT", 0);
 
 		assertThat(collectionIds(reseller, s, "q=" + tag)).containsExactlyInAnyOrder(silk, cotton); // sold out hidden by default
 		assertThat(collectionIds(reseller, s, "q=" + tag + "&status=ALL")).containsExactlyInAnyOrder(silk, cotton, soldOutOnly);
-		assertThat(collectionIds(reseller, s, "q=" + tag + "&typeIds=3")).containsExactly(silk);
-		assertThat(collectionIds(reseller, s, "q=" + tag + "&fabricIds=3")).containsExactly(cotton);
+		assertThat(collectionIds(reseller, s, "q=" + tag + "&colour=white")).containsExactly(cotton);
 		assertThat(collectionIds(reseller, s, "q=" + tag + "&maxPrice=1000")).containsExactly(cotton);
 		assertThat(collectionIds(reseller, s, "q=" + tag + "&sort=PRICE_ASC")).containsExactly(cotton, silk);
 		assertThat(collectionIds(reseller, s, "q=" + tag + "&sort=PRICE_DESC")).containsExactly(silk, cotton);
@@ -493,9 +453,9 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	void newestCollectionComesFirstAndADisabledSellersCollectionsAreHidden() throws Exception {
 		String reseller = registerCustomer();
 		long s = seller("Shop");
-		long older = collection(s, "Older", 1, 1, 1000, null);
+		long older = collection(s, "Older", 1000, null);
 		item(older, s, "red", null, "AVAILABLE", 3);
-		long newer = collection(s, "Newer", 1, 1, 1000, null);
+		long newer = collection(s, "Newer", 1000, null);
 		item(newer, s, "red", null, "AVAILABLE", 0);
 
 		assertThat(collectionIds(reseller, s, "")).containsExactly(newer, older);
