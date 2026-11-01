@@ -63,6 +63,28 @@ class CatalogIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void aCollectionWithoutSareeTypeAndFabricStillListsWithEmptyStrings() throws Exception {
+		String reseller = registerCustomer();
+		long s = seller("Lakshmi Silks");
+		Long c = jdbc.queryForObject("""
+				INSERT INTO collection (seller_id, title, price) VALUES (?, 'Plain collection', 1200) RETURNING id""",
+				Long.class, s);
+		long i = item(c, s, "ivory");
+
+		getWith("/api/v1/catalog?sellerId=" + s, reseller).andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].id").value(i))
+			.andExpect(jsonPath("$.items[0].sareeType").value(""))
+			.andExpect(jsonPath("$.items[0].fabric").value(""));
+		getWith("/api/v1/catalog/collections?sellerId=" + s, reseller).andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].id").value(c))
+			.andExpect(jsonPath("$.items[0].sareeType").value(""))
+			.andExpect(jsonPath("$.items[0].fabric").value(""));
+		getWith("/api/v1/items/" + i, reseller).andExpect(status().isOk())
+			.andExpect(jsonPath("$.sareeType").value(""))
+			.andExpect(jsonPath("$.fabric").value(""));
+	}
+
+	@Test
 	void onlyResellersAndAdminsCanSearch() throws Exception {
 		getWith("/api/v1/catalog", registerCustomer()).andExpect(status().isOk());
 		getWith("/api/v1/catalog", adminToken()).andExpect(status().isOk());

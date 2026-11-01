@@ -13,8 +13,9 @@ import jakarta.validation.constraints.Size;
 /**
  * Multipart form: these fields plus one or more "files" parts. The photo count is checked by CollectionService.
  * quantity is how many pieces of each saree the seller has; absent means 1.
+ * sareeTypeId and fabricId are optional and on their way out: older apps still send them, newer ones do not.
  */
-public record CreateCollectionForm(@NotBlank @Size(max = 200) String title, @NotNull Long sareeTypeId,
-		@NotNull Long fabricId, @NotNull @Min(1) Integer price, @Size(max = 5000) String description,
+public record CreateCollectionForm(@NotBlank @Size(max = 200) String title, Long sareeTypeId,
+		Long fabricId, @NotNull @Min(1) Integer price, @Size(max = 5000) String description,
 		List<MultipartFile> files, @Min(0) @Max(10000) Integer quantity) {
 }

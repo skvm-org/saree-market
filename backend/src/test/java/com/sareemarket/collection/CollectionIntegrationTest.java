@@ -208,6 +208,47 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void aCollectionCanBeCreatedWithoutSareeTypeAndFabric() throws Exception {
+		String seller = registerSeller();
+
+		// What a newer app sends: no saree type and no fabric.
+		mvc.perform(multipart("/api/v1/collections").file(photo(1))
+			.param("title", "Plain upload")
+			.param("price", "2500")
+			.header("Authorization", "Bearer " + seller))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.title").value("Plain upload"))
+			.andExpect(jsonPath("$.sareeType.name").value("")) // apps that still read the field get an empty one
+			.andExpect(jsonPath("$.fabric.name").value(""));
+	}
+
+	@Test
+	void editingWithoutSareeTypeAndFabricKeepsWhatTheCollectionHas() throws Exception {
+		String seller = registerSeller();
+		long id = createdId(seller, "Diwali silks", 1);
+
+		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + seller)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"title\":\"Pongal silks\",\"price\":900}"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.title").value("Pongal silks"))
+			.andExpect(jsonPath("$.sareeType.name").value("Kanjivaram"))
+			.andExpect(jsonPath("$.fabric.name").value("Pure silk"));
+	}
+
+	@Test
+	void aSentSareeTypeMustStillBeARealOne() throws Exception {
+		String seller = registerSeller();
+		long id = createdId(seller, "Diwali silks", 1);
+
+		mvc.perform(put("/api/v1/collections/" + id).header("Authorization", "Bearer " + seller)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"title\":\"Pongal silks\",\"sareeTypeId\":9999,\"price\":900}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.fields.sareeTypeId").exists());
+	}
+
+	@Test
 	void sellerCanEditTheCollectionAndSearchFollowsTheNewTitle() throws Exception {
 		String seller = registerSeller();
 		long id = createdId(seller, "Diwali silks", 1);
