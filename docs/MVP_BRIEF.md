@@ -244,7 +244,7 @@ On phones the filters panel is a bottom sheet. The customer's bottom bar is Cata
 
 1. **Skeleton** — Maven project with health endpoint and configurable CORS, docker-compose PostgreSQL, Flyway V1 with all tables, seed data and the admin user, `./mvnw verify` passing; Android project that builds, applies the DESIGN.md theme and shows a placeholder screen calling the health endpoint
 2. **Auth** — register, login, JWT filter, role-based access (backend); login and register screens, DataStore token, role-based flows (Android); tests
-3. **Seller collections** — create with photo upload, local storage, thumbnails, image hash, dashboard, edit, delete, tests
+3. **Seller collections** — create with photo upload, local storage (S3 in production), thumbnails, image hash, dashboard, edit, delete, tests
 4. **Availability** — per-item and bulk status toggles, tests
 5. **Catalog search** — filters, keyword, sort, paging, item detail, seller page, tests for each filter
 6. **Image search** — dHash, Hamming match, gallery and camera capture in the app, tests with sample images
@@ -266,7 +266,7 @@ Next: Angular web app (`frontend/`) with the admin screens.
 
 ## Out of scope (later add-ons)
 
-A payment gateway and automatic payment verification (the seller checks the UTR in their own bank app), refunds, courier integration and live shipping rates, returns and exchanges, ratings and reviews, coupons, tax invoices, a seller buying on the same account, WhatsApp API, SMS / OTP, push notifications (Firebase) and WhatsApp / email channels, daily digest mode, message broker, AWS / S3, AI quick-fill, similarity search with embeddings, disputes, admin approval of sellers, bulk quantity editing.
+A payment gateway and automatic payment verification (the seller checks the UTR in their own bank app), refunds, courier integration and live shipping rates, returns and exchanges, ratings and reviews, coupons, tax invoices, a seller buying on the same account, WhatsApp API, SMS / OTP, push notifications (Firebase) and WhatsApp / email channels, daily digest mode, message broker, AI quick-fill, similarity search with embeddings, disputes, admin approval of sellers, bulk quantity editing.
 
 ## Done means
 
