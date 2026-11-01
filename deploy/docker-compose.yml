@@ -15,6 +15,14 @@ services:
       SERVER_FORWARD_HEADERS_STRATEGY: native
       JWT_SECRET: ${JWT_SECRET:?}   # 32+ characters
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?}   # BCrypt; read by the V3 migration on first start
+      # Photos and payment proofs live in S3. No keys here: the EC2 instance role grants access (deploy/s3-iam-policy.json).
+      # FALLBACK_TO_LOCAL keeps serving earlier uploads from the volume below until they are copied to S3.
+      APP_STORAGE_TYPE: s3
+      APP_STORAGE_S3_BUCKET: saree-market
+      APP_STORAGE_S3_PREFIX: saree-collections/
+      APP_STORAGE_S3_PROOFS_PREFIX: payment-proofs/
+      APP_STORAGE_S3_REGION: us-east-1
+      APP_STORAGE_S3_FALLBACK_TO_LOCAL: "true"
     volumes:
       - uploads:/data/uploads
   caddy:

@@ -59,7 +59,7 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 - Never edit an applied Flyway migration; always add a new `V<n>__description.sql`
 - Configuration in `application.yml`, with a `local` profile; no secrets committed (JWT secret from env var with a dev default in the `local` profile only)
 - CORS allowed origins come from config (`app.cors.allowed-origins`, empty by default). The native Android app needs no CORS; the setting exists so the Angular app can be added later without backend changes
-- Image storage behind an `ImageStorage` interface (`LocalDiskImageStorage` now; S3 later)
+- Image storage behind an `ImageStorage` interface: `LocalDiskImageStorage` (default, local dev) and `S3ImageStorage` (production, `app.storage.type=s3`; bucket `saree-market`, photos under `saree-collections/`, payment proofs under `payment-proofs/`; credentials from the EC2 instance role). `FallbackImageStorage` reads old uploads from the disk volume until they are copied to S3
 - Client-neutral: responses and endpoints must not assume which frontend calls them
 
 ## Android conventions
