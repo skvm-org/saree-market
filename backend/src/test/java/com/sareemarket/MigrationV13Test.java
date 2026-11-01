@@ -158,8 +158,10 @@ class MigrationV13Test {
 	}
 
 	@Test
-	void flywayHistoryEndsAtV13() throws Exception {
-		assertThat(text("SELECT max(version::int)::text FROM flyway_schema_history WHERE success")).isEqualTo("13");
+	void flywayHistoryReachesV13() throws Exception {
+		// V13 must have run; later migrations are checked by MigrationFromProductionTest.
+		assertThat(Integer.parseInt(text("SELECT max(version::int)::text FROM flyway_schema_history WHERE success")))
+			.isGreaterThanOrEqualTo(13);
 	}
 
 }

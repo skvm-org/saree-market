@@ -30,6 +30,8 @@ import com.sareemarket.reference.SareeTypeRepository;
 @Service
 public class CollectionService {
 
+	private static final RefDto NO_REF = new RefDto(0L, "");
+
 	private final SareeCollectionRepository collections;
 
 	private final SareeTypeRepository types;
@@ -94,7 +96,10 @@ public class CollectionService {
 	public CollectionDetailDto update(long sellerId, long id, UpdateCollectionRequest request) {
 		SareeCollection collection = owned(id, sellerId);
 		checkReferences(request.sareeTypeId(), request.fabricId());
-		collection.update(request.title().strip(), request.sareeTypeId(), request.fabricId(), request.price(),
+		// A newer app does not send them: keep what the collection already has.
+		Long typeId = request.sareeTypeId() != null ? request.sareeTypeId() : collection.getSareeTypeId();
+		Long fabricId = request.fabricId() != null ? request.fabricId() : collection.getFabricId();
+		collection.update(request.title().strip(), typeId, fabricId, request.price(),
 				blankToNull(request.description()));
 		return detail(collections.save(collection));
 	}
@@ -136,10 +141,11 @@ public class CollectionService {
 
 	private void checkReferences(Long typeId, Long fabricId) {
 		Map<String, String> errors = new LinkedHashMap<>();
-		if (types.findById(typeId).filter(t -> t.isActive()).isEmpty()) {
+		// Both are optional now; a value that is sent must still be a real, active one.
+		if (typeId != null && types.findById(typeId).filter(t -> t.isActive()).isEmpty()) {
 			errors.put("sareeTypeId", "Unknown saree type");
 		}
-		if (fabrics.findById(fabricId).filter(f -> f.isActive()).isEmpty()) {
+		if (fabricId != null && fabrics.findById(fabricId).filter(f -> f.isActive()).isEmpty()) {
 			errors.put("fabricId", "Unknown fabric");
 		}
 		if (!errors.isEmpty()) {
@@ -152,8 +158,11 @@ public class CollectionService {
 	}
 
 	private CollectionDetailDto detail(SareeCollection c) {
-		RefDto type = types.findById(c.getSareeTypeId()).map(t -> new RefDto(t.getId(), t.getName())).orElseThrow();
-		RefDto fabric = fabrics.findById(c.getFabricId()).map(f -> new RefDto(f.getId(), f.getName())).orElseThrow();
+		// A collection without them gets an empty reference, so apps that still expect the two fields can read it.
+		RefDto type = c.getSareeTypeId() == null ? NO_REF
+				: types.findById(c.getSareeTypeId()).map(t -> new RefDto(t.getId(), t.getName())).orElse(NO_REF);
+		RefDto fabric = c.getFabricId() == null ? NO_REF
+				: fabrics.findById(c.getFabricId()).map(f -> new RefDto(f.getId(), f.getName())).orElse(NO_REF);
 		List<ItemDto> photos = items.dtosFor(c.getId(), c.getPrice());
 		return new CollectionDetailDto(c.getId(), c.getSellerId(), c.getTitle(), type, fabric, c.getPrice(),
 				c.getDescription(), c.getCreatedAt(), c.getUpdatedAt(), photos);

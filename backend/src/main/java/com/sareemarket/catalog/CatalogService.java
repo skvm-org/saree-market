@@ -41,8 +41,8 @@ public class CatalogService {
 	private static final String FROM = """
 			FROM item i
 			JOIN collection c ON c.id = i.collection_id
-			JOIN saree_type t ON t.id = c.saree_type_id
-			JOIN fabric f ON f.id = c.fabric_id
+			LEFT JOIN saree_type t ON t.id = c.saree_type_id
+			LEFT JOIN fabric f ON f.id = c.fabric_id
 			JOIN seller_profile sp ON sp.user_id = c.seller_id
 			JOIN app_user u ON u.id = c.seller_id
 			""";
@@ -51,7 +51,7 @@ public class CatalogService {
 	static final int MAX_DISTANCE = 12;
 
 	private static final String CARD_COLUMNS = """
-			SELECT i.id, i.collection_id, c.title, t.name AS saree_type, f.name AS fabric, i.colour,
+			SELECT i.id, i.collection_id, c.title, COALESCE(t.name, '') AS saree_type, COALESCE(f.name, '') AS fabric, i.colour,
 			       COALESCE(i.price_override, c.price) AS price, i.status, i.quantity, c.seller_id, sp.shop_name,
 			       i.created_at
 			""";
@@ -109,15 +109,15 @@ public class CatalogService {
 
 		params.addValue("limit", PAGE_SIZE).addValue("offset", (long) filter.page() * PAGE_SIZE);
 		List<CatalogCollectionDto> cards = jdbc.query("""
-				SELECT cc.id, cc.title, tt.name AS saree_type, ff.name AS fabric, cc.price, cc.created_at,
+				SELECT cc.id, cc.title, COALESCE(tt.name, '') AS saree_type, COALESCE(ff.name, '') AS fabric, cc.price, cc.created_at,
 				       cc.seller_id, sp.shop_name,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'SOLD_OUT') AS sold_out,
 				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
 				FROM collection cc
-				JOIN saree_type tt ON tt.id = cc.saree_type_id
-				JOIN fabric ff ON ff.id = cc.fabric_id
+				LEFT JOIN saree_type tt ON tt.id = cc.saree_type_id
+				LEFT JOIN fabric ff ON ff.id = cc.fabric_id
 				JOIN seller_profile sp ON sp.user_id = cc.seller_id
 				""" + matching + " ORDER BY " + filter.sort().collectionOrderBy()
 				+ ", cc.id DESC LIMIT :limit OFFSET :offset", params, (rs, n) -> {
@@ -242,7 +242,7 @@ public class CatalogService {
 		boolean seller = "SELLER".equals(role);
 		MapSqlParameterSource byId = new MapSqlParameterSource("id", itemId);
 		List<ItemDetailDto> found = jdbc.query("""
-				SELECT i.id, i.collection_id, c.title, c.description, t.name AS saree_type, f.name AS fabric,
+				SELECT i.id, i.collection_id, c.title, c.description, COALESCE(t.name, '') AS saree_type, COALESCE(f.name, '') AS fabric,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
 				       i.quantity, i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
 				       sp.whatsapp_number, u.enabled
