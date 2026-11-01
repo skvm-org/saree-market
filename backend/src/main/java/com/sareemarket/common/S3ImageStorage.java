@@ -3,10 +3,14 @@ package com.sareemarket.common;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.AbstractResource;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
@@ -21,6 +25,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  * and writes it with its own credentials and streams photos to the app.
  */
 public class S3ImageStorage implements ImageStorage {
+
+	private static final Logger log = LoggerFactory.getLogger(S3ImageStorage.class);
 
 	private static final String PROOFS = "proofs/";
 
@@ -58,8 +64,14 @@ public class S3ImageStorage implements ImageStorage {
 
 	@Override
 	public void save(String key, byte[] data) {
-		s3.putObject(PutObjectRequest.builder().bucket(bucket).key(objectKey(key)).contentType("image/jpeg").build(),
-				RequestBody.fromBytes(data));
+		try {
+			s3.putObject(PutObjectRequest.builder().bucket(bucket).key(objectKey(key)).contentType("image/jpeg").build(),
+					RequestBody.fromBytes(data));
+			log.debug("Saved {} bytes to S3 as {}", data.length, key);
+		}
+		catch (SdkException e) {
+			throw failed("save", key, e);
+		}
 	}
 
 	@Override
@@ -72,12 +84,28 @@ public class S3ImageStorage implements ImageStorage {
 		catch (NoSuchKeyException e) {
 			return MISSING;
 		}
+		catch (SdkException e) {
+			throw failed("read", key, e);
+		}
 	}
 
 	@Override
 	public void delete(String key) {
 		// S3 deletes a missing key without complaint.
-		s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(objectKey(key)).build());
+		try {
+			s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(objectKey(key)).build());
+		}
+		catch (SdkException e) {
+			throw failed("delete", key, e);
+		}
+	}
+
+	/** Says which call failed and why (for example AccessDenied while the instance role is missing), then lets it go. */
+	private static SdkException failed(String what, String key, SdkException e) {
+		String reason = e instanceof AwsServiceException aws && aws.awsErrorDetails() != null
+				? aws.awsErrorDetails().errorCode() + " (HTTP " + aws.statusCode() + ")" : e.getClass().getSimpleName();
+		log.error("S3 {} failed for {}: {}", what, key, reason, e);
+		return e;
 	}
 
 	String objectKey(String key) {

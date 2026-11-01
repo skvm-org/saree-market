@@ -133,6 +133,8 @@ public class HoldService {
 		for (Planned p : planned) {
 			holds.add(create(customerId, p, snapshot, r.note()));
 		}
+		log.info("Checkout by customer {}: {} payments started, {} sellers skipped, {} lines adjusted", customerId,
+				holds.size(), skipped.size(), adjustments.size());
 		return new CheckoutResultDto(holds, adjustments, skipped);
 	}
 

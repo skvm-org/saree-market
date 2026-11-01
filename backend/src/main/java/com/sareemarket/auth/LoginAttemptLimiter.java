@@ -8,11 +8,14 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.sareemarket.common.ApiException;
+import com.sareemarket.common.Mask;
 
 /**
  * Slows password guessing: too many failed logins for one phone, or from one address, lock logins for a while.
@@ -21,6 +24,8 @@ import com.sareemarket.common.ApiException;
  */
 @Component
 class LoginAttemptLimiter {
+
+	private static final Logger log = LoggerFactory.getLogger(LoginAttemptLimiter.class);
 
 	static final int MAX_PER_PHONE = 5;
 
@@ -46,6 +51,7 @@ class LoginAttemptLimiter {
 	/** Throws 429 when this phone or address has used up its failed attempts. Call before checking the password. */
 	void check(String phone, String address) {
 		if (recent("phone:" + phone) >= MAX_PER_PHONE || recent("ip:" + address) >= MAX_PER_ADDRESS) {
+			log.warn("Logins locked for phone {} from address {}", Mask.last4(phone), address);
 			throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_ATTEMPTS",
 					"Too many failed attempts. Try again in %d minutes.".formatted(WINDOW.toMinutes()));
 		}

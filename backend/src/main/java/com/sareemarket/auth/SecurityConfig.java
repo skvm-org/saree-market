@@ -28,6 +28,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -54,6 +55,7 @@ class SecurityConfig {
 				.authenticationEntryPoint(unauthorized())
 				.accessDeniedHandler(forbidden()))
 			.exceptionHandling(e -> e.authenticationEntryPoint(unauthorized()).accessDeniedHandler(forbidden()))
+			.addFilterAfter(new UserContextFilter(), BearerTokenAuthenticationFilter.class)
 			.build();
 	}
 
@@ -107,7 +109,10 @@ class SecurityConfig {
 			String message) throws java.io.IOException {
 		response.setStatus(status.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-		response.getWriter().write("{\"code\":\"%s\",\"message\":\"%s\",\"fields\":{}}".formatted(code, message));
+		String requestId = org.slf4j.MDC.get(com.sareemarket.common.RequestContext.REQUEST_ID);
+		response.getWriter()
+			.write("{\"code\":\"%s\",\"message\":\"%s\",\"fields\":{}%s}".formatted(code, message,
+					requestId == null ? "" : ",\"requestId\":\"" + requestId + "\""));
 	}
 
 }

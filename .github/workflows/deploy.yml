@@ -54,6 +54,7 @@ jobs:
       # The docker CLI on the runner drives the EC2 daemon over SSH: nothing is copied to the server.
       DOCKER_HOST: ssh://${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
       BACKEND_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/saree-backend:${{ github.event.workflow_run.head_sha || github.sha }}
+      BUILD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       DB_URL: ${{ secrets.DB_URL }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}

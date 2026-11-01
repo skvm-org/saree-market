@@ -14,6 +14,10 @@ services:
       # Behind Caddy: use X-Forwarded-For as the client address, or the login limiter sees one shared IP.
       SERVER_FORWARD_HEADERS_STRATEGY: native
       JWT_SECRET: ${JWT_SECRET:?}   # 32+ characters
+      # One JSON object per log line, with the request id and user id as fields, so `docker compose logs | jq` can filter.
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+      # Printed in the startup line, so the log says which build is running.
+      BUILD_SHA: ${BUILD_SHA:-unknown}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?}   # BCrypt; read by the V3 migration on first start
       # Photos and payment proofs live in S3. No keys here: the EC2 instance role grants access (deploy/s3-iam-policy.json).
       # FALLBACK_TO_LOCAL keeps serving earlier uploads from the volume below until they are copied to S3.
