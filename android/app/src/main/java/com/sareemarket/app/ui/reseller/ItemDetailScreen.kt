@@ -43,7 +43,6 @@ import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.ShareText
 import com.sareemarket.app.ui.share
-import com.sareemarket.app.ui.typeAndFabric
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -309,7 +308,7 @@ fun ItemDetailContent(
             Column(Modifier.padding(horizontal = Spacing.margin).padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 // What it is, what it costs and whether it can be had: one block, read top to bottom.
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(typeAndFabric(detail.sareeType, detail.fabric), style = MaterialTheme.typography.headlineMedium)
+                    Text(detail.collectionTitle, style = MaterialTheme.typography.headlineMedium)
                     Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
                             formatRupees(detail.price),

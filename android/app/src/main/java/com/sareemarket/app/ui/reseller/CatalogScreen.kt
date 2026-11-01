@@ -45,7 +45,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.sareemarket.app.ui.typeAndFabric
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.semantics.Role
 import android.net.Uri
@@ -218,7 +217,6 @@ fun CatalogScreen(
         ModalBottomSheet(onDismissRequest = { showFilters = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surface) {
             FilterSheetContent(
                 query = state.query,
-                reference = state.reference,
                 sellers = state.sellers,
                 onApply = { viewModel.apply(it); showFilters = false },
             )
@@ -357,7 +355,7 @@ private fun SearchField(text: String, onText: (String) -> Unit, onPhotoSearch: (
             ) {
                 Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Box(Modifier.weight(1f)) {
-                    if (text.isEmpty()) Text("Search sarees, colours, fabrics", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (text.isEmpty()) Text("Search sarees, colours", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     field()
                 }
                 if (text.isNotEmpty()) {
@@ -442,7 +440,7 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
 /** The filters that are on, each a chip with a cross, so the reseller sees why the list is short and can undo one at a time. */
 @Composable
 private fun ActiveFilterRow(state: CatalogState, onQueryChange: (CatalogQuery) -> Unit) {
-    val active = activeFilters(state.query, state.reference, state.sellers)
+    val active = activeFilters(state.query, state.sellers)
     if (active.isEmpty()) return
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = Spacing.sm), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         active.forEach { filter ->
@@ -616,7 +614,7 @@ private fun MatchRow(item: CatalogItem, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primaryContainer,
                     textDecoration = if (soldOut) TextDecoration.LineThrough else null,
                 )
-                Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.collectionTitle, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (item.status != ItemStatus.AVAILABLE) ItemStatusPill(item.status)
             }

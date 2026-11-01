@@ -42,9 +42,8 @@ class CollectionDetailViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun loadsTheCollectionAndReferenceData() {
+    fun loadsTheCollection() {
         assertEquals(detail(), vm.state.value.detail)
-        assertNotNull(vm.state.value.reference)
         assertFalse(vm.state.value.loading)
     }
 
@@ -140,7 +139,7 @@ class CollectionDetailViewModelTest {
         api.onUpdate = { detail().copy(title = "Pongal cottons") }
         var saved = false
 
-        vm.saveCollection(CollectionFields("Pongal cottons", 1, 1, "900", "")) { saved = true }
+        vm.saveCollection(CollectionFields("Pongal cottons", "900", "")) { saved = true }
 
         assertTrue(saved)
         assertEquals("Pongal cottons", vm.state.value.detail!!.title)
@@ -148,9 +147,9 @@ class CollectionDetailViewModelTest {
 
     @Test
     fun invalidCollectionEditsAreCaughtBeforeAnyRequest() {
-        vm.saveCollection(CollectionFields("", null, null, "", "")) {}
+        vm.saveCollection(CollectionFields("", "", "")) {}
 
-        assertEquals(setOf("title", "sareeTypeId", "fabricId", "price"), vm.state.value.fieldErrors.keys)
+        assertEquals(setOf("title", "price"), vm.state.value.fieldErrors.keys)
         assertFalse("update" in api.calls)
     }
 

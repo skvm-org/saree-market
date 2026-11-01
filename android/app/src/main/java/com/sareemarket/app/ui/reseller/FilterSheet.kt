@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import com.sareemarket.app.data.CatalogQuery
 import com.sareemarket.app.data.PriceBand
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import com.sareemarket.app.ui.auth.digitsOnly
 import com.sareemarket.app.ui.components.PrimaryButton
@@ -65,7 +64,7 @@ private const val MAX_PRICE_DIGITS = 9
 /** The filters from the brief. Edits stay in a draft and only apply when the reseller taps "Show results". */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: List<SellerListItem>, onApply: (CatalogQuery) -> Unit) {
+fun FilterSheetContent(query: CatalogQuery, sellers: List<SellerListItem>, onApply: (CatalogQuery) -> Unit) {
     var draft by remember { mutableStateOf(query) }
     // The button stays at the bottom while the filters scroll above it.
     Column(Modifier.imePadding().navigationBarsPadding()) {
@@ -93,20 +92,6 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
             ) { Text("Reset", style = MaterialTheme.typography.labelLarge) }
         }
 
-        Section("Saree type") {
-            reference?.sareeTypes.orEmpty().forEach { type ->
-                Chip(type.name, type.id in draft.typeIds, "type-${type.id}") {
-                    draft = draft.copy(typeIds = draft.typeIds.toggle(type.id))
-                }
-            }
-        }
-        Section("Fabric") {
-            reference?.fabrics.orEmpty().forEach { fabric ->
-                Chip(fabric.name, fabric.id in draft.fabricIds, "fabric-${fabric.id}") {
-                    draft = draft.copy(fabricIds = draft.fabricIds.toggle(fabric.id))
-                }
-            }
-        }
         Section("Price") {
             PriceBand.entries.forEach { band ->
                 val selected = draft.minPrice == band.min && draft.maxPrice == band.max
@@ -154,7 +139,6 @@ fun FilterSheetContent(query: CatalogQuery, reference: ReferenceData?, sellers: 
     }
 }
 
-private fun Set<Long>.toggle(id: Long) = if (id in this) this - id else this + id
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

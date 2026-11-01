@@ -74,7 +74,6 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.SareeTheme
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
-import com.sareemarket.app.ui.typeAndFabric
 
 @Composable
 fun SellerHomeScreen(
@@ -276,7 +275,6 @@ internal fun CollectionCard(
                         color = MaterialTheme.colorScheme.primaryContainer,
                     )
                 }
-                Text(typeAndFabric(collection.sareeType, collection.fabric), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
                         buildString {
@@ -353,7 +351,7 @@ private fun PhotoStrip(collection: CollectionSummary) {
 private fun SellerHomePreview() {
     SareeTheme {
         SellerHomeContent(
-            SellerHomeState.Loaded(listOf(CollectionSummary(1, "Diwali soft silks", "Soft silk", "Pure silk", 4500, 18, 15, 3, 1))),
+            SellerHomeState.Loaded(listOf(CollectionSummary(1, "Diwali soft silks", 4500, 18, 15, 3, 1))),
             "Lakshmi Silks", {}, {}, {}, location = "Chinnalapatti",
         )
     }

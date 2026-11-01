@@ -28,7 +28,6 @@ import com.sareemarket.app.ui.components.ScreenHeader
 import com.sareemarket.app.ui.components.bleedHorizontally
 import com.sareemarket.app.ui.components.PillChip
 import com.sareemarket.app.ui.theme.CardShape
-import com.sareemarket.app.ui.typeAndFabric
 import com.sareemarket.app.ui.ShareText
 import com.sareemarket.app.ui.share
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -168,7 +167,7 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                                     text = { Text("Share") }, modifier = Modifier.heightIn(min = MinTouchTarget),
                                     onClick = {
                                         menuOpen = false
-                                        share(context, ShareText.collection(detail.title, detail.sareeType.name, detail.fabric.name, detail.price, detail.items.count { it.status == ItemStatus.AVAILABLE }))
+                                        share(context, ShareText.collection(detail.title, detail.price, detail.items.count { it.status == ItemStatus.AVAILABLE }))
                                     },
                                 )
                                 DropdownMenuItem(text = { Text("Delete collection") }, modifier = Modifier.heightIn(min = MinTouchTarget), onClick = { menuOpen = false; confirmingDelete = true })
@@ -179,8 +178,6 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                 val titleBlock: @Composable () -> Unit = {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            Text(typeAndFabric(detail.sareeType.name, detail.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(formatRupees(detail.price), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primaryContainer)
                         }
                         detail.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
@@ -368,15 +365,13 @@ internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
 @Composable
 private fun EditCollectionSheet(detail: CollectionDetail, state: DetailState, onSave: (CollectionFields) -> Unit) {
     var fields by remember(detail.id) {
-        mutableStateOf(CollectionFields(detail.title, detail.sareeType.id, detail.fabric.id, detail.price.toString(), detail.description.orEmpty()))
+        mutableStateOf(CollectionFields(detail.title, price = detail.price.toString(), detail.description.orEmpty()))
     }
     Column(Modifier.imePadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Text("Edit collection", style = MaterialTheme.typography.headlineSmall)
         CollectionFieldsForm(
-            fields, state.reference, state.fieldErrors,
+            fields, state.fieldErrors,
             onTitle = { fields = fields.copy(title = it) },
-            onType = { fields = fields.copy(sareeTypeId = it) },
-            onFabric = { fields = fields.copy(fabricId = it) },
             onPrice = { fields = fields.copy(price = com.sareemarket.app.ui.auth.digitsOnly(it, MAX_PRICE_DIGITS)) },
             onDescription = { fields = fields.copy(description = it) },
         )

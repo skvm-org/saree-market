@@ -24,7 +24,7 @@ class PurchasePanelTest {
 
     private val seller = SellerContact(7, "Lakshmi Silks", "Chinnalapatti", "9876543210", "9876543211")
     private val detail = ItemDetail(
-        10, 5, "Diwali silks", null, "Soft silk", "Pure silk", "maroon", null, 4000, ItemStatus.AVAILABLE, seller,
+        10, 5, "Diwali silks", null, "maroon", null, 4000, ItemStatus.AVAILABLE, seller,
         quantity = 5, inStock = true,
     )
 

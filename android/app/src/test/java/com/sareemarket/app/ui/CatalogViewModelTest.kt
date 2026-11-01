@@ -55,7 +55,6 @@ class CatalogViewModelTest {
         assertEquals(6L, vm.state.value.totalItems)
         assertTrue(vm.state.value.hasMore)
         assertFalse(vm.state.value.loading)
-        assertNotNull(vm.state.value.reference)
         assertEquals(1, vm.state.value.sellers.size)
     }
 
@@ -88,11 +87,11 @@ class CatalogViewModelTest {
     fun newFiltersStartOverFromThePageOne() {
         vm.loadNextPage()
 
-        vm.apply(CatalogQuery(typeIds = setOf(1), includeSoldOut = true))
+        vm.apply(CatalogQuery(colour = "red", includeSoldOut = true))
 
         assertEquals(0, api.calls.last().page)
         assertEquals("ALL", api.calls.last().status)
-        assertEquals(listOf(1L), api.calls.last().typeIds)
+        assertEquals("red", api.calls.last().colour)
         assertEquals(listOf(0L, 1L), ids()) // the old pages are gone
     }
 
@@ -111,12 +110,12 @@ class CatalogViewModelTest {
 
     @Test
     fun clearingFiltersKeepsTheKeywordAndTheSort() {
-        vm.apply(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC, typeIds = setOf(2), colour = "red"))
+        vm.apply(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC, colour = "red"))
 
         vm.clearFilters()
 
         assertEquals(CatalogQuery(q = "silk", sort = CatalogSort.PRICE_ASC), vm.state.value.query)
-        assertNull(api.calls.last().typeIds)
+        assertNull(api.calls.last().colour)
         assertEquals("silk", api.calls.last().q)
     }
 
@@ -198,11 +197,11 @@ class CatalogViewModelTest {
     fun filtersAndKeywordStillApplyDuringAPhotoSearch() {
         vm.searchByImage("photo-1")
 
-        vm.apply(vm.state.value.query.copy(typeIds = setOf(2), includeSoldOut = true))
+        vm.apply(vm.state.value.query.copy(colour = "blue", includeSoldOut = true))
         vm.setKeyword("silk")
 
         val last = api.imageCalls.last().call
-        assertEquals(listOf(2L), last.typeIds)
+        assertEquals("blue", last.colour)
         assertEquals("ALL", last.status)
         assertEquals("silk", last.q)
         assertEquals("photo-1", vm.state.value.imageUri) // still searching with the same picture

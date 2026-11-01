@@ -25,7 +25,7 @@ class V2ScreensTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val item = CatalogItem(1, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
+    private val item = CatalogItem(1, 5, "Diwali silks", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
 
     @Test
     fun pillSwitchSelectsTheTappedOption() {
@@ -81,25 +81,24 @@ class V2ScreensTest {
     @Test
     fun appliedFiltersShowAsChipsThatRemoveThemselves() {
         var applied: com.sareemarket.app.data.CatalogQuery? = null
-        val reference = com.sareemarket.app.data.ReferenceData(listOf(com.sareemarket.app.data.RefItem(1, "Soft silk")), emptyList())
         compose.setContent {
             SareeTheme {
                 CatalogContent(
                     CatalogState(
-                        collections = listOf(com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", "Soft silk", "Pure silk", 125000, 18, 15, 3)),
-                        totalItems = 1, loading = false, reference = reference,
-                        query = com.sareemarket.app.data.CatalogQuery(typeIds = setOf(1), colour = "maroon"),
+                        collections = listOf(com.sareemarket.app.data.CollectionSummary(5, "Diwali silks", 125000, 18, 15, 3)),
+                        totalItems = 1, loading = false,
+                        query = com.sareemarket.app.data.CatalogQuery(minPrice = 3000, maxPrice = 7000, colour = "maroon"),
                     ),
                     "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, onQueryChange = { applied = it },
                 )
             }
         }
 
-        compose.onNodeWithText("Type: Soft silk").assertIsDisplayed()
+        compose.onNodeWithText("₹3,000–7,000").assertIsDisplayed()
         compose.onNodeWithTag("active-colour").performClick()
 
         assertEquals("", applied?.colour)
-        assertEquals(setOf(1L), applied?.typeIds)
+        assertEquals(3000, applied?.minPrice)
     }
 
     @Test
@@ -122,7 +121,7 @@ class V2ScreensTest {
     @Test
     fun sareePageSaysWhichPhotoOfTheCollectionItIs() {
         val detail = com.sareemarket.app.data.ItemDetail(
-            10, 5, "Diwali silks", null, "Soft silk", "Pure silk", "maroon", null, 2500, ItemStatus.AVAILABLE,
+            10, 5, "Diwali silks", null, "maroon", null, 2500, ItemStatus.AVAILABLE,
             com.sareemarket.app.data.SellerContact(7, "Lakshmi Silks", "Erode", "9876543210", null),
         )
         compose.setContent {

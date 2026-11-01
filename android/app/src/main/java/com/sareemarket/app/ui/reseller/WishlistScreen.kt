@@ -64,7 +64,6 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.typeAndFabric
 
 private const val LOAD_MORE_AHEAD_WISHLIST = 4
 
@@ -158,7 +157,7 @@ private fun WishlistRow(item: CatalogItem, busy: Boolean, onOpenItem: (Long) -> 
                     color = MaterialTheme.colorScheme.primaryContainer,
                     textDecoration = if (item.inStock) null else TextDecoration.LineThrough,
                 )
-                Text(typeAndFabric(item.sareeType, item.fabric), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(item.collectionTitle, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(item.shopName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (!item.inStock) Text("Out of stock", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("out-of-stock-${item.id}"))
             }

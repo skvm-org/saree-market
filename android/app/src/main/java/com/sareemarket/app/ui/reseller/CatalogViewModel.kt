@@ -8,7 +8,6 @@ import com.sareemarket.app.data.CatalogRepository
 import com.sareemarket.app.data.CollectionSummary
 import com.sareemarket.app.data.FollowRepository
 import com.sareemarket.app.data.NotifyMode
-import com.sareemarket.app.data.ReferenceData
 import com.sareemarket.app.data.SellerListItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -37,7 +36,6 @@ data class CatalogState(
     val refreshing: Boolean = false,
     val error: String? = null,
     /** Choices for the filter sheet; empty until they have loaded. */
-    val reference: ReferenceData? = null,
     val sellers: List<SellerListItem> = emptyList(),
     /** How many sellers the reseller follows: the number on the Following tab. */
     val followedCount: Int = 0,
@@ -108,7 +106,6 @@ class CatalogViewModel @Inject constructor(
 
     private fun loadOptions() {
         viewModelScope.launch {
-            repository.referenceData().onSuccess { ref -> _state.update { it.copy(reference = ref) } }
             repository.sellers().onSuccess { list -> _state.update { it.copy(sellers = list) } }
         }
     }

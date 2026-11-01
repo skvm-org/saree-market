@@ -35,11 +35,11 @@ class CatalogScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val available = CatalogItem(1, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
+    private val available = CatalogItem(1, 5, "Diwali silks", "maroon", 125000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
     private val soldOut = available.copy(id = 2, price = 3200, status = ItemStatus.SOLD_OUT, shopName = "Kanchi Weaves")
 
     private val diwali = CollectionSummary(
-        5, "Diwali soft silks", "Soft silk", "Pure silk", 125000, 18, 15, 3, coverItemId = 1,
+        5, "Diwali soft silks", 125000, 18, 15, 3, coverItemId = 1,
         previewItemIds = listOf(1, 2, 3), shopName = "Lakshmi Silks", sellerId = 1,
     )
     private val summer = diwali.copy(id = 6, title = "Summer cottons", price = 3200, availableCount = 8, soldOutCount = 0, itemCount = 8, shopName = "Kanchi Weaves")
@@ -90,12 +90,11 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun collectionCardsShowTitlePriceTypeFabricShopAndStock() {
+    fun collectionCardsShowTitlePriceShopAndStock() {
         show(CatalogState(collections = listOf(diwali, summer), totalItems = 148, loading = false))
 
         compose.onNodeWithText("Diwali soft silks").assertExists()
         compose.onNodeWithText("From ₹1,25,000").assertExists()
-        compose.onAllNodesWithText("Soft silk · Pure silk").assertCountEquals(2) // one per card
         compose.onNodeWithText("Lakshmi Silks").assertExists()
         compose.onNodeWithText("Kanchi Weaves").assertExists()
         compose.onNodeWithText("15 available · 3 sold out").assertExists()
@@ -116,9 +115,9 @@ class CatalogScreenTest {
 
     @Test
     fun filtersButtonShowsHowManyFiltersAreOn() {
-        show(CatalogState(query = CatalogQuery(typeIds = setOf(1), colour = "red", includeSoldOut = true), collections = listOf(diwali), loading = false))
+        show(CatalogState(query = CatalogQuery(colour = "red", includeSoldOut = true), collections = listOf(diwali), loading = false))
 
-        compose.onNodeWithText("Filters (3)").assertExists()
+        compose.onNodeWithText("Filters (2)").assertExists()
     }
 
     @Test

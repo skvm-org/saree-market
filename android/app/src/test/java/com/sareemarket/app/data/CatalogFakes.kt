@@ -4,7 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 /** What the app sent in one GET /catalog/collections call. */
 data class CatalogCall(
-    val q: String?, val typeIds: List<Long>?, val fabricIds: List<Long>?, val colour: String?,
+    val q: String?, val colour: String?,
     val minPrice: Int?, val maxPrice: Int?, val sellerId: Long?, val status: String, val since: Int?,
     val sort: String, val page: Int, val following: Boolean? = null,
 )
@@ -16,7 +16,7 @@ data class ImageCall(val fileName: String?, val partName: String?, val call: Cat
 fun fakePhotos() = FakePhotoSource(mapOf("photo-1" to ByteArray(100), "photo-2" to ByteArray(100)))
 
 fun card(id: Long, status: ItemStatus = ItemStatus.AVAILABLE) = CatalogItem(
-    id, 5, "Diwali silks", "Soft silk", "Pure silk", "maroon", 2500, status, 1, "Lakshmi Silks",
+    id, 5, "Diwali silks", "maroon", 2500, status, 1, "Lakshmi Silks",
 )
 
 fun page(number: Int, totalPages: Int, perPage: Int = 2, total: Long = totalPages.toLong() * perPage) = CatalogPage(
@@ -32,7 +32,7 @@ fun collectionPage(number: Int, totalPages: Int, perPage: Int = 2, total: Long =
 val lakshmi = SellerContact(1, "Lakshmi Silks", "Chinnalapatti", "9876543210", "9876543211")
 
 fun itemDetail(id: Long = 10, seller: SellerContact = lakshmi) = ItemDetail(
-    id, 5, "Diwali silks", "Festive", "Soft silk", "Pure silk", "maroon", null, 2500, ItemStatus.AVAILABLE, seller,
+    id, 5, "Diwali silks", "Festive", "maroon", null, 2500, ItemStatus.AVAILABLE, seller,
 )
 
 class FakeCatalogApi : CatalogApi {
@@ -49,24 +49,24 @@ class FakeCatalogApi : CatalogApi {
     var gate: CompletableDeferred<Unit>? = null
 
     override suspend fun catalogCollections(
-        q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?, minPrice: Int?, maxPrice: Int?,
+        q: String?, colour: String?, minPrice: Int?, maxPrice: Int?,
         sellerId: Long?, status: String, since: Int?, sort: String, page: Int, following: Boolean?,
     ): CollectionPage {
-        val call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, sort, page, following)
+        val call = CatalogCall(q, colour, minPrice, maxPrice, sellerId, status, since, sort, page, following)
         calls += call
         if (q == "slow") gate?.await()
         return onCollections(call)
     }
 
     override suspend fun imageSearch(
-        image: okhttp3.MultipartBody.Part, q: String?, typeIds: List<Long>?, fabricIds: List<Long>?, colour: String?,
+        image: okhttp3.MultipartBody.Part, q: String?, colour: String?,
         minPrice: Int?, maxPrice: Int?, sellerId: Long?, status: String, since: Int?, page: Int, following: Boolean?,
     ): CatalogPage {
         val disposition = image.headers?.get("Content-Disposition").orEmpty()
         val call = ImageCall(
             fileName = Regex("filename=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
             partName = Regex("name=\"([^\"]*)\"").find(disposition)?.groupValues?.get(1),
-            call = CatalogCall(q, typeIds, fabricIds, colour, minPrice, maxPrice, sellerId, status, since, "", page, following),
+            call = CatalogCall(q, colour, minPrice, maxPrice, sellerId, status, since, "", page, following),
         )
         imageCalls += call
         return onImageSearch(call)

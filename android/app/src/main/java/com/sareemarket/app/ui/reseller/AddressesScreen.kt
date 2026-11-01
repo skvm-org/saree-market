@@ -71,7 +71,6 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.typeAndFabric
 
 /**
  * The customer's saved addresses. With [onPicked] set (checkout) a tap on a row chooses that address; without it the

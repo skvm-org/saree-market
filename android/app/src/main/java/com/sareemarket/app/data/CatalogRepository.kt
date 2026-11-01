@@ -14,8 +14,6 @@ class CatalogRepository @Inject constructor(
     suspend fun collections(query: CatalogQuery, page: Int): Result<CollectionPage> = apiCall(json) {
         api.catalogCollections(
             q = query.q.trim().ifEmpty { null },
-            typeIds = query.typeIds.sorted().ifEmpty { null },
-            fabricIds = query.fabricIds.sorted().ifEmpty { null },
             colour = query.colour.trim().ifEmpty { null },
             minPrice = query.minPrice,
             maxPrice = query.maxPrice,
@@ -33,8 +31,6 @@ class CatalogRepository @Inject constructor(
         api.imageSearch(
             image = imagePart(photos, photo),
             q = query.q.trim().ifEmpty { null },
-            typeIds = query.typeIds.sorted().ifEmpty { null },
-            fabricIds = query.fabricIds.sorted().ifEmpty { null },
             colour = query.colour.trim().ifEmpty { null },
             minPrice = query.minPrice,
             maxPrice = query.maxPrice,
@@ -52,8 +48,6 @@ class CatalogRepository @Inject constructor(
 
     suspend fun sellers(): Result<List<SellerListItem>> = apiCall(json) { api.sellers() }
 
-    suspend fun referenceData(): Result<ReferenceData> =
-        apiCall(json) { ReferenceData(collectionsApi.sareeTypes(), collectionsApi.fabrics()) }
 
     suspend fun collection(id: Long): Result<CollectionDetail> = apiCall(json) { collectionsApi.collection(id) }
 }

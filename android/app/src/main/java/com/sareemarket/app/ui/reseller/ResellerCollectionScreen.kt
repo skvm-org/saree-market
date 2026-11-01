@@ -9,7 +9,6 @@ import com.sareemarket.app.ui.components.SoldOutChip
 import com.sareemarket.app.ui.components.ScreenHeader
 import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.theme.CardShape
-import com.sareemarket.app.ui.typeAndFabric
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,7 +64,6 @@ fun ResellerCollectionContent(collection: CollectionDetail, onBack: () -> Unit, 
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(typeAndFabric(collection.sareeType.name, collection.fabric.name), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(formatRupees(collection.price), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primaryContainer)
                     collection.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                 }

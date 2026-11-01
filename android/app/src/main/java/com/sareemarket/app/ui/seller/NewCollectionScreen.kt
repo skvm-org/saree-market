@@ -128,11 +128,8 @@ fun NewCollectionContent(
                     run {
                         CollectionFieldsForm(
                             fields = state.fields,
-                            reference = state.reference,
                             errors = state.fieldErrors,
                             onTitle = viewModel::onTitle,
-                            onType = viewModel::onType,
-                            onFabric = viewModel::onFabric,
                             onPrice = viewModel::onPrice,
                             onDescription = viewModel::onDescription,
                             onQuantity = viewModel::onQuantity,

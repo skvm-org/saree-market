@@ -36,7 +36,7 @@ class SellerQuantityUiTest {
         compose.setContent {
             SareeTheme {
                 var fields by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(CollectionFields()) }
-                CollectionFieldsForm(fields, null, emptyMap(), {}, {}, {}, {}, {}, onQuantity = { typed = it; fields = fields.copy(quantity = it) })
+                CollectionFieldsForm(fields, emptyMap(), {}, {}, {}, onQuantity = { typed = it; fields = fields.copy(quantity = it) })
             }
         }
 
@@ -48,7 +48,7 @@ class SellerQuantityUiTest {
 
     @Test
     fun theEditFormHasNoQuantityField() {
-        compose.setContent { SareeTheme { CollectionFieldsForm(CollectionFields(), null, emptyMap(), {}, {}, {}, {}, {}) } }
+        compose.setContent { SareeTheme { CollectionFieldsForm(CollectionFields(), emptyMap(), {}, {}, {}) } }
 
         compose.onNodeWithTag("quantity").assertDoesNotExist()
     }

@@ -8,16 +8,13 @@ import okhttp3.RequestBody
 import okio.Buffer
 import retrofit2.Response
 
-val silks = RefItem(1, "Kanjivaram")
-val pureSilk = RefItem(1, "Pure silk")
-
 fun item(id: Long, colour: String? = null, override: Int? = null, status: ItemStatus = ItemStatus.AVAILABLE) =
     Item(id, colour, override, override ?: 2500, status)
 
 fun detail(id: Long = 5, items: List<Item> = listOf(item(10), item(11))) =
-    CollectionDetail(id, 1, "Diwali silks", silks, pureSilk, 2500, "Festive", items)
+    CollectionDetail(id, 1, "Diwali silks", 2500, "Festive", items)
 
-fun summary(id: Long = 5) = CollectionSummary(id, "Diwali silks", "Kanjivaram", "Pure silk", 2500, 2, 2, 0, 10)
+fun summary(id: Long = 5) = CollectionSummary(id, "Diwali silks", 2500, 2, 2, 0, 10)
 
 fun RequestBody.text(): String = Buffer().also { writeTo(it) }.readUtf8()
 
@@ -27,8 +24,6 @@ class FakePhotoSource(private val files: Map<String, ByteArray> = emptyMap()) : 
 }
 
 class FakeCollectionsApi : CollectionsApi {
-    var types = listOf(silks)
-    var fabrics = listOf(pureSilk)
     var mine: () -> List<CollectionSummary> = { listOf(summary()) }
     var get: () -> CollectionDetail = { detail() }
     var onCreate: (fields: Map<String, String>, files: List<MultipartBody.Part>) -> CollectionDetail = { _, _ -> detail() }
@@ -40,18 +35,16 @@ class FakeCollectionsApi : CollectionsApi {
     var onDeleteItem: () -> Response<Unit> = { Response.success(Unit) }
     val calls = mutableListOf<String>()
 
-    override suspend fun sareeTypes() = types
-    override suspend fun fabrics() = fabrics
     override suspend fun myCollections() = mine()
     override suspend fun collection(id: Long) = get()
 
     override suspend fun create(
-        title: RequestBody, sareeTypeId: RequestBody, fabricId: RequestBody, price: RequestBody,
+        title: RequestBody, price: RequestBody,
         description: RequestBody, quantity: RequestBody, files: List<MultipartBody.Part>,
     ): CollectionDetail {
         calls += "create"
         val fields = mapOf(
-            "title" to title.text(), "sareeTypeId" to sareeTypeId.text(), "fabricId" to fabricId.text(),
+            "title" to title.text(),
             "price" to price.text(), "description" to description.text(), "quantity" to quantity.text(),
         )
         return onCreate(fields, files)

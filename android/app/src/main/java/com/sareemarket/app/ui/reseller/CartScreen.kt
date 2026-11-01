@@ -75,7 +75,6 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.typeAndFabric
 
 /** The customer's cart: one card per seller, each paid for (and shipped) on its own. */
 @Composable

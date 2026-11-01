@@ -18,7 +18,7 @@ class WishlistScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val kanjivaram = CatalogItem(10, 5, "Diwali silks", "Kanjivaram", "Pure silk", "maroon", 4000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
+    private val kanjivaram = CatalogItem(10, 5, "Diwali silks", "maroon", 4000, ItemStatus.AVAILABLE, 1, "Lakshmi Silks")
 
     private var opened: Long? = null
     private var removed: Long? = null

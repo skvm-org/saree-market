@@ -72,7 +72,6 @@ import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.typeAndFabric
 
 /** Choose where to send one seller's sarees, add a note, and start the payment hold. */
 @OptIn(ExperimentalMaterial3Api::class)
