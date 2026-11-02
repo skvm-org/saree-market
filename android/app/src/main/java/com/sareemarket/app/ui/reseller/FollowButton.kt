@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.sareemarket.app.data.NotifyMode
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.SecondaryButton
@@ -51,7 +53,7 @@ internal fun FollowButton(mode: NotifyMode?, error: String?, onToggle: () -> Uni
 
 /** The compact Follow / Following pill used inside seller cards. Tapping Following unfollows, as the big button did. */
 @Composable
-internal fun FollowPill(mode: NotifyMode?, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+internal fun FollowPill(mode: NotifyMode?, onToggle: () -> Unit, modifier: Modifier = Modifier, tag: String = "follow", description: String? = null) {
     val haptics = LocalHapticFeedback.current
     val toggle = {
         haptics.performHapticFeedback(if (mode == null) HapticFeedbackType.Confirm else HapticFeedbackType.ToggleOff)
@@ -63,7 +65,7 @@ internal fun FollowPill(mode: NotifyMode?, onToggle: () -> Unit, modifier: Modif
             shape = CircleShape,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primaryContainer),
-            modifier = modifier.heightIn(min = MinTouchTarget).testTag("follow"),
+            modifier = modifier.heightIn(min = MinTouchTarget).testTag(tag).semantics { description?.let { contentDescription = it } },
         ) { Text("Follow", style = MaterialTheme.typography.labelLarge) }
     } else {
         Button(
@@ -71,7 +73,7 @@ internal fun FollowPill(mode: NotifyMode?, onToggle: () -> Unit, modifier: Modif
             shape = CircleShape,
             // Quiet on purpose: once followed it is a status, and the filled crimson belongs to the main action on the page.
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, contentColor = MaterialTheme.colorScheme.primaryContainer),
-            modifier = modifier.heightIn(min = MinTouchTarget).testTag("follow"),
+            modifier = modifier.heightIn(min = MinTouchTarget).testTag(tag).semantics { description?.let { contentDescription = it } },
         ) {
             Text("Following", style = MaterialTheme.typography.labelLarge)
             Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.padding(start = 4.dp).size(16.dp))

@@ -1,5 +1,7 @@
 package com.sareemarket.app.ui.seller
 
+import com.sareemarket.app.ui.reseller.FollowPill
+
 import com.sareemarket.app.ui.components.SkeletonCollections
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalConfiguration
@@ -262,7 +264,12 @@ internal fun CollectionCard(
                         Text(shop, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         collection.createdAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
-                    if (onToggleFollow != null) FollowPlus(shop, followMode != null, onToggleFollow, Modifier.testTag("follow-${collection.sellerId}"))
+                    if (onToggleFollow != null) {
+                        FollowPill(
+                            followMode, onToggleFollow, tag = "follow-${collection.sellerId}",
+                            description = if (followMode != null) "Following $shop. Tap to unfollow" else "Follow $shop",
+                        )
+                    }
                 }
             }
             PhotoStrip(collection)
@@ -289,34 +296,6 @@ internal fun CollectionCard(
                     }
                 }
             }
-        }
-    }
-}
-
-/** A round + to follow a seller from the card; once followed it is a quiet tick, and a tap undoes it. */
-@Composable
-private fun FollowPlus(shop: String, following: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    val haptics = LocalHapticFeedback.current
-    IconButton(
-        onClick = {
-            haptics.performHapticFeedback(if (following) HapticFeedbackType.ToggleOff else HapticFeedbackType.Confirm)
-            onToggle()
-        },
-        modifier = modifier.size(MinTouchTarget),
-    ) {
-        Box(
-            Modifier.size(32.dp).background(
-                if (following) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f),
-                CircleShape,
-            ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                if (following) Icons.Filled.Check else Icons.Filled.Add,
-                contentDescription = if (following) "Following $shop. Tap to unfollow" else "Follow $shop",
-                tint = if (following) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(20.dp),
-            )
         }
     }
 }
