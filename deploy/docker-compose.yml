@@ -29,6 +29,12 @@ services:
       APP_STORAGE_S3_FALLBACK_TO_LOCAL: "true"
     volumes:
       - uploads:/data/uploads
+    logging: &log-rotation
+      # Docker keeps container output in a file on the instance disk; without a cap it grows until the disk is full.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -39,6 +45,7 @@ services:
       - "443:443"
     volumes:
       - caddy_data:/data
+    logging: *log-rotation
     depends_on:
       - backend
 
