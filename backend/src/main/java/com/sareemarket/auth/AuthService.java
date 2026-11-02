@@ -3,6 +3,8 @@ package com.sareemarket.auth;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,11 +16,14 @@ import com.sareemarket.auth.dto.LoginRequest;
 import com.sareemarket.auth.dto.RegisterRequest;
 import com.sareemarket.auth.dto.UserDto;
 import com.sareemarket.common.ApiException;
+import com.sareemarket.common.Mask;
 import com.sareemarket.seller.SellerProfile;
 import com.sareemarket.seller.SellerProfileRepository;
 
 @Service
 class AuthService {
+
+	private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
 	private static final ApiException PHONE_TAKEN = new ApiException(HttpStatus.CONFLICT, "PHONE_TAKEN",
 			"This phone number is already registered");
@@ -64,6 +69,7 @@ class AuthService {
 			sellers.save(new SellerProfile(user.getId(), request.shopName().strip(), request.marketLocation().strip(),
 					request.contactPhone(), blankToNull(request.whatsappNumber())));
 		}
+		log.info("Registered {} user {}", user.getRole(), user.getId());
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
@@ -73,12 +79,15 @@ class AuthService {
 		boolean passwordOk = encoder.matches(request.password(), user == null ? dummyHash : user.getPasswordHash());
 		if (user == null || !passwordOk) {
 			limiter.failed(request.phone(), clientAddress);
+			log.warn("Login failed for phone {} ({})", Mask.last4(request.phone()), user == null ? "unknown phone" : "wrong password");
 			throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Wrong phone number or password");
 		}
 		limiter.succeeded(request.phone());
 		if (!user.isEnabled()) {
+			log.warn("Login refused: user {} is disabled", user.getId());
 			throw new ApiException(HttpStatus.FORBIDDEN, "ACCOUNT_DISABLED", "This account has been disabled");
 		}
+		log.info("User {} logged in", user.getId());
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
@@ -97,6 +106,7 @@ class AuthService {
 					Map.of("currentPassword", "is wrong"));
 		}
 		user.setPasswordHash(encoder.encode(newPassword));
+		log.info("User {} changed their password", userId);
 	}
 
 	UserDto currentUser(long userId) {

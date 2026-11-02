@@ -13,6 +13,13 @@ spring:
     placeholders:
       admin_password_hash: ${ADMIN_PASSWORD_HASH}
 
+logging:
+  level:
+    com.sareemarket: INFO
+  pattern:
+    # Local runs print the request id after the level; the JSON format used in production carries it as a field.
+    level: "%5p [%X{requestId:-}]"
+
 app:
   storage:
     # "local" keeps photos on disk (root below, repo-root data/uploads when run from backend/); "s3" uses the bucket.

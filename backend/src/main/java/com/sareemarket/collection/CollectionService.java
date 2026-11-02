@@ -27,6 +27,8 @@ import com.sareemarket.notification.event.ItemsAdded;
 @Service
 public class CollectionService {
 
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CollectionService.class);
+
 	private final SareeCollectionRepository collections;
 
 	private final ItemService items;
@@ -49,6 +51,7 @@ public class CollectionService {
 		Long id = saveWithPhotos(sellerId, images, quantity, () -> collections.save(new SareeCollection(sellerId,
 				form.title().strip(), form.price(), blankToNull(form.description()))),
 				collectionId -> new CollectionPublished(sellerId, collectionId, images.size()));
+		log.info("Collection {} created by seller {} with {} photos", id, sellerId, images.size());
 		return detail(id);
 	}
 

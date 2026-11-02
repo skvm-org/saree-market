@@ -23,8 +23,11 @@ class OrderExpiryJob {
 	@Scheduled(initialDelay = 60_000, fixedDelay = 300_000)
 	void run() {
 		try {
-			holds.expireOverdue();
-			orders.expireRejected();
+			int released = holds.expireOverdue();
+			int cancelled = orders.expireRejected();
+			if (released + cancelled > 0) {
+				log.info("Expiry run: {} holds released, {} orders cancelled", released, cancelled);
+			}
 		}
 		catch (RuntimeException e) {
 			log.warn("Hold expiry run failed; it will try again in five minutes", e);

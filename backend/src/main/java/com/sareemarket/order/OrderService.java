@@ -377,6 +377,7 @@ public class OrderService {
 	}
 
 	void history(long orderId, OrderStatus status) {
+		log.info("Order {} is now {}", orderId, status);
 		jdbc.update("INSERT INTO order_status_history (order_id, status) VALUES (:o, :s)",
 				new MapSqlParameterSource("o", orderId).addValue("s", status.name()));
 	}
