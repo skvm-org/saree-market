@@ -62,7 +62,7 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun theCardOffersAPlusToFollowAndATickOnceFollowed() {
+    fun theCardOffersAFollowButtonAndFollowingOnceFollowed() {
         val toggled = mutableListOf<Long>()
         compose.setContent {
             SareeTheme {
@@ -73,7 +73,7 @@ class CatalogScreenTest {
             }
         }
 
-        // Both cards come from seller 1, who is followed: each has a tick, and tapping it unfollows.
+        // Both cards come from seller 1, who is followed: each says Following, and tapping it unfollows.
         compose.onAllNodesWithTag("follow-1").assertCountEquals(2)
         compose.onNodeWithContentDescription("Following Lakshmi Silks. Tap to unfollow").assertExists()
         compose.onAllNodesWithTag("follow-1")[0].performClick()
@@ -81,7 +81,7 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun anUnfollowedSellerShowsAPlus() {
+    fun anUnfollowedSellerShowsAFollowButton() {
         compose.setContent {
             SareeTheme { CatalogContent(CatalogState(collections = listOf(diwali), loading = false), "", {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) }
         }

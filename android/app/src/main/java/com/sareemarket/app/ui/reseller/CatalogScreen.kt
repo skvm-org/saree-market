@@ -372,7 +372,7 @@ private fun SearchField(text: String, onText: (String) -> Unit, onPhotoSearch: (
 }
 
 /**
- * Following / All sellers as two text tabs with a crimson mark under the chosen one, then one row: Filters and the sort
+ * All sellers / Following as two text tabs with a crimson mark under the chosen one, then one row: Filters and the sort
  * order on the left, how many are shown on the right. The chips are neutral; only active filters take the brand colour.
  */
 @Composable
@@ -380,7 +380,7 @@ private fun FilterChips(state: CatalogState, onFollowing: (Boolean) -> Unit, onO
     var sortOpen by remember { mutableStateOf(false) }
     val count = state.query.activeFilterCount
     Row(Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
-        listOf(true to "Following (${state.followedCount})", false to "All sellers (${state.sellers.size})").forEach { (following, label) ->
+        listOf(false to "All sellers (${state.sellers.size})", true to "Following (${state.followedCount})").forEach { (following, label) ->
             val on = following == state.query.followingOnly
             Column(
                 Modifier

@@ -59,15 +59,15 @@ class CatalogViewModel @Inject constructor(
 
     init {
         loadOptions()
-        startOnTheRightTab()
+        loadFollows()
+        reload()
     }
 
-    /** A reseller who follows anyone lands on "New from sellers you follow"; everyone else sees all sellers. */
-    private fun startOnTheRightTab() {
+    /** Everyone lands on all sellers; the Following tab is one tap away. The follows are loaded for the tab count and the card buttons. */
+    private fun loadFollows() {
         viewModelScope.launch {
             val list = follows.follows().getOrNull().orEmpty()
-            _state.update { it.copy(followedCount = list.size, followModes = list.associate { f -> f.sellerId to f.notifyMode }, query = it.query.copy(followingOnly = list.isNotEmpty())) }
-            reload()
+            _state.update { it.copy(followedCount = list.size, followModes = list.associate { f -> f.sellerId to f.notifyMode }) }
         }
     }
 
@@ -81,7 +81,7 @@ class CatalogViewModel @Inject constructor(
     }
 
     /**
-     * The + on a card: follows the seller, or unfollows one already followed. The card flips at once and goes back
+     * The Follow button on a card: follows the seller, or unfollows one already followed. The card flips at once and goes back
      * if the server refuses. The list itself is not reloaded, so a card does not vanish from under a thumb.
      */
     fun toggleFollow(sellerId: Long) {

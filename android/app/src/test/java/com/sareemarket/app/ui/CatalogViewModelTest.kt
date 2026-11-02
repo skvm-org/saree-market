@@ -284,17 +284,17 @@ class CatalogViewModelTest {
     }
 
     @Test
-    fun aResellerWhoFollowsSomeoneStartsOnTheFollowingTab() {
+    fun aResellerWhoFollowsSomeoneStillStartsOnAllSellers() {
         followsApi.list = { listOf(followItem(1), followItem(2)) }
 
-        assertTrue(vm.state.value.query.followingOnly)
+        assertFalse(vm.state.value.query.followingOnly)
         assertEquals(2, vm.state.value.followedCount)
-        assertEquals(true, api.calls.first().following)
+        assertNull(api.calls.first().following)
         assertEquals(1, api.calls.size) // one search, not one for "all" and then another for "following"
     }
 
     @Test
-    fun thePlusOnACardFollowsTheSellerAndCountsThemAtOnce() {
+    fun theFollowButtonOnACardFollowsTheSellerAndCountsThemAtOnce() {
         assertEquals(0, vm.state.value.followedCount)
 
         vm.toggleFollow(7)
@@ -360,6 +360,7 @@ class CatalogViewModelTest {
     @Test
     fun clearingFiltersStaysOnTheSameTab() {
         followsApi.list = { listOf(followItem(1)) }
+        vm.setFollowingOnly(true)
         vm.apply(vm.state.value.query.copy(colour = "red"))
 
         vm.clearFilters()
@@ -372,6 +373,7 @@ class CatalogViewModelTest {
     @Test
     fun followingTabDoesNotCountAsAFilter() {
         followsApi.list = { listOf(followItem(1)) }
+        vm.setFollowingOnly(true)
 
         assertEquals(0, vm.state.value.query.activeFilterCount)
     }
@@ -379,6 +381,7 @@ class CatalogViewModelTest {
     @Test
     fun theFollowingTabAlsoAppliesToAPhotoSearch() {
         followsApi.list = { listOf(followItem(1)) }
+        vm.setFollowingOnly(true)
         vm.state.value
 
         vm.searchByImage("photo-1")
@@ -389,6 +392,7 @@ class CatalogViewModelTest {
     @Test
     fun unfollowingEveryoneElsewhereMovesTheCatalogToAllSellers() {
         followsApi.list = { listOf(followItem(1)) }
+        vm.setFollowingOnly(true)
         vm.state.value
         assertTrue(vm.state.value.query.followingOnly)
 
