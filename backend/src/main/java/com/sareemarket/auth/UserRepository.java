@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/** Access to app_user. Public because other features look users up by id. Phone lookups are exact. */
 public interface UserRepository extends JpaRepository<AppUser, Long> {
 
 	Optional<AppUser> findByPhone(String phone);

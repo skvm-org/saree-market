@@ -22,11 +22,13 @@ public class FallbackImageStorage implements ImageStorage {
 		this.secondary = secondary;
 	}
 
+	/** Always writes to the primary store. A failure there propagates and the upload fails. */
 	@Override
 	public void save(String key, byte[] data) {
 		primary.save(key, data);
 	}
 
+	/** Reads from the primary; if the file is missing there or the primary throws, reads from the secondary instead (the primary failure is logged as a warning). */
 	@Override
 	public Resource load(String key) {
 		try {
@@ -42,6 +44,7 @@ public class FallbackImageStorage implements ImageStorage {
 		return secondary.load(key);
 	}
 
+	/** Deletes from both stores. If either throws, that exception propagates. */
 	@Override
 	public void delete(String key) {
 		primary.delete(key);

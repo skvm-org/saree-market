@@ -12,9 +12,14 @@ import com.sareemarket.catalog.dto.CatalogItemDto;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.PageDto;
 
+/**
+ * Saved sarees per customer, stored in wishlist_entry. Reads and writes with SQL directly; the cards shown in the list
+ * are built by CatalogService so they look the same as in the catalog. Called by WishlistController.
+ */
 @Service
 public class WishlistService {
 
+	/** Cards per page of the wishlist. */
 	static final int PAGE_SIZE = 20;
 
 	private final NamedParameterJdbcTemplate jdbc;
@@ -26,6 +31,12 @@ public class WishlistService {
 		this.catalog = catalog;
 	}
 
+	/**
+	 * Saves a saree for the customer. Saving twice is harmless (the insert ignores a duplicate). Any existing item id is
+	 * accepted, including one from a disabled seller.
+	 *
+	 * @throws ApiException 404 NOT_FOUND if the item does not exist
+	 */
 	public void add(long customerId, long itemId) {
 		Boolean exists = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM item WHERE id = :i)",
 				new MapSqlParameterSource("i", itemId), Boolean.class);
@@ -36,12 +47,16 @@ public class WishlistService {
 				new MapSqlParameterSource("c", customerId).addValue("i", itemId));
 	}
 
+	/** Removes a saree from the customer's list; does nothing if it was not saved. */
 	public void remove(long customerId, long itemId) {
 		jdbc.update("DELETE FROM wishlist_entry WHERE customer_id = :c AND item_id = :i",
 				new MapSqlParameterSource("c", customerId).addValue("i", itemId));
 	}
 
-	/** Newest saved first. Sarees of disabled sellers are hidden, as they are in the catalog. */
+	/**
+	 * Newest saved first. Sarees of disabled sellers are hidden, as they are in the catalog, but stay saved and
+	 * reappear if the seller is enabled again. Ids are paged first, then CatalogService builds the cards.
+	 */
 	public PageDto<CatalogItemDto> list(long customerId, int page) {
 		MapSqlParameterSource params = new MapSqlParameterSource("c", customerId)
 			.addValue("limit", PAGE_SIZE)

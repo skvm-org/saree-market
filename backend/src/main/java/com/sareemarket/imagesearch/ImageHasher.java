@@ -8,7 +8,8 @@ import net.coobird.thumbnailator.Thumbnails;
 
 /**
  * 64-bit difference hash (dHash). Shrink to 9x8 grey, then each bit says whether a pixel is brighter than its
- * right neighbour. Similar pictures (resized, recompressed, lightly cropped) give hashes a few bits apart.
+ * right neighbour. Similar pictures (resized, recompressed, lightly cropped) give hashes a few bits apart. Hashes are
+ * stored at upload (items.image_hash); an image search hashes the customer's photo and CatalogService compares it with the stored ones.
  */
 public final class ImageHasher {
 
@@ -19,6 +20,11 @@ public final class ImageHasher {
 	private ImageHasher() {
 	}
 
+	/**
+	 * Computes the hash stored with each photo (Item.imageHash) and for the photo a customer searches with.
+	 *
+	 * @throws UncheckedIOException if the image cannot be resized
+	 */
 	public static long hash(BufferedImage image) {
 		BufferedImage small;
 		try {

@@ -16,6 +16,10 @@ import com.sareemarket.seller.dto.SellerListDto;
 import com.sareemarket.seller.dto.SellerProfileDto;
 import com.sareemarket.seller.dto.SellerProfileRequest;
 
+/**
+ * Shop profiles: the public shop list and detail for resellers, and a seller editing their own profile.
+ * Used by SellerController and SellerProfileController. A seller whose account is disabled is hidden from resellers.
+ */
 @Service
 public class SellerService {
 
@@ -35,10 +39,20 @@ public class SellerService {
 		this.collections = collections;
 	}
 
+	/**
+	 * Enabled sellers by shop name, without contact details.
+	 */
 	public List<SellerListDto> list() {
 		return profiles.listEnabled();
 	}
 
+	/**
+	 * Shop detail for a reseller or admin: contact numbers, the seller's collections and the viewer's follow state.
+	 *
+	 * @param viewerId the signed-in user; only used to look up the follow state
+	 * @param viewerIsReseller false for an admin, who never follows, so the follow state is null
+	 * @throws ApiException 404 NOT_FOUND when the seller does not exist or the account is disabled
+	 */
 	public SellerDetailDto get(long id, long viewerId, boolean viewerIsReseller) {
 		SellerProfile profile = profiles.findById(id)
 			.filter(p -> users.findById(p.getUserId()).map(u -> u.isEnabled()).orElse(false))
@@ -48,10 +62,21 @@ public class SellerService {
 				followMode(viewerId, id, viewerIsReseller), collections.listMine(id));
 	}
 
+	/**
+	 * The seller's own profile, including the UPI ID and shipping fee.
+	 *
+	 * @throws ApiException 404 NOT_FOUND when the seller has no profile
+	 */
 	public SellerProfileDto mine(long sellerId) {
 		return toDto(find(sellerId));
 	}
 
+	/**
+	 * Saves the seller's shop details and payment settings. Names are trimmed and a blank WhatsApp number is stored
+	 * as null. upiId and shippingFee are optional so older apps that do not send them leave the saved values alone.
+	 *
+	 * @throws ApiException 404 NOT_FOUND when the seller has no profile
+	 */
 	@Transactional
 	public SellerProfileDto updateMine(long sellerId, SellerProfileRequest r) {
 		SellerProfile profile = find(sellerId);
@@ -73,6 +98,9 @@ public class SellerService {
 				p.getUpiId(), p.getShippingFee());
 	}
 
+	/**
+	 * Name of the viewer's follow mode for this seller, or null when not following or not a reseller.
+	 */
 	private String followMode(long viewerId, long sellerId, boolean viewerIsReseller) {
 		NotifyMode mode = viewerIsReseller ? follows.modeOf(viewerId, sellerId) : null;
 		return mode == null ? null : mode.name();

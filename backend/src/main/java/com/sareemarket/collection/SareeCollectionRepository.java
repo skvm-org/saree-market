@@ -8,8 +8,17 @@ import org.springframework.data.repository.query.Param;
 
 import com.sareemarket.collection.dto.CollectionSummaryDto;
 
+/**
+ * Database access for collections. Used by CollectionService, ItemService and the catalog for the dashboard
+ * and card queries that need counts per status.
+ */
 public interface SareeCollectionRepository extends JpaRepository<SareeCollection, Long> {
 
+	/**
+	 * The seller's dashboard rows, newest first: for each collection the number of photos, how many are AVAILABLE
+	 * and SOLD_OUT, and the id of the first photo (null for an empty collection). The left join keeps empty
+	 * collections. The preview list is left empty; fill it with previewItems().
+	 */
 	@Query("""
 			select new com.sareemarket.collection.dto.CollectionSummaryDto(
 			    c.id, c.title, c.price, c.createdAt,

@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.sareemarket.seller.dto.SellerListDto;
 
+/**
+ * Database access for seller profiles; used by SellerService.
+ */
 public interface SellerProfileRepository extends JpaRepository<SellerProfile, Long> {
 
 	/** Sellers whose account is switched on, by shop name. */

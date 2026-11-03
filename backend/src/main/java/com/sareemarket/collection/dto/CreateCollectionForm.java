@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Multipart form: these fields plus one or more "files" parts. The photo count is checked by CollectionService.
+ * price is in whole rupees (at least 1) and is the default price of every photo. description is optional.
  * quantity is how many pieces of each saree the seller has; absent means 1.
  */
 public record CreateCollectionForm(@NotBlank @Size(max = 200) String title,

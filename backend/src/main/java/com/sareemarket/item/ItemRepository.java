@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Database access for {@link Item}. */
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
+	/** All photos of one collection in upload order. */
 	List<Item> findByCollectionIdOrderById(Long collectionId);
 
 	/**

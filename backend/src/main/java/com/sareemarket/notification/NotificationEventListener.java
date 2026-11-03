@@ -16,6 +16,9 @@ import com.sareemarket.notification.event.ItemsRestocked;
 /**
  * Turns seller actions into notifications. Runs only after the seller's change has been saved (a failed upload
  * notifies nobody) and off the seller's request thread (the seller never waits for the fan-out).
+ *
+ * Flow: feature service publishes an event -> AFTER_COMMIT listener here -> @Async on "notificationExecutor"
+ * -> every NotificationChannel bean (today only InAppChannel).
  */
 @Component
 class NotificationEventListener {
@@ -28,18 +31,27 @@ class NotificationEventListener {
 		this.channels = channels;
 	}
 
+	/**
+	 * A new collection was published: tells followers (NEW_COLLECTION).
+	 */
 	@Async("notificationExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	void on(CollectionPublished e) {
 		dispatch(new NotificationEvent(NotificationType.NEW_COLLECTION, e.sellerId(), e.collectionId(), e.itemCount()));
 	}
 
+	/**
+	 * Photos were added to an existing collection: tells followers (ITEMS_ADDED).
+	 */
 	@Async("notificationExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	void on(ItemsAdded e) {
 		dispatch(new NotificationEvent(NotificationType.ITEMS_ADDED, e.sellerId(), e.collectionId(), e.itemCount()));
 	}
 
+	/**
+	 * Sold-out photos became available again: tells followers (BACK_IN_STOCK).
+	 */
 	@Async("notificationExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	void on(ItemsRestocked e) {

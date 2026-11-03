@@ -11,6 +11,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * Account row in table app_user, for every role (customer, seller, admin). Phone is the login name. Written by
+ * AuthService (register, name, password) and UserAdminService (enabled); read by the security layer on every request.
+ */
 @Entity
 @Table(name = "app_user")
 public class AppUser {
@@ -19,8 +23,10 @@ public class AppUser {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	/** 10-digit mobile number, unique; used as the login name. */
 	private String phone;
 
+	/** BCrypt hash; the plain password is never stored. */
 	private String passwordHash;
 
 	private String name;
@@ -28,8 +34,10 @@ public class AppUser {
 	@Enumerated(EnumType.STRING)
 	private Role role;
 
+	/** False once an admin disables the account; a disabled user cannot log in and existing tokens stop working. */
 	private boolean enabled = true;
 
+	/** Set by the database default on insert; never written from Java. */
 	@Column(insertable = false, updatable = false)
 	private Instant createdAt;
 

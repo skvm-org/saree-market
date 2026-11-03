@@ -20,6 +20,10 @@ import com.sareemarket.common.ApiException;
 
 import tools.jackson.databind.JsonNode;
 
+/**
+ * The logged-in customer's cart. Every endpoint is CUSTOMER only (class-level @PreAuthorize); sellers and admins
+ * get 403. Turning the cart into orders happens in the order feature, not here.
+ */
 @RestController
 @RequestMapping("/api/v1/cart")
 @PreAuthorize("hasRole('CUSTOMER')")
@@ -31,11 +35,23 @@ class CartController {
 		this.service = service;
 	}
 
+	/**
+	 * GET /api/v1/cart. The cart grouped by seller, with totals.
+	 */
 	@GetMapping
 	CartDto view(@AuthenticationPrincipal Jwt jwt) {
 		return service.view(Long.parseLong(jwt.getSubject()));
 	}
 
+	/**
+	 * PUT /api/v1/cart/items/{itemId}. Adds the saree to the cart or sets its quantity (not "add this many more").
+	 * The body is {"quantity": n}; answers 204.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR when quantity is missing or not a whole number
+	 * 	from 1 to 10000; 404 NOT_FOUND for an unknown saree; 409 NOT_AVAILABLE when it is sold out or its seller is
+	 * 	disabled; 409 NOT_ENOUGH_STOCK when quantity is above the pieces left; 409 CART_FULL when adding a new line to
+	 * 	a cart that already has 50
+	 */
 	@PutMapping("/items/{itemId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void setLine(@AuthenticationPrincipal Jwt jwt, @PathVariable long itemId, @RequestBody JsonNode body) {
@@ -47,6 +63,9 @@ class CartController {
 		service.setLine(Long.parseLong(jwt.getSubject()), itemId, q.intValue());
 	}
 
+	/**
+	 * DELETE /api/v1/cart/items/{itemId}. Removes the saree from the cart; answers 204 even if it was not there.
+	 */
 	@DeleteMapping("/items/{itemId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void removeLine(@AuthenticationPrincipal Jwt jwt, @PathVariable long itemId) {

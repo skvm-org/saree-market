@@ -27,12 +27,16 @@ class LoginAttemptLimiter {
 
 	private static final Logger log = LoggerFactory.getLogger(LoginAttemptLimiter.class);
 
+	/** Failed logins allowed per phone within WINDOW before logins for that phone are locked. */
 	static final int MAX_PER_PHONE = 5;
 
+	/** Failed logins allowed per client address within WINDOW, across all phones. */
 	static final int MAX_PER_ADDRESS = 20;
 
+	/** Only failures newer than this count; the lock lifts by itself as old failures age out. */
 	static final Duration WINDOW = Duration.ofMinutes(15);
 
+	/** When the map grows past this many keys, keys with no recent failures are dropped. */
 	private static final int PURGE_ABOVE = 10_000;
 
 	private final Clock clock;
@@ -57,6 +61,7 @@ class LoginAttemptLimiter {
 		}
 	}
 
+	/** Records one failed login against both the phone and the address. Also trims old keys when the map is large. */
 	void failed(String phone, String address) {
 		if (failures.size() > PURGE_ABOVE) {
 			failures.keySet().removeIf(key -> recent(key) == 0);
@@ -65,6 +70,7 @@ class LoginAttemptLimiter {
 		record("ip:" + address);
 	}
 
+	/** Clears the phone's failures after a correct password. The address count is kept. */
 	void succeeded(String phone) {
 		failures.remove("phone:" + phone);
 	}

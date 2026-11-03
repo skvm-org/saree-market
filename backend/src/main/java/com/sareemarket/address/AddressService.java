@@ -20,8 +20,10 @@ import com.sareemarket.common.ApiException;
 @Service
 public class AddressService {
 
+	/** Most addresses one customer may keep. */
 	static final int MAX_PER_CUSTOMER = 10;
 
+	/** Columns read for an AddressDto; keep in step with MAPPER. */
 	private static final String COLUMNS = "id, name, phone, line1, line2, city, state, pin, is_default";
 
 	private static final RowMapper<AddressDto> MAPPER = (rs, n) -> new AddressDto(rs.getLong("id"),
@@ -34,11 +36,17 @@ public class AddressService {
 		this.jdbc = jdbc;
 	}
 
+	/** Customer's addresses, default first, then in creation order. */
 	public List<AddressDto> list(long customerId) {
 		return jdbc.query("SELECT " + COLUMNS + " FROM address WHERE customer_id = :c ORDER BY is_default DESC, id",
 				new MapSqlParameterSource("c", customerId), MAPPER);
 	}
 
+	/**
+	 * One address of this customer. Public because the order package's HoldService reads it for a request.
+	 *
+	 * @throws ApiException 404 NOT_FOUND if it does not exist or belongs to someone else (the two cases look the same)
+	 */
 	public AddressDto get(long customerId, long id) {
 		return jdbc.query("SELECT " + COLUMNS + " FROM address WHERE id = :id AND customer_id = :c",
 				new MapSqlParameterSource("id", id).addValue("c", customerId), MAPPER)
@@ -47,6 +55,12 @@ public class AddressService {
 			.orElseThrow(AddressService::notFound);
 	}
 
+	/**
+	 * Saves a new address. It becomes the default if it is the customer's first or makeDefault is true; the previous
+	 * default is cleared first so there is never more than one.
+	 *
+	 * @throws ApiException 409 ADDRESS_LIMIT when the customer already has 10
+	 */
 	@Transactional
 	public AddressDto create(long customerId, AddressRequest r) {
 		lock(customerId);
@@ -67,6 +81,12 @@ public class AddressService {
 		return get(customerId, id);
 	}
 
+	/**
+	 * Overwrites every field of one address. makeDefault true moves the default to it; otherwise its current default flag
+	 * is kept.
+	 *
+	 * @throws ApiException 404 NOT_FOUND
+	 */
 	@Transactional
 	public AddressDto update(long customerId, long id, AddressRequest r) {
 		lock(customerId);
@@ -83,6 +103,12 @@ public class AddressService {
 		return get(customerId, id);
 	}
 
+	/**
+	 * Deletes one address. If the deleted address was the default, the most recently created remaining address is made
+	 * the default, so a customer who still has addresses always has a default.
+	 *
+	 * @throws ApiException 404 NOT_FOUND
+	 */
 	@Transactional
 	public void delete(long customerId, long id) {
 		lock(customerId);
@@ -100,16 +126,19 @@ public class AddressService {
 		}
 	}
 
+	/** Takes a row lock on the customer's user row until the transaction ends, so writes for one customer run one after another. */
 	private void lock(long customerId) {
 		jdbc.queryForList("SELECT id FROM app_user WHERE id = :c FOR UPDATE",
 				new MapSqlParameterSource("c", customerId), Long.class);
 	}
 
+	/** Turns off the default flag on all of the customer's addresses. */
 	private void clearDefault(long customerId) {
 		jdbc.update("UPDATE address SET is_default = FALSE WHERE customer_id = :c AND is_default",
 				new MapSqlParameterSource("c", customerId));
 	}
 
+	/** Named parameters for the address columns. Text is trimmed and a blank line2 is stored as null. */
 	private static MapSqlParameterSource fields(AddressRequest r) {
 		String line2 = r.line2() == null || r.line2().isBlank() ? null : r.line2().strip();
 		return new MapSqlParameterSource("name", r.name().strip()).addValue("phone", r.phone())

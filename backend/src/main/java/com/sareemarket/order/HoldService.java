@@ -29,15 +29,19 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Payment holds: checkout takes the stock out of circulation for two hours while the customer pays the seller by
  * UPI. Writes lock the customer's user row and then the sarees' rows in id order, so a double tap or two customers
- * after the last piece are serialised instead of both succeeding.
+ * after the last piece are serialised instead of both succeeding. A hold becomes an order in
+ * {@link OrderService#submitPayment}; an unpaid one is released by the customer or by {@link OrderExpiryJob}.
  */
 @Service
 public class HoldService {
 
+	/** How long stock is held for payment. */
 	static final int HOLD_HOURS = 2;
 
+	/** Most payments a customer can have in progress at once. */
 	static final int MAX_ACTIVE_HOLDS = 3;
 
+	/** Largest grand total, in rupees, for one seller's hold. */
 	static final long MAX_TOTAL = 10_000_000L;
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HoldService.class);
@@ -57,6 +61,7 @@ public class HoldService {
 		this.json = json;
 	}
 
+	/** A cart line joined with its saree stock, price and seller details, as read at checkout. */
 	private record CartRow(long itemId, long sellerId, String shop, String upi, int fee, boolean enabled, String status,
 			int stock, int wanted, String title, String colour, int price) {
 
@@ -65,10 +70,22 @@ public class HoldService {
 		}
 	}
 
+	/** One seller's hold about to be created; reserved holds the quantity taken for each row, in row order. */
 	private record Planned(long sellerId, String shop, String upi, int fee, List<CartRow> rows, List<Integer> reserved,
 			int itemsTotal) {
 	}
 
+	/**
+	 * Turns the customer's cart into one two-hour hold per seller, taking the stock off sale. Nothing fails for a
+	 * seller that cannot be served: sellers who accept no orders, already have a hold with this customer or have
+	 * nothing in stock are listed as skipped, and lines with less stock than wanted are reserved partly and listed as
+	 * adjustments. The cart is not changed; it is cleared when the payment is submitted. Prices are the saree's
+	 * current price, copied onto the hold lines.
+	 *
+	 * @param r the address to ship to, an optional note, and optionally a single seller to check out
+	 * @throws ApiException 404 NOT_FOUND (address not the customer's, or nothing from that seller in the cart),
+	 * 409 TOTAL_TOO_LARGE, 409 HOLD_LIMIT
+	 */
 	@Transactional
 	public CheckoutResultDto checkout(long customerId, CheckoutRequest r) {
 		jdbc.queryForList("SELECT id FROM app_user WHERE id = :c FOR UPDATE", new MapSqlParameterSource("c", customerId),
@@ -138,6 +155,11 @@ public class HoldService {
 		return new CheckoutResultDto(holds, adjustments, skipped);
 	}
 
+	/**
+	 * The customer gives up a hold before paying: stock goes back on sale and the hold is deleted.
+	 *
+	 * @throws ApiException 404 NOT_FOUND when the hold is not the customer's
+	 */
 	@Transactional
 	public void cancel(long customerId, long holdId) {
 		List<Long> found = jdbc.queryForList("SELECT id FROM payment_hold WHERE id = :h AND customer_id = :c FOR UPDATE",
@@ -172,6 +194,7 @@ public class HoldService {
 		}
 	}
 
+	/** Locks the hold and releases it only if it is still lapsed, so a hold paid at the last second is left alone. */
 	private boolean releaseIfLapsed(long holdId) {
 		List<Long> locked = jdbc.queryForList(
 				"SELECT id FROM payment_hold WHERE id = :h AND expires_at <= now() FOR UPDATE",
@@ -183,11 +206,13 @@ public class HoldService {
 		return true;
 	}
 
+	/** Puts the hold's stock back on sale and deletes the hold. */
 	private void release(long holdId) {
 		StockReturn.returnStock(jdbc, "hold_line", "hold_id", holdId);
 		jdbc.update("DELETE FROM payment_hold WHERE id = :h", new MapSqlParameterSource("h", holdId));
 	}
 
+	/** The customer's holds that are still within their two hours, soonest expiry first. */
 	public List<HoldDto> list(long customerId) {
 		MapSqlParameterSource params = new MapSqlParameterSource("c", customerId);
 		return jdbc.query("""
@@ -226,6 +251,10 @@ public class HoldService {
 						rs.getInt("price")));
 	}
 
+	/**
+	 * Inserts the hold and its lines for one seller and takes the reserved quantities off the sarees. Rows with
+	 * nothing reserved get no line. Title, colour and price are copied so later edits do not change the hold.
+	 */
 	private HoldDto create(long customerId, Planned p, AddressSnapshotDto address, String note) {
 		int grand = p.itemsTotal() + p.fee();
 		String cleanNote = note == null || note.isBlank() ? null : note.strip();
@@ -266,6 +295,7 @@ public class HoldService {
 				cleanNote, ((OffsetDateTime) created[1]).toInstant());
 	}
 
+	/** The hold's lines in the order they were added. */
 	private List<OrderLineDto> lines(long holdId) {
 		return jdbc.query("SELECT item_id, title, colour, unit_price, quantity FROM hold_line WHERE hold_id = :h ORDER BY id",
 				new MapSqlParameterSource("h", holdId), (rs, n) -> new OrderLineDto(rs.getObject("item_id", Long.class),

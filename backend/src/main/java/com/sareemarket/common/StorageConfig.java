@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 @Configuration
 class StorageConfig {
 
+	/** Local-disk storage, used when app.storage.type is {@code local} or not set. */
 	@Bean
 	@ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 	// A String, not a Path: Spring converts a Path value as a servlet resource, which rejects "../data/uploads".
@@ -23,6 +24,7 @@ class StorageConfig {
 		return new LocalDiskImageStorage(Path.of(root));
 	}
 
+	/** The S3 client, created only when app.storage.type is {@code s3}. */
 	@Bean
 	@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 	// Credentials come from the default chain: the EC2 instance role in production, never from the repo.
@@ -30,6 +32,12 @@ class StorageConfig {
 		return S3Client.builder().region(Region.of(region)).httpClient(UrlConnectionHttpClient.create()).build();
 	}
 
+	/**
+	 * S3 storage, wrapped in {@link FallbackImageStorage} over the local folder when fallback-to-local is true so earlier
+	 * uploads still show while they are copied to S3.
+	 *
+	 * @throws IllegalArgumentException at startup if no bucket is configured
+	 */
 	@Bean
 	@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 	ImageStorage s3ImageStorage(S3Client s3, @Value("${app.storage.s3.bucket}") String bucket,

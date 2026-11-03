@@ -4,6 +4,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * A seller's shop details, one row per seller; the id is the seller's user id (shared with app_user).
+ * contactPhone and whatsappNumber are shown only to signed-in resellers. upiId is where customers pay the seller
+ * directly and is null until the seller sets it. shippingFee is a whole-rupee flat fee added to orders.
+ */
 @Entity
 @Table(name = "seller_profile")
 public class SellerProfile {

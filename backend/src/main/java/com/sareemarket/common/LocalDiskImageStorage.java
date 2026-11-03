@@ -8,6 +8,10 @@ import java.nio.file.Path;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
+/**
+ * Photos as files under one root folder ({@code app.storage.root}). Used in local development and as the old store
+ * behind {@link FallbackImageStorage}. Keys are resolved against the root and any key that would leave it is refused.
+ */
 public class LocalDiskImageStorage implements ImageStorage {
 
 	private final Path root;
@@ -16,6 +20,12 @@ public class LocalDiskImageStorage implements ImageStorage {
 		this.root = root.toAbsolutePath().normalize();
 	}
 
+	/**
+	 * Writes the file, creating folders as needed.
+	 *
+	 * @throws UncheckedIOException if the disk write fails
+	 * @throws IllegalArgumentException if the key would escape the storage root
+	 */
 	@Override
 	public void save(String key, byte[] data) {
 		Path file = resolve(key);
@@ -28,11 +38,22 @@ public class LocalDiskImageStorage implements ImageStorage {
 		}
 	}
 
+	/**
+	 * Returns a file resource; it does not check the file exists, callers use {@code exists()}.
+	 *
+	 * @throws IllegalArgumentException if the key would escape the storage root
+	 */
 	@Override
 	public Resource load(String key) {
 		return new FileSystemResource(resolve(key));
 	}
 
+	/**
+	 * Removes the file; a missing file is fine.
+	 *
+	 * @throws UncheckedIOException if the delete fails
+	 * @throws IllegalArgumentException if the key would escape the storage root
+	 */
 	@Override
 	public void delete(String key) {
 		try {

@@ -11,7 +11,11 @@ final class StockReturn {
 	private StockReturn() {
 	}
 
-	/** lineTable and ownerColumn are code constants ("hold_line"/"hold_id", "order_line"/"order_id"), never user input. */
+	/**
+	 * Adds each line's quantity back to its saree, capped at 10000 per saree. Used when a hold is released or an order
+	 * is cancelled. Must run inside the caller's transaction. lineTable and ownerColumn are code constants
+	 * ("hold_line"/"hold_id", "order_line"/"order_id"), never user input.
+	 */
 	static void returnStock(NamedParameterJdbcTemplate jdbc, String lineTable, String ownerColumn, long ownerId) {
 		// Lock the sarees lowest id first, the same order checkout uses, so a release and a checkout over the same
 		// sarees wait for each other instead of deadlocking.
