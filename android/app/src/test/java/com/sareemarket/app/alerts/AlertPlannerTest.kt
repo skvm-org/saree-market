@@ -72,6 +72,22 @@ class AlertPlannerTest {
     }
 
     @Test
+    fun anOrderUpdateAlertSaysWhatTheSellerDid() {
+        val confirmed = note(1, type = NotificationType.ORDER_UPDATE, updatedAt = "2026-11-03T10:00:00Z", message = "Lakshmi Silks confirmed your order #12")
+        val packed = note(2, type = NotificationType.ORDER_UPDATE, updatedAt = "2026-11-03T11:00:00Z", message = "Lakshmi Silks packed your order #12")
+        val old = note(3, read = true, type = NotificationType.ORDER_UPDATE, updatedAt = "2026-11-03T12:00:00Z", message = "Lakshmi Silks shipped your order #9")
+        val follow = note(4, updatedAt = "2026-11-03T13:00:00Z")
+
+        assertEquals("Lakshmi Silks packed your order #12", AlertPlanner.orderUpdateText(AlertPlanner.ORDER_UPDATED, listOf(confirmed, packed, old, follow)))
+    }
+
+    @Test
+    fun theGenericOrderTextStaysWhenThereIsNothingSpecificToSay() {
+        assertEquals(AlertPlanner.ORDER_UPDATED, AlertPlanner.orderUpdateText(AlertPlanner.ORDER_UPDATED, emptyList()))
+        assertEquals("2 new orders to confirm", AlertPlanner.orderUpdateText("2 new orders to confirm", listOf(note(1, type = NotificationType.ORDER_UPDATE))))
+    }
+
+    @Test
     fun newOrdersWinOverUpdates() {
         assertEquals("2 new orders to confirm", AlertPlanner.orderText(0, 0, OrderSummary(toConfirm = 2, unread = 5)))
     }

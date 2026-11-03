@@ -55,8 +55,11 @@ public class OrderService {
 
 	private final TransactionTemplate tx;
 
+	private final org.springframework.context.ApplicationEventPublisher events;
+
 	OrderService(NamedParameterJdbcTemplate jdbc, JsonMapper json, ImageProcessor images, ImageStorage storage,
-			TransactionTemplate tx) {
+			TransactionTemplate tx, org.springframework.context.ApplicationEventPublisher events) {
+		this.events = events;
 		this.tx = tx;
 		this.jdbc = jdbc;
 		this.json = json;
@@ -370,6 +373,8 @@ public class OrderService {
 		jdbc.update("UPDATE customer_order SET status = :to, customer_unread = TRUE, seller_unread = FALSE, updated_at = now() "
 				+ extraSet + " WHERE id = :o", params.addValue("o", orderId).addValue("to", to.name()));
 		history(orderId, to);
+		// Delivered to the customer only if this transaction commits.
+		events.publishEvent(new com.sareemarket.notification.event.OrderUpdated(orderId, to.name()));
 	}
 
 	private static String blankToNull(String value) {
@@ -446,6 +451,9 @@ public class OrderService {
 				       customer_unread = :by <> 'CUSTOMER', seller_unread = :by = 'CUSTOMER', updated_at = now()
 				WHERE id = :o""", new MapSqlParameterSource("o", orderId).addValue("by", by).addValue("reason", reason));
 		history(orderId, OrderStatus.CANCELLED);
+		if (!"CUSTOMER".equals(by)) {
+			events.publishEvent(new com.sareemarket.notification.event.OrderUpdated(orderId, OrderStatus.CANCELLED.name()));
+		}
 		StockReturn.returnStock(jdbc, "order_line", "order_id", orderId);
 	}
 

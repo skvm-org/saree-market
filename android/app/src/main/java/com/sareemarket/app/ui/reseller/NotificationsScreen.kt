@@ -61,7 +61,7 @@ import com.sareemarket.app.ui.components.EmptyState
 private const val LOAD_MORE_AHEAD = 4
 
 @Composable
-fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onBack: (() -> Unit)? = null, viewModel: NotificationsViewModel = hiltViewModel()) {
+fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onOpenOrder: (Long) -> Unit = {}, onBack: (() -> Unit)? = null, viewModel: NotificationsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     LifecycleResumeEffect(Unit) {
         viewModel.refresh()
@@ -69,7 +69,11 @@ fun NotificationsScreen(onOpenCollection: (Long) -> Unit, onBack: (() -> Unit)? 
     }
     NotificationsContent(
         state = state,
-        onOpen = { viewModel.open(it); onOpenCollection(it.collectionId) },
+        onOpen = {
+            viewModel.open(it)
+            // An order update opens the order; every other kind opens its collection.
+            it.orderId?.let(onOpenOrder) ?: it.collectionId?.let(onOpenCollection)
+        },
         onMarkAllRead = viewModel::markAllRead,
         onLoadMore = viewModel::loadMore,
         onRefresh = viewModel::pullRefresh,
@@ -168,7 +172,8 @@ private fun NotificationRow(notification: AppNotification, onOpen: (AppNotificat
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(notification.shopName, style = MaterialTheme.typography.labelLarge)
                 Text(
-                    boldTitle(withoutShop(notification.message, notification.shopName), notification.collectionTitle),
+                    notification.collectionTitle?.let { boldTitle(withoutShop(notification.message, notification.shopName), it) }
+                        ?: androidx.compose.ui.text.AnnotatedString(withoutShop(notification.message, notification.shopName)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,
                 )

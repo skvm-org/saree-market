@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.sareemarket.app.data.NotificationRepository
 import com.sareemarket.app.data.OrderRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -14,6 +15,7 @@ class OrderAlertsWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val orders: OrderRepository,
+    private val notifications: NotificationRepository,
     private val prefs: AlertPrefs,
     private val alerts: NewCollectionAlerts,
 ) : CoroutineWorker(context, params) {
@@ -21,7 +23,11 @@ class OrderAlertsWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val summary = orders.refreshSummary().getOrElse { return Result.retry() } // offline: try again later
         val (lastToConfirm, lastUnread) = prefs.orderMarks()
-        AlertPlanner.orderText(lastToConfirm, lastUnread, summary)?.let(alerts::showOrder)
+        AlertPlanner.orderText(lastToConfirm, lastUnread, summary)?.let { generic ->
+            // A customer's alert can say what happened ("Lakshmi Silks confirmed your order #12"); a seller has no such rows.
+            val latest = notifications.page(0).getOrNull()?.items.orEmpty()
+            alerts.showOrder(AlertPlanner.orderUpdateText(generic, latest))
+        }
         // Remember the counts even when they went down, so the next increase is announced.
         prefs.setOrderMarks(summary.toConfirm, summary.unread)
         return Result.success()
