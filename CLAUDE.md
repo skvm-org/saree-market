@@ -70,7 +70,7 @@ The emulator reaches the backend at `http://10.0.2.2:8080`. For a physical devic
 - Debug builds request the Android 17 `ACCESS_LOCAL_NETWORK` permission at startup (needed to reach `10.0.2.2` and LAN IPs); release builds do not declare it
 - JWT stored in DataStore; logout clears it. Seller and Customer flows are chosen at login by role
 - Base URL from `BuildConfig`: `http://10.0.2.2:8080` by default (emulator), overridable for a physical device on the LAN. Cleartext HTTP is allowed in the debug build only
-- Coil for images; Android Photo Picker for multi-select upload (up to 30); camera capture for image search
+- Coil for images; Android Photo Picker for multi-select upload (up to 50); camera capture for image search
 - `DESIGN.md` tokens become the Compose theme (colour scheme, typography, shapes, spacing). Stitch HTML is the layout and content reference for each screen, rebuilt natively in Compose; never a WebView
 - Notifications: in-app bell with unread count and a notifications screen, plus a WorkManager periodic job (every 15 min) that checks the unread count and shows a local Android notification for new collections from followed sellers, and for orders (new orders to confirm for sellers, order updates for customers). No Firebase yet
 - Admin stays backend-only in the MVP (seeded admin user, admin endpoints covered by integration tests). Admin screens come with the Angular app

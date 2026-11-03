@@ -93,9 +93,9 @@ class NewCollectionViewModelTest {
     }
 
     @Test
-    fun pickedPhotosAreMergedWithoutRepeatsAndCappedAt30() {
-        vm.onPhotosPicked((1..20).map { "p$it" })
-        vm.onPhotosPicked((10..40).map { "p$it" })
+    fun pickedPhotosAreMergedWithoutRepeatsAndCappedAt50() {
+        vm.onPhotosPicked((1..30).map { "p$it" })
+        vm.onPhotosPicked((20..70).map { "p$it" })
 
         assertEquals(MAX_PHOTOS, vm.state.value.photos.size)
         assertEquals(MAX_PHOTOS, vm.state.value.photos.distinct().size)

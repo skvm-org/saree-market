@@ -61,7 +61,7 @@ class NewCollectionViewModel @Inject constructor(
     fun onDescription(v: String) = edit { it.copy(description = v) }
     fun onQuantity(v: String) = edit("quantity") { it.copy(quantity = digitsOnly(v, MAX_QUANTITY_DIGITS)) }
 
-    /** Adds newly picked photos, skipping repeats and stopping at 30. */
+    /** Adds newly picked photos, skipping repeats and stopping at 50. */
     fun onPhotosPicked(uris: List<String>) = _state.update {
         val merged = (it.photos + uris).distinct()
         it.copy(

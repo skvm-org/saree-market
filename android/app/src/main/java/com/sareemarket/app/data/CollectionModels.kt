@@ -62,4 +62,4 @@ data class UpdateCollectionBody(
 @Serializable
 data class StatusBody(val status: ItemStatus)
 
-const val MAX_PHOTOS = 30
+const val MAX_PHOTOS = 50

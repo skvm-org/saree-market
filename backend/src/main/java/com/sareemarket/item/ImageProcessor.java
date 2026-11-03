@@ -32,7 +32,7 @@ public class ImageProcessor {
 
 	private static final float QUALITY = 0.85f;
 
-	/** Decoding a 10 MB photo takes tens of MB of heap; this many at once keeps a 30-photo upload from exhausting it. */
+	/** Decoding a 10 MB photo takes tens of MB of heap; this many at once keeps a 50-photo upload from exhausting it. */
 	static final int MAX_CONCURRENT = 3;
 
 	private static final Logger log = LoggerFactory.getLogger(ImageProcessor.class);
