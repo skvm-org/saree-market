@@ -18,6 +18,7 @@ class ProfileShortcut(val icon: androidx.compose.ui.graphics.vector.ImageVector,
 
 const val ROUTE_PROFILE = "profile"
 const val ROUTE_PASSWORD = "password"
+const val ROUTE_PHONE = "phone"
 
 /**
  * Adds the profile and change-password screens to a role's navigation graph. Every role reaches Profile from its
@@ -29,11 +30,13 @@ fun NavGraphBuilder.accountRoutes(nav: NavController, onLogout: () -> Unit, onOp
         ProfileScreen(
             onLogout = onLogout,
             onChangePassword = { nav.navigate(ROUTE_PASSWORD) { launchSingleTop = true } },
+            onChangePhone = { nav.navigate(ROUTE_PHONE) { launchSingleTop = true } },
             onOpenShop = onOpenShop,
             missingUpi = missingUpi(),
             shortcuts = shortcuts,
         )
     }
+    composable(ROUTE_PHONE) { ChangePhoneScreen(onBack = { nav.popBackStack() }) }
     composable(ROUTE_PASSWORD) { ChangePasswordScreen(onBack = { nav.popBackStack() }) }
 }
 

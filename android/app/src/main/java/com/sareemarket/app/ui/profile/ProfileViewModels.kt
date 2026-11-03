@@ -40,8 +40,16 @@ class ProfileViewModel @Inject constructor(private val repository: AuthRepositor
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
     init {
+        // Followed, not read once, so the phone shown here changes as soon as Change login phone saves.
         viewModelScope.launch {
-            repository.session.first()?.let { s -> _state.update { it.copy(name = s.name, original = s.name, phone = s.phone, role = s.role) } }
+            var seeded = false
+            repository.session.collect { s ->
+                if (s == null) return@collect
+                _state.update {
+                    if (seeded) it.copy(phone = s.phone, role = s.role) else it.copy(name = s.name, original = s.name, phone = s.phone, role = s.role)
+                }
+                seeded = true
+            }
         }
     }
 
@@ -137,6 +145,68 @@ class ChangePasswordViewModel @Inject constructor(private val repository: AuthRe
                 when {
                     result.isSuccess -> ChangePasswordUiState(done = true)
                     failure?.code == "WRONG_PASSWORD" -> it.copy(saving = false, fieldErrors = mapOf(FIELD_CURRENT to failure.message.orEmpty()))
+                    else -> it.copy(saving = false, error = result.exceptionOrNull()?.message)
+                }
+            }
+        }
+    }
+}
+
+data class ChangePhoneUiState(
+    val newPhone: String = "",
+    val current: String = "",
+    val saving: Boolean = false,
+    val done: Boolean = false,
+    val fieldErrors: Map<String, String> = emptyMap(),
+    val error: String? = null,
+) {
+    val canSubmit get() = newPhone.isNotEmpty() && current.isNotEmpty()
+}
+
+const val FIELD_NEW_PHONE = "newPhone"
+
+@HiltViewModel
+class ChangePhoneViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+
+    private val _state = MutableStateFlow(ChangePhoneUiState())
+    val state: StateFlow<ChangePhoneUiState> = _state.asStateFlow()
+
+    fun onNewPhone(value: String) = edit { it.copy(newPhone = digitsOnly(value, PHONE_LENGTH)) }
+    fun onCurrent(value: String) = edit { it.copy(current = value) }
+
+    private fun edit(change: (ChangePhoneUiState) -> ChangePhoneUiState) =
+        _state.update { change(it).copy(done = false, error = null, fieldErrors = emptyMap()) }
+
+    private fun problems(s: ChangePhoneUiState): Map<String, String> = buildMap {
+        if (s.newPhone.length != PHONE_LENGTH) put(FIELD_NEW_PHONE, "Enter a 10-digit mobile number")
+        if (s.current.isEmpty()) put(FIELD_CURRENT, "Enter your password")
+    }
+
+    /** Checks one field when the user leaves it, so a mistake shows before they reach the button. */
+    fun onBlur(field: String) {
+        val message = problems(_state.value)[field]
+        _state.update { it.copy(fieldErrors = if (message == null) it.fieldErrors - field else it.fieldErrors + (field to message)) }
+    }
+
+    fun onDoneShown() = _state.update { it.copy(done = false) }
+
+    fun submit() {
+        val s = _state.value
+        if (s.saving) return
+        val problems = problems(s)
+        if (problems.isNotEmpty()) {
+            _state.update { it.copy(fieldErrors = problems) }
+            return
+        }
+        _state.update { it.copy(saving = true, error = null) }
+        viewModelScope.launch {
+            val result = repository.changePhone(s.newPhone, s.current)
+            _state.update {
+                val failure = result.exceptionOrNull() as? ApiFailure
+                when {
+                    result.isSuccess -> ChangePhoneUiState(done = true)
+                    failure?.code == "WRONG_PASSWORD" -> it.copy(saving = false, fieldErrors = mapOf(FIELD_CURRENT to failure.message.orEmpty()))
+                    failure?.code == "PHONE_TAKEN" -> it.copy(saving = false, fieldErrors = mapOf(FIELD_NEW_PHONE to failure.message.orEmpty()))
                     else -> it.copy(saving = false, error = result.exceptionOrNull()?.message)
                 }
             }

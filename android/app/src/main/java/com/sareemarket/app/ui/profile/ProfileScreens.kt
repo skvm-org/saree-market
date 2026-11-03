@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.unit.dp
@@ -95,13 +96,14 @@ private fun ErrorText(error: String?) {
 fun ProfileScreen(
     onLogout: () -> Unit,
     onChangePassword: () -> Unit,
+    onChangePhone: () -> Unit = {},
     onOpenShop: (() -> Unit)? = null,
     missingUpi: Boolean = false,
     shortcuts: List<ProfileShortcut> = emptyList(),
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts)
+    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts, onChangePhone)
 }
 
 /** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
@@ -119,6 +121,7 @@ fun ProfileContent(
     onOpenShop: (() -> Unit)? = null,
     missingUpi: Boolean = false,
     shortcuts: List<ProfileShortcut> = emptyList(),
+    onChangePhone: () -> Unit = {},
 ) {
     var confirmingLogout by remember { mutableStateOf(false) }
     ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
@@ -151,6 +154,8 @@ fun ProfileContent(
                     ProfileRow(Icons.Filled.Storefront, "Shop details", "shop-details", onOpenShop)
                     HorizontalDivider(color = SareeColors.Hairline)
                 }
+                ProfileRow(Icons.Filled.Phone, "Change login phone", "change-phone", onChangePhone)
+                HorizontalDivider(color = SareeColors.Hairline)
                 ProfileRow(Icons.Filled.Lock, "Change password", "change-password", onChangePassword)
                 HorizontalDivider(color = SareeColors.Hairline)
                 ProfileRow(Icons.AutoMirrored.Filled.ExitToApp, "Log out", "logout", { confirmingLogout = true }, destructive = true)
@@ -183,6 +188,48 @@ private fun ProfileRow(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         Icon(icon, contentDescription = null, tint = if (destructive) color else MaterialTheme.colorScheme.primaryContainer)
         Text(label, style = MaterialTheme.typography.bodyLarge, color = color, modifier = Modifier.weight(1f))
         if (!destructive) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Pops back to the profile once the number has moved, so the profile shows the new one. */
+@Composable
+fun ChangePhoneScreen(onBack: () -> Unit, viewModel: ChangePhoneViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(state.done) {
+        if (state.done) {
+            viewModel.onDoneShown()
+            onBack()
+        }
+    }
+    ChangePhoneContent(state, onBack, viewModel::onNewPhone, viewModel::onCurrent, viewModel::submit, viewModel::onBlur, viewModel::onDoneShown)
+}
+
+@Composable
+fun ChangePhoneContent(
+    state: ChangePhoneUiState,
+    onBack: () -> Unit,
+    onNewPhone: (String) -> Unit,
+    onCurrent: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onBlur: (String) -> Unit = {},
+    onDoneShown: () -> Unit = {},
+) {
+    ProfilePage("Change login phone", onBack, if (state.done) "Login phone changed" else null, onDoneShown) {
+        Text(
+            "This is the number you log in with. Enter your password to confirm the change.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SareeTextField(
+            state.newPhone, onNewPhone, "New phone number", tag = "newPhone", prefix = "+91", keyboardType = KeyboardType.Phone,
+            error = state.fieldErrors[FIELD_NEW_PHONE], onBlur = { onBlur(FIELD_NEW_PHONE) },
+        )
+        SareeTextField(
+            state.current, onCurrent, "Your password", tag = "current", isPassword = true,
+            error = state.fieldErrors[FIELD_CURRENT], onBlur = { onBlur(FIELD_CURRENT) },
+            imeAction = ImeAction.Done, onDone = onSubmit,
+        )
+        ErrorText(state.error)
+        PrimaryButton("Change phone", onSubmit, loading = state.saving, enabled = state.canSubmit, modifier = Modifier.testTag("submit"))
     }
 }
 

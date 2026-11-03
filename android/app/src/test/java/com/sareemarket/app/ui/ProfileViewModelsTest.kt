@@ -9,6 +9,7 @@ import com.sareemarket.app.data.httpError
 import com.sareemarket.app.data.session
 import com.sareemarket.app.data.testJson
 import com.sareemarket.app.ui.profile.ChangePasswordViewModel
+import com.sareemarket.app.ui.profile.ChangePhoneViewModel
 import com.sareemarket.app.ui.profile.ProfileViewModel
 import com.sareemarket.app.ui.profile.ShopDetailsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -122,6 +123,46 @@ class ProfileViewModelsTest {
         assertEquals("Current password is wrong", vm.state.value.fieldErrors["current"])
         assertFalse(vm.state.value.done)
         assertEquals("newpassword2", vm.state.value.new)
+    }
+
+    @Test
+    fun phoneChangeNeedsAFullNumberAndThePassword() {
+        val vm = ChangePhoneViewModel(repo)
+        vm.onNewPhone("98765")
+        vm.onCurrent("")
+
+        vm.submit()
+
+        assertEquals("Enter a 10-digit mobile number", vm.state.value.fieldErrors["newPhone"])
+        assertEquals("Enter your password", vm.state.value.fieldErrors["current"])
+        assertNull(api.lastPhoneChange)
+    }
+
+    @Test
+    fun phoneChangeSucceedsAndMovesTheSession() {
+        val vm = ChangePhoneViewModel(repo)
+        vm.onNewPhone("9000000001")
+        vm.onCurrent("password1")
+
+        vm.submit()
+
+        assertTrue(vm.state.value.done)
+        assertEquals("9000000001", api.lastPhoneChange?.newPhone)
+    }
+
+    @Test
+    fun aTakenNumberShowsOnThePhoneFieldAndAWrongPasswordOnThePasswordField() {
+        api.changePhoneResult = { throw httpError(409, """{"code":"PHONE_TAKEN","message":"This phone number is already registered","fields":{}}""") }
+        val vm = ChangePhoneViewModel(repo)
+        vm.onNewPhone("9000000001")
+        vm.onCurrent("password1")
+        vm.submit()
+        assertEquals("This phone number is already registered", vm.state.value.fieldErrors["newPhone"])
+        assertFalse(vm.state.value.done)
+
+        api.changePhoneResult = { throw httpError(400, """{"code":"WRONG_PASSWORD","message":"Current password is wrong","fields":{}}""") }
+        vm.submit()
+        assertEquals("Current password is wrong", vm.state.value.fieldErrors["current"])
     }
 
     @Test

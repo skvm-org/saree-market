@@ -17,6 +17,7 @@ import com.sareemarket.auth.dto.ChangePasswordRequest;
 import com.sareemarket.auth.dto.LoginRequest;
 import com.sareemarket.auth.dto.RegisterRequest;
 import com.sareemarket.auth.dto.UpdateNameRequest;
+import com.sareemarket.auth.dto.ChangePhoneRequest;
 import com.sareemarket.auth.dto.UserDto;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -73,13 +74,27 @@ class AuthController {
 	}
 
 	/**
-	 * PATCH /api/v1/auth/me. Any logged-in role. Changes the caller's display name only; the phone cannot be changed.
+	 * PATCH /api/v1/auth/me. Any logged-in role. Changes the caller's display name only; the phone has its own call, PUT /me/phone.
 	 *
 	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR (blank or over 100 characters)
 	 */
 	@PatchMapping("/me")
 	UserDto updateName(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UpdateNameRequest request) {
 		return service.updateName(Long.parseLong(jwt.getSubject()), request.name());
+	}
+
+	/**
+	 * PUT /api/v1/auth/me/phone. Any logged-in role. Changes the login phone after checking the current password, and
+	 * returns the updated account. The token stays valid. Wrong passwords are rate limited like login attempts.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 WRONG_PASSWORD; 400 VALIDATION_ERROR (not 10 digits, or already the
+	 *         caller's number); 409 PHONE_TAKEN; 429 TOO_MANY_ATTEMPTS
+	 */
+	@PutMapping("/me/phone")
+	UserDto changePhone(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ChangePhoneRequest request,
+			HttpServletRequest http) {
+		return service.changePhone(Long.parseLong(jwt.getSubject()), request.newPhone(), request.currentPassword(),
+				http.getRemoteAddr());
 	}
 
 	/**

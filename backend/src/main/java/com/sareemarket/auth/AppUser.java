@@ -59,6 +59,10 @@ public class AppUser {
 		return phone;
 	}
 
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
 	public String getPasswordHash() {
 		return passwordHash;
 	}

@@ -137,6 +137,50 @@ class AuthService {
 	}
 
 	/**
+	 * Changes the login phone after checking the current password. Wrong passwords count against the same limiter as
+	 * login (keyed by the current phone and the caller's address), so a stolen token cannot be used to guess the
+	 * password here. Tokens stay valid because they carry the user id, not the phone. The phone column is unique, so
+	 * a race with another registration surfaces as the same PHONE_TAKEN answer.
+	 *
+	 * @param clientAddress caller's IP, used only for rate limiting
+	 * @throws ApiException 429 TOO_MANY_ATTEMPTS; 400 WRONG_PASSWORD; 400 VALIDATION_ERROR when newPhone is already the
+	 *         caller's number; 409 PHONE_TAKEN; 401 UNAUTHORIZED if the user is gone
+	 */
+	@Transactional
+	UserDto changePhone(long userId, String newPhone, String currentPassword, String clientAddress) {
+		AppUser user = findUser(userId);
+		String oldPhone = user.getPhone();
+		limiter.check(oldPhone, clientAddress);
+		if (!encoder.matches(currentPassword, user.getPasswordHash())) {
+			limiter.failed(oldPhone, clientAddress);
+			throw new ApiException(HttpStatus.BAD_REQUEST, "WRONG_PASSWORD", "Current password is wrong",
+					Map.of("currentPassword", "is wrong"));
+		}
+		limiter.succeeded(oldPhone);
+		if (newPhone.equals(oldPhone)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid",
+					Map.of("newPhone", "is already your number"));
+		}
+		if (users.existsByPhone(newPhone)) {
+			throw phoneTaken();
+		}
+		user.setPhone(newPhone);
+		try {
+			users.saveAndFlush(user);
+		}
+		catch (DataIntegrityViolationException e) {
+			throw phoneTaken(); // another registration took the number after the check above
+		}
+		log.info("User {} changed their login phone from {} to {}", userId, Mask.last4(oldPhone), Mask.last4(newPhone));
+		return UserDto.from(user);
+	}
+
+	private static ApiException phoneTaken() {
+		return new ApiException(HttpStatus.CONFLICT, "PHONE_TAKEN", "This phone number is already registered",
+				Map.of("newPhone", "is already registered"));
+	}
+
+	/**
 	 * Returns the caller's account.
 	 *
 	 * @throws ApiException 401 UNAUTHORIZED if the user no longer exists; 403 ACCOUNT_DISABLED

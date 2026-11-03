@@ -26,6 +26,12 @@ class AuthRepository @Inject constructor(
         sessionStore.session.first()?.let { sessionStore.save(it.copy(name = user.name)) }
     }
 
+    /** Moves the login to the new number and keeps the stored session in step. The token itself stays valid. */
+    suspend fun changePhone(newPhone: String, currentPassword: String): Result<Unit> =
+        apiCall(json) { api.changePhone(ChangePhoneRequest(newPhone, currentPassword)) }.map { user ->
+            sessionStore.session.first()?.let { sessionStore.save(it.copy(phone = user.phone)) }
+        }
+
     suspend fun changePassword(current: String, new: String): Result<Unit> =
         apiCall(json) { api.changePassword(ChangePasswordRequest(current, new)) }
 

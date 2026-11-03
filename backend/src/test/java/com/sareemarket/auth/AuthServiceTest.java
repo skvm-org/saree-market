@@ -187,6 +187,76 @@ class AuthServiceTest {
 		assertThat(user.getPasswordHash()).isEqualTo(oldHash);
 	}
 
+	@Test
+	void changePhoneMovesTheLoginToTheNewNumber() {
+		AppUser user = user(true);
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+		when(users.existsByPhone("9000000001")).thenReturn(false);
+
+		var dto = service.changePhone(1, "9000000001", "password1", "1.2.3.4");
+
+		assertThat(dto.phone()).isEqualTo("9000000001");
+		assertThat(user.getPhone()).isEqualTo("9000000001");
+		verify(users).saveAndFlush(user);
+	}
+
+	@Test
+	void changePhoneWithWrongPasswordKeepsTheOldNumber() {
+		AppUser user = user(true);
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> service.changePhone(1, "9000000001", "wrong-one", "1.2.3.4"))
+			.isInstanceOfSatisfying(ApiException.class, e -> {
+				assertThat(e.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+				assertThat(e.code()).isEqualTo("WRONG_PASSWORD");
+			});
+		assertThat(user.getPhone()).isEqualTo("9876543210");
+		verify(users, never()).saveAndFlush(any());
+	}
+
+	@Test
+	void changePhoneToANumberAnotherAccountHasIsAConflictOnTheField() {
+		AppUser user = user(true);
+		when(users.findById(1L)).thenReturn(Optional.of(user));
+		when(users.existsByPhone("9000000001")).thenReturn(true);
+
+		assertThatThrownBy(() -> service.changePhone(1, "9000000001", "password1", "1.2.3.4"))
+			.isInstanceOfSatisfying(ApiException.class, e -> {
+				assertThat(e.status()).isEqualTo(HttpStatus.CONFLICT);
+				assertThat(e.fields()).containsKey("newPhone");
+			});
+		assertThat(user.getPhone()).isEqualTo("9876543210");
+	}
+
+	@Test
+	void changePhoneToTheSameNumberIsRejected() {
+		when(users.findById(1L)).thenReturn(Optional.of(user(true)));
+
+		assertThatThrownBy(() -> service.changePhone(1, "9876543210", "password1", "1.2.3.4"))
+			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.fields()).containsKey("newPhone"));
+	}
+
+	@Test
+	void changePhoneLosingARaceOnTheUniqueColumnIsAConflict() {
+		when(users.findById(1L)).thenReturn(Optional.of(user(true)));
+		when(users.saveAndFlush(any())).thenThrow(new org.springframework.dao.DataIntegrityViolationException("dup"));
+
+		assertThatThrownBy(() -> service.changePhone(1, "9000000001", "password1", "1.2.3.4"))
+			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("PHONE_TAKEN"));
+	}
+
+	@Test
+	void repeatedWrongPasswordsOnChangePhoneLockTheAccountOut() {
+		when(users.findById(1L)).thenReturn(Optional.of(user(true)));
+		for (int i = 0; i < LoginAttemptLimiter.MAX_PER_PHONE; i++) {
+			assertThatThrownBy(() -> service.changePhone(1, "9000000001", "wrong-one", "1.2.3.4"))
+				.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo("WRONG_PASSWORD"));
+		}
+
+		assertThatThrownBy(() -> service.changePhone(1, "9000000001", "password1", "1.2.3.4"))
+			.isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.status()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
+	}
+
 	private AppUser user(boolean enabled) {
 		AppUser user = new AppUser("9876543210", encoder.encode("password1"), "Priya", Role.CUSTOMER);
 		if (!enabled) {
