@@ -76,9 +76,9 @@ order_status_history  id, order_id, status, at
 - No OTP, no admin approval in MVP
 
 ### 2. Seller: collections and items
-- Create a collection: title, price, description, and 1–30 photos in one multi-file upload (Android Photo Picker, multi-select)
+- Create a collection: title, price, description, and 1–50 photos in one multi-file upload (Android Photo Picker, multi-select)
 - Each photo becomes an item marked `AVAILABLE`, with the quantity the seller entered for the upload (default 1; each saree's count can be changed later)
-- On upload: validate JPG/PNG/WebP, max 10 MB each, resize the stored original to max 1600 px, create a 400 px thumbnail, compute the image hash
+- On upload: validate JPG/PNG/WebP, max 10 MB each (the Android app first compresses each photo to about 1600 px JPEG, so a 50-photo upload stays under 50 MB), resize the stored original to max 1600 px, create a 400 px thumbnail, compute the image hash
 - Seller dashboard: list of own collections with item counts (available / sold out)
 - Shop settings: UPI ID (where customers pay) and a flat shipping fee added to each order. Without a UPI ID nobody can order from the shop, and the app says so
 - Collection page: photo grid showing "N in stock", a one-tap toggle Available ↔ Sold out per item, plus "Mark all sold out". A saree with no pieces left looks sold out whatever its mark says

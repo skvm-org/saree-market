@@ -49,7 +49,7 @@ class CollectionController {
 	 * POST /api/v1/collections. Creates a collection with its photos in one multipart request. SELLER only; answers 201.
 	 * Followers are notified after it commits.
 	 *
-	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad field or a photo count outside 1 to 30;
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad field or a photo count outside 1 to 50;
 	 * 	400 INVALID_IMAGE for a file that is not a readable picture
 	 */
 	@PostMapping(path = "/collections", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -128,7 +128,7 @@ class CollectionController {
 	 *
 	 * @param quantity pieces of each new saree, as text so a bad value can be reported as a field error
 	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad quantity or a photo count outside
-	 * 	1 to 30; 400 INVALID_IMAGE for an unreadable file; 404 NOT_FOUND; 403 FORBIDDEN when the collection
+	 * 	1 to 50; 400 INVALID_IMAGE for an unreadable file; 404 NOT_FOUND; 403 FORBIDDEN when the collection
 	 * 	belongs to another seller
 	 */
 	@PostMapping(path = "/collections/{id}/items", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

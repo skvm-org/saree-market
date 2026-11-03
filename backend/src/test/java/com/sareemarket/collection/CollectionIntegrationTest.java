@@ -105,11 +105,17 @@ class CollectionIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void fiftyPhotosInOneUploadAreAccepted() throws Exception {
+		create(registerSeller(), "Fifty", photos(50)).andExpect(status().isCreated())
+			.andExpect(jsonPath("$.items.length()").value(50));
+	}
+
+	@Test
 	void formErrorsAreReportedPerField() throws Exception {
 		String seller = registerSeller();
 
 		create(seller, "No photos").andExpect(status().isBadRequest()).andExpect(jsonPath("$.fields.files").exists());
-		create(seller, "Too many", photos(31)).andExpect(status().isBadRequest())
+		create(seller, "Too many", photos(51)).andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.fields.files").exists());
 		mvc.perform(multipart("/api/v1/collections").file(photo(1))
 			.param("title", "Bad price")

@@ -56,7 +56,7 @@ public class CollectionService {
 	 * collection title and description are stripped; a blank description is stored as null. Publishes CollectionPublished.
 	 *
 	 * @param form the quantity is how many pieces of each saree the seller has (1 when absent)
-	 * @throws ApiException 400 VALIDATION_ERROR (no photos or more than 30), 400 INVALID_IMAGE for a bad file
+	 * @throws ApiException 400 VALIDATION_ERROR (no photos or more than 50), 400 INVALID_IMAGE for a bad file
 	 */
 	public CollectionDetailDto create(long sellerId, CreateCollectionForm form) {
 		List<ProcessedImage> images = items.process(form.files());

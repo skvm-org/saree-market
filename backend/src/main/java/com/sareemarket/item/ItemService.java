@@ -32,7 +32,7 @@ import tools.jackson.databind.JsonNode;
 @Service
 public class ItemService {
 
-	static final int MAX_PHOTOS = 30;
+	static final int MAX_PHOTOS = 50;
 
 	private static final int MAX_COLOUR = 50;
 
@@ -63,7 +63,7 @@ public class ItemService {
 	 * Checks the photo count and processes every photo before anything is saved, so one bad file saves nothing.
 	 * Empty files are ignored.
 	 *
-	 * @throws ApiException 400 {@code VALIDATION_ERROR} if there are no photos or more than 30; 400 {@code INVALID_IMAGE} for a bad file
+	 * @throws ApiException 400 {@code VALIDATION_ERROR} if there are no photos or more than 50; 400 {@code INVALID_IMAGE} for a bad file
 	 */
 	public List<ProcessedImage> process(List<MultipartFile> files) {
 		List<MultipartFile> photos = files == null ? List.of() : files.stream().filter(f -> !f.isEmpty()).toList();
