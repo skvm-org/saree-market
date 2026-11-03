@@ -20,6 +20,11 @@ import com.sareemarket.common.Mask;
 import com.sareemarket.seller.SellerProfile;
 import com.sareemarket.seller.SellerProfileRepository;
 
+/**
+ * Registration, login and own-profile changes. Owns the rules for who may register as what, how a password is
+ * checked, and when a login is refused (rate limit, wrong credentials, disabled account). Issues the JWT through
+ * JwtService. Called only by AuthController.
+ */
 @Service
 class AuthService {
 
@@ -51,6 +56,13 @@ class AuthService {
 		this.dummyHash = encoder.encode("not-a-real-password");
 	}
 
+	/**
+	 * Creates a customer or seller account. A seller also gets a seller profile in the same transaction, so a seller
+	 * never exists without a shop. Names and shop fields are trimmed; a blank WhatsApp number is stored as null.
+	 *
+	 * @throws ApiException 400 VALIDATION_ERROR (role ADMIN, or seller fields missing); 409 PHONE_TAKEN, including when two
+	 *         sign-ups for one phone race each other and the database unique constraint catches the second
+	 */
 	@Transactional
 	AuthResponse register(RegisterRequest request) {
 		validate(request);
@@ -73,6 +85,15 @@ class AuthService {
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
+	/**
+	 * Logs in with phone and password. The rate limiter is consulted first, so a locked phone or address is refused even
+	 * with the right password. A password check is always done (against a dummy hash for an unknown phone) so the reply
+	 * time does not reveal whether the phone is registered. A correct password clears the phone's failure count, and the
+	 * disabled check comes after it, so a disabled user learns their password was right.
+	 *
+	 * @param clientAddress caller's IP, used only for rate limiting
+	 * @throws ApiException 429 TOO_MANY_ATTEMPTS; 401 INVALID_CREDENTIALS; 403 ACCOUNT_DISABLED
+	 */
 	AuthResponse login(LoginRequest request, String clientAddress) {
 		limiter.check(request.phone(), clientAddress);
 		AppUser user = users.findByPhone(request.phone()).orElse(null);
@@ -91,6 +112,7 @@ class AuthService {
 		return new AuthResponse(jwt.issue(user), UserDto.from(user));
 	}
 
+	/** Changes the display name (trimmed). Dirty checking saves it at commit. */
 	@Transactional
 	UserDto updateName(long userId, String name) {
 		AppUser user = findUser(userId);
@@ -98,6 +120,11 @@ class AuthService {
 		return UserDto.from(user);
 	}
 
+	/**
+	 * Replaces the password hash after verifying the current password. Existing tokens are not revoked.
+	 *
+	 * @throws ApiException 400 WRONG_PASSWORD with a field error on currentPassword; 401 UNAUTHORIZED if the user is gone
+	 */
 	@Transactional
 	void changePassword(long userId, String currentPassword, String newPassword) {
 		AppUser user = findUser(userId);
@@ -109,6 +136,11 @@ class AuthService {
 		log.info("User {} changed their password", userId);
 	}
 
+	/**
+	 * Returns the caller's account.
+	 *
+	 * @throws ApiException 401 UNAUTHORIZED if the user no longer exists; 403 ACCOUNT_DISABLED
+	 */
 	UserDto currentUser(long userId) {
 		AppUser user = findUser(userId);
 		if (!user.isEnabled()) {
@@ -122,6 +154,7 @@ class AuthService {
 			.orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Login required"));
 	}
 
+	/** Checks the rules the DTO annotations cannot: ADMIN is not allowed, and sellers must give shop name, market location and contact phone. */
 	private void validate(RegisterRequest r) {
 		Map<String, String> fields = new LinkedHashMap<>();
 		if (r.role() == Role.ADMIN) {

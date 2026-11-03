@@ -8,10 +8,15 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Lets browser apps on the origins in {@code app.cors.allowed-origins} call {@code /api/**}. The list is empty by
+ * default, which adds no CORS mapping at all: the native apps do not need it, it exists for the web app added later.
+ */
 @Configuration
 @EnableConfigurationProperties(CorsConfig.CorsProperties.class)
 class CorsConfig implements WebMvcConfigurer {
 
+	/** @param allowedOrigins exact origins such as {@code http://localhost:4200}; null or empty turns CORS off */
 	@ConfigurationProperties("app.cors")
 	record CorsProperties(List<String> allowedOrigins) {
 	}

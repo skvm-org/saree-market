@@ -33,11 +33,17 @@ public class RequestLogFilter extends OncePerRequestFilter {
 	// A client may send its own id, but only a plain one, so it cannot put line breaks or markup into the log.
 	private static final Pattern SAFE_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
 
+	/** Skips the health check so the load balancer's polling does not fill the log. */
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
 		return "/api/v1/health".equals(request.getRequestURI());
 	}
 
+	/**
+	 * Takes the client's X-Request-Id if it is a plain token, otherwise makes a new one, puts it in the log context and
+	 * the response header, runs the request, then logs the summary line and clears the context. 5xx is logged as ERROR,
+	 * 401/403/429 as WARN, anything else as INFO. The user and role in the line are set later by the auth layer.
+	 */
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
@@ -68,6 +74,7 @@ public class RequestLogFilter extends OncePerRequestFilter {
 		}
 	}
 
+	/** Log level for a finished request by its HTTP status. */
 	static Level levelFor(int status) {
 		if (status >= 500) {
 			return Level.ERROR;

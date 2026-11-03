@@ -11,6 +11,7 @@ import com.sareemarket.auth.dto.UserDto;
 import com.sareemarket.common.ApiException;
 import com.sareemarket.common.PageDto;
 
+/** Admin-side listing and enabling or disabling of user accounts. Called only by UserAdminController. */
 @Service
 class UserAdminService {
 
@@ -20,9 +21,10 @@ class UserAdminService {
 		this.users = users;
 	}
 
+	/** Rows per page of the admin user list. */
 	static final int PAGE_SIZE = 20;
 
-	/** Newest accounts first, so a new sign-up is easy to find. */
+	/** Newest accounts first, so a new sign-up is easy to find. Blank {@code q} and null {@code role} mean no filter. */
 	@Transactional(readOnly = true)
 	PageDto<AdminUserDto> list(String q, Role role, int page) {
 		var result = users.search(q == null ? "" : q.strip(), role,
@@ -30,6 +32,11 @@ class UserAdminService {
 		return PageDto.of(result.map(AdminUserDto::from).getContent(), page, PAGE_SIZE, result.getTotalElements());
 	}
 
+	/**
+	 * Sets the enabled flag. Admin accounts can never be disabled, so the admin cannot lock everyone out.
+	 *
+	 * @throws ApiException 404 NOT_FOUND; 400 CANNOT_DISABLE_ADMIN
+	 */
 	@Transactional
 	UserDto setEnabled(long userId, boolean enabled) {
 		AppUser user = users.findById(userId)

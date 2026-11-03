@@ -20,6 +20,10 @@ class OrderExpiryJob {
 		this.orders = orders;
 	}
 
+	/**
+	 * Runs five minutes apart, first run after one minute. Failures are logged and left for the next run; every hold
+	 * and order is handled in its own transaction by the services.
+	 */
 	@Scheduled(initialDelay = 60_000, fixedDelay = 300_000)
 	void run() {
 		try {

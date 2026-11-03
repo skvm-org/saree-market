@@ -29,6 +29,7 @@ class StartupLog {
 		this.build = build;
 	}
 
+	/** Logs the build (first 7 characters of BUILD_SHA), active profiles, storage type, bucket and the latest applied schema version. */
 	@EventListener(ApplicationReadyEvent.class)
 	void onReady() {
 		String storage = env.getProperty("app.storage.type", "local");
@@ -38,6 +39,7 @@ class StartupLog {
 				env.getProperty("app.storage.s3.fallback-to-local"), schemaVersion());
 	}
 
+	/** Latest successful Flyway version, or "unknown" if it cannot be read; logging must never stop startup. */
 	private String schemaVersion() {
 		try {
 			return jdbc.queryForObject(

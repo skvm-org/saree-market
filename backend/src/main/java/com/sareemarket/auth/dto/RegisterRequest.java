@@ -7,7 +7,13 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** Seller fields are required only when role is SELLER; AuthService checks that. */
+/**
+ * Sign-up body. Seller fields are required only when role is SELLER; AuthService checks that. Role ADMIN is rejected.
+ *
+ * @param phone 10 digits, used as the login name
+ * @param contactPhone seller's contact number; may differ from the login phone
+ * @param whatsappNumber optional; empty or null means none
+ */
 public record RegisterRequest(
 		@NotBlank @Pattern(regexp = "\\d{10}", message = "must be a 10-digit mobile number") String phone,
 		@NotBlank @Size(max = 100) String name,

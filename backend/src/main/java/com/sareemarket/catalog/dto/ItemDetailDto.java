@@ -4,6 +4,12 @@ import java.time.Instant;
 
 import com.sareemarket.item.ItemStatus;
 
+/**
+ * One saree on its own page. price is what it costs in whole rupees (priceOverride if set, else the collection's);
+ * priceOverride is null when the saree has no price of its own. quantity is the pieces the seller has; inStock is true
+ * when it is AVAILABLE and quantity is above 0. inWishlist and inCart (pieces in the cart) are for the viewing
+ * customer only and are false and 0 for everyone else. collectionDescription may be null.
+ */
 public record ItemDetailDto(Long id, Long collectionId, String collectionTitle, String collectionDescription,
 		String colour, Integer priceOverride, int price, ItemStatus status,
 		int quantity, boolean inStock,

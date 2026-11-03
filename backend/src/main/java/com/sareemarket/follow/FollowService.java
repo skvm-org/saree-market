@@ -21,7 +21,11 @@ public class FollowService {
 		this.jdbc = jdbc;
 	}
 
-	/** Follows, or changes the notify mode of an existing follow. Doing it twice is harmless. */
+	/**
+	 * Follows, or changes the notify mode of an existing follow. Doing it twice is harmless.
+	 *
+	 * @throws ApiException 404 NOT_FOUND when there is no enabled seller with this id
+	 */
 	public void follow(long resellerId, long sellerId, NotifyMode mode) {
 		Integer shops = jdbc.queryForObject("""
 				SELECT count(*) FROM seller_profile sp JOIN app_user u ON u.id = sp.user_id
@@ -42,6 +46,10 @@ public class FollowService {
 				new MapSqlParameterSource("reseller", resellerId).addValue("seller", sellerId));
 	}
 
+	/**
+	 * The reseller's followed sellers, ordered by shop name. Disabled sellers are left out. lastUploadAt is the time of
+	 * the seller's newest collection, or null if they have none.
+	 */
 	public List<FollowDto> list(long resellerId) {
 		return jdbc.query("""
 				SELECT f.seller_id, sp.shop_name, sp.market_location, f.notify_mode, f.created_at,
@@ -57,6 +65,9 @@ public class FollowService {
 						instantOrNull(rs.getObject("last_upload_at", OffsetDateTime.class))));
 	}
 
+	/**
+	 * Converts a nullable timestamptz to an Instant.
+	 */
 	private static java.time.Instant instantOrNull(OffsetDateTime time) {
 		return time == null ? null : time.toInstant();
 	}

@@ -14,7 +14,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** DynamicUpdate: a seller's edit writes only the fields that changed, so it cannot overwrite stock that checkout just moved. */
+/**
+ * One photo of a collection, which is also one saree line that customers can order. The seller owns it; quantity is
+ * the stock left and status is the seller's own available / sold-out mark. imagePath and thumbPath are
+ * {@link com.sareemarket.common.ImageStorage} keys, and imageHash is the dHash used by image search. priceOverride,
+ * when set, replaces the collection price for this photo.
+ *
+ * <p>
+ * DynamicUpdate: a seller's edit writes only the fields that changed, so it cannot overwrite stock that checkout just
+ * moved.
+ */
 @Entity
 @DynamicUpdate
 @Table(name = "item")

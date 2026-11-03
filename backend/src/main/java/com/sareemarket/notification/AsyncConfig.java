@@ -8,6 +8,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+/**
+ * Switches on @Async and @Scheduled for the whole app and defines the executor the notification listeners run on.
+ * Scheduling is used by the nightly clean-up in NotificationService.
+ */
 @Configuration
 @EnableAsync
 @EnableScheduling

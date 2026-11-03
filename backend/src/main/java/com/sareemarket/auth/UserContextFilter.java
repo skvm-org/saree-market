@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
  */
 class UserContextFilter extends OncePerRequestFilter {
 
+	/** Copies the user id and role from the verified token into the logging context. Does not authenticate or reject anything. */
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {

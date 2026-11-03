@@ -35,11 +35,21 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
+/**
+ * Spring Security setup: stateless, JWT bearer tokens signed with HS256, BCrypt passwords, no CSRF (no cookies).
+ * Open without a token: health, register and login. /api/v1/admin/** needs ROLE_ADMIN. Everything else needs a valid
+ * token; finer rules are method-level @PreAuthorize checks on the controllers (@EnableMethodSecurity).
+ */
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 class SecurityConfig {
 
+	/**
+	 * Builds the filter chain. A token is checked for signature and expiry, then the converter below looks the user up in
+	 * the database. The role used for authorization is the one inside the token, not the current database role.
+	 * UserContextFilter runs after token authentication so the log shows who called.
+	 */
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http, UserRepository users) throws Exception {
 		return http.csrf(AbstractHttpConfigurer::disable)
@@ -64,11 +74,13 @@ class SecurityConfig {
 		return new BCryptPasswordEncoder();
 	}
 
+	/** Signs tokens with the shared secret (used by JwtService). */
 	@Bean
 	JwtEncoder jwtEncoder(JwtProperties properties) {
 		return new NimbusJwtEncoder(new ImmutableSecret<>(secretKey(properties)));
 	}
 
+	/** Verifies incoming tokens: HS256 signature and expiry. Issuer and audience are not checked. */
 	@Bean
 	JwtDecoder jwtDecoder(JwtProperties properties) {
 		return NimbusJwtDecoder.withSecretKey(secretKey(properties)).macAlgorithm(MacAlgorithm.HS256).build();
@@ -78,7 +90,11 @@ class SecurityConfig {
 		return new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
-	// A token stays valid for its lifetime, so check on every request that the user still exists and is enabled.
+	/**
+	 * Turns a verified token into an authentication. A token stays valid for its lifetime, so this checks on every request
+	 * that the user still exists and is enabled (one database read per request); if not, the request gets 401 UNAUTHORIZED.
+	 * Authorities come from the role claim as ROLE_ plus the role name.
+	 */
 	private static Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter(UserRepository users) {
 		JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
 		authorities.setAuthoritiesClaimName("role");
@@ -94,17 +110,19 @@ class SecurityConfig {
 		};
 	}
 
-	// Security rejects requests before controllers run, so write the standard error body by hand.
+	/** For a missing, invalid or expired token, or a disabled user: 401 UNAUTHORIZED. Security rejects requests before controllers run, so the standard error body is written by hand. */
 	private static AuthenticationEntryPoint unauthorized() {
 		return (request, response, e) -> writeError(response, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
 				"Login required");
 	}
 
+	/** For a logged-in caller without the needed role: 403 FORBIDDEN in the standard error body. */
 	private static AccessDeniedHandler forbidden() {
 		return (request, response, e) -> writeError(response, HttpStatus.FORBIDDEN, "FORBIDDEN",
 				"You do not have access to this");
 	}
 
+	/** Writes {code, message, fields, requestId} as JSON; requestId is included only when the request log filter has set one. */
 	private static void writeError(jakarta.servlet.http.HttpServletResponse response, HttpStatus status, String code,
 			String message) throws java.io.IOException {
 		response.setStatus(status.value());

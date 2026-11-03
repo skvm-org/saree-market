@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
+/** Signs the access tokens. Verification is done by Spring Security's JwtDecoder (see SecurityConfig), not here. */
 @Service
 class JwtService {
 
@@ -21,6 +22,10 @@ class JwtService {
 		this.properties = properties;
 	}
 
+	/**
+	 * Builds an HS256 token whose subject is the user id and whose role claim is the user's role at this moment.
+	 * It expires after app.jwt.expiry. Nothing else (no phone, no name) is put in the token.
+	 */
 	String issue(AppUser user) {
 		Instant now = Instant.now();
 		JwtClaimsSet claims = JwtClaimsSet.builder()

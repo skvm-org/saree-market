@@ -21,6 +21,11 @@ import com.sareemarket.address.dto.AddressRequest;
 
 import jakarta.validation.Valid;
 
+/**
+ * A customer's saved delivery addresses, under /api/v1/addresses. CUSTOMER-only (class-level @PreAuthorize): sellers
+ * and admins get 403 FORBIDDEN, anonymous callers 401 UNAUTHORIZED. Every call works on the caller's own addresses;
+ * another customer's address id answers 404, never its contents.
+ */
 @RestController
 @RequestMapping("/api/v1/addresses")
 @PreAuthorize("hasRole('CUSTOMER')")
@@ -32,22 +37,41 @@ class AddressController {
 		this.service = service;
 	}
 
+	/** GET /api/v1/addresses. Lists the caller's addresses, default first, then oldest first. */
 	@GetMapping
 	List<AddressDto> list(@AuthenticationPrincipal Jwt jwt) {
 		return service.list(userId(jwt));
 	}
 
+	/**
+	 * POST /api/v1/addresses. Saves a new address. The first one becomes the default automatically.
+	 *
+	 * @return 201 with the saved address
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR; 409 ADDRESS_LIMIT (already 10 saved)
+	 */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	AddressDto create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody AddressRequest request) {
 		return service.create(userId(jwt), request);
 	}
 
+	/**
+	 * PUT /api/v1/addresses/{id}. Replaces all fields of an address. makeDefault true moves the default here; false or
+	 * absent leaves the default alone (it cannot be used to unset the default).
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR; 404 NOT_FOUND (missing or not the caller's)
+	 */
 	@PutMapping("/{id}")
 	AddressDto update(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @Valid @RequestBody AddressRequest request) {
 		return service.update(userId(jwt), id, request);
 	}
 
+	/**
+	 * DELETE /api/v1/addresses/{id}. Removes an address. Returns 204. If it was the default, the newest remaining address
+	 * becomes the default.
+	 *
+	 * @throws com.sareemarket.common.ApiException 404 NOT_FOUND (missing or not the caller's)
+	 */
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {

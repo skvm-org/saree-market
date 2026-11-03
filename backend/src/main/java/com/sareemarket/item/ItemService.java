@@ -24,6 +24,11 @@ import com.sareemarket.notification.event.ItemsRestocked;
 
 import tools.jackson.databind.JsonNode;
 
+/**
+ * Everything about a collection's photos: checking and processing uploads, writing files and rows, seller edits,
+ * deletes, and serving the image files. {@code CollectionService} calls it when a collection is created, shown,
+ * deleted or marked sold out. Publishes {@link ItemsRestocked} when photos go back on sale.
+ */
 @Service
 public class ItemService {
 
@@ -54,7 +59,12 @@ public class ItemService {
 		this.storage = storage;
 	}
 
-	/** Checks the photo count and processes every photo before anything is saved, so one bad file saves nothing. */
+	/**
+	 * Checks the photo count and processes every photo before anything is saved, so one bad file saves nothing.
+	 * Empty files are ignored.
+	 *
+	 * @throws ApiException 400 {@code VALIDATION_ERROR} if there are no photos or more than 30; 400 {@code INVALID_IMAGE} for a bad file
+	 */
 	public List<ProcessedImage> process(List<MultipartFile> files) {
 		List<MultipartFile> photos = files == null ? List.of() : files.stream().filter(f -> !f.isEmpty()).toList();
 		if (photos.isEmpty() || photos.size() > MAX_PHOTOS) {
@@ -64,7 +74,13 @@ public class ItemService {
 		return photos.stream().map(processor::process).toList();
 	}
 
-	/** Writes the files and the item rows. Call inside a transaction; every key written is added to storedKeys. */
+	/**
+	 * Writes the files and the item rows. Call inside a transaction; every key written is added to storedKeys. Keys
+	 * look like {@code <sellerId>/<uuid>.jpg} and {@code <sellerId>/<uuid>_thumb.jpg}. Every photo starts with the same
+	 * quantity.
+	 *
+	 * @param storedKeys filled so the caller can delete the files if the transaction rolls back
+	 */
 	public void store(Long collectionId, Long sellerId, List<ProcessedImage> images, int quantity, List<String> storedKeys) {
 		List<Item> rows = new ArrayList<>();
 		for (ProcessedImage image : images) {
@@ -82,10 +98,12 @@ public class ItemService {
 		items.saveAll(rows);
 	}
 
+	/** The collection's photos as DTOs, in upload order, with the effective price worked out from the collection price. */
 	public List<ItemDto> dtosFor(Long collectionId, int collectionPrice) {
 		return items.findByCollectionIdOrderById(collectionId).stream().map(i -> ItemDto.of(i, collectionPrice)).toList();
 	}
 
+	/** Storage keys of every full image and thumbnail in the collection, read before the rows are deleted. */
 	public List<String> fileKeysOf(Long collectionId) {
 		return items.findByCollectionIdOrderById(collectionId)
 			.stream()
@@ -105,7 +123,15 @@ public class ItemService {
 		}
 	}
 
-	/** Applies only the fields present in the body; an explicit null clears the field. */
+	/**
+	 * Applies only the fields present in the body; an explicit null clears the field. colour is trimmed and at most 50
+	 * characters (blank clears it), priceOverride is a whole number above 0, quantity is 0 to 10000, status is
+	 * AVAILABLE or SOLD_OUT. Changing SOLD_OUT to AVAILABLE publishes {@link ItemsRestocked}. All errors are collected
+	 * and reported together, and nothing is saved if there is one.
+	 *
+	 * @return the updated photo with its effective price
+	 * @throws ApiException 400 {@code VALIDATION_ERROR} with the bad fields, 403 {@code FORBIDDEN} if another seller owns it, 404 {@code NOT_FOUND}
+	 */
 	@Transactional
 	public ItemDto update(long sellerId, long itemId, JsonNode patch) {
 		Item item = owned(itemId, sellerId);
@@ -177,6 +203,7 @@ public class ItemService {
 		}
 	}
 
+	/** The status with this name, or null if there is none. */
 	private static ItemStatus parseStatus(String value) {
 		try {
 			return ItemStatus.valueOf(value);
@@ -186,12 +213,23 @@ public class ItemService {
 		}
 	}
 
+	/**
+	 * Deletes the row, then the stored files on a best-effort basis.
+	 *
+	 * @throws ApiException 403 {@code FORBIDDEN} if another seller owns it, 404 {@code NOT_FOUND}
+	 */
 	public void delete(long sellerId, long itemId) {
 		Item item = owned(itemId, sellerId);
 		items.delete(item);
 		deleteFiles(List.of(item.getImagePath(), item.getThumbPath()));
 	}
 
+	/**
+	 * Finds the stored file for a photo. Anyone logged in may read it; the photo is not tied to its seller here.
+	 *
+	 * @param thumb true for the thumbnail, false for the full image
+	 * @throws ApiException 404 {@code NOT_FOUND} if the item or the file does not exist
+	 */
 	public Resource image(long itemId, boolean thumb) {
 		Item item = items.findById(itemId).orElseThrow(ItemService::notFound);
 		Resource resource = storage.load(thumb ? item.getThumbPath() : item.getImagePath());
@@ -201,6 +239,7 @@ public class ItemService {
 		return resource;
 	}
 
+	/** Loads the item and checks the seller owns it (404 if missing, 403 if it is someone else's). */
 	private Item owned(long itemId, long sellerId) {
 		Item item = items.findById(itemId).orElseThrow(ItemService::notFound);
 		if (!item.getSellerId().equals(sellerId)) {

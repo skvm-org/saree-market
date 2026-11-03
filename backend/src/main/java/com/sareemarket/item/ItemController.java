@@ -23,6 +23,10 @@ import com.sareemarket.item.dto.ItemDto;
 
 import tools.jackson.databind.JsonNode;
 
+/**
+ * Edits and deletes a single photo, and serves the photo files. Adding photos happens through the collection
+ * endpoints, which call {@link ItemService}.
+ */
 @RestController
 @RequestMapping("/api/v1")
 class ItemController {
@@ -33,12 +37,23 @@ class ItemController {
 		this.service = service;
 	}
 
+	/**
+	 * PATCH /api/v1/items/{id}. Seller only, and only the owner. Changes colour, priceOverride, quantity and status;
+	 * fields missing from the body are left alone, an explicit null clears colour or priceOverride.
+	 *
+	 * @throws ApiException 400 {@code VALIDATION_ERROR} for a bad field, 403 {@code FORBIDDEN} for another seller's photo, 404 {@code NOT_FOUND}
+	 */
 	@PatchMapping("/items/{id}")
 	@PreAuthorize("hasRole('SELLER')")
 	ItemDto update(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @RequestBody JsonNode patch) {
 		return service.update(Long.parseLong(jwt.getSubject()), id, patch);
 	}
 
+	/**
+	 * DELETE /api/v1/items/{id}. Seller only, and only the owner. Removes the row and the stored files. Answers 204.
+	 *
+	 * @throws ApiException 403 {@code FORBIDDEN} for another seller's photo, 404 {@code NOT_FOUND}
+	 */
 	@DeleteMapping("/items/{id}")
 	@PreAuthorize("hasRole('SELLER')")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
@@ -46,11 +61,21 @@ class ItemController {
 		service.delete(Long.parseLong(jwt.getSubject()), id);
 	}
 
+	/**
+	 * GET /api/v1/images/{itemId}/full. Any logged-in user. Streams the full-size JPEG.
+	 *
+	 * @throws ApiException 404 {@code NOT_FOUND} if the item or its file is missing
+	 */
 	@GetMapping("/images/{itemId}/full")
 	ResponseEntity<Resource> full(@PathVariable long itemId) {
 		return image(itemId, false);
 	}
 
+	/**
+	 * GET /api/v1/images/{itemId}/thumb. Any logged-in user. Streams the thumbnail JPEG.
+	 *
+	 * @throws ApiException 404 {@code NOT_FOUND} if the item or its file is missing
+	 */
 	@GetMapping("/images/{itemId}/thumb")
 	ResponseEntity<Resource> thumb(@PathVariable long itemId) {
 		return image(itemId, true);

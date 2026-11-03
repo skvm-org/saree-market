@@ -20,6 +20,10 @@ import com.sareemarket.follow.dto.FollowRequest;
 
 import jakarta.validation.Valid;
 
+/**
+ * Follow endpoints for the logged-in reseller (a customer). Every endpoint is CUSTOMER only (class-level
+ * @PreAuthorize). The rules are in FollowService; the notification feature reads the follows when it notifies.
+ */
 @RestController
 @RequestMapping("/api/v1/follows")
 @PreAuthorize("hasRole('CUSTOMER')")
@@ -31,17 +35,30 @@ class FollowController {
 		this.service = service;
 	}
 
+	/**
+	 * GET /api/v1/follows. The sellers this reseller follows, by shop name.
+	 */
 	@GetMapping
 	List<FollowDto> list(@AuthenticationPrincipal Jwt jwt) {
 		return service.list(Long.parseLong(jwt.getSubject()));
 	}
 
+	/**
+	 * PUT /api/v1/follows/{sellerId}. Follows the seller, or changes the notify mode of an existing follow.
+	 * The body is {"notifyMode": "INSTANT" | "MUTED"}; answers 204.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR when notifyMode is missing or not a known value;
+	 * 	404 NOT_FOUND when the seller does not exist or is disabled
+	 */
 	@PutMapping("/{sellerId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void follow(@AuthenticationPrincipal Jwt jwt, @PathVariable long sellerId, @Valid @RequestBody FollowRequest request) {
 		service.follow(Long.parseLong(jwt.getSubject()), sellerId, request.notifyMode());
 	}
 
+	/**
+	 * DELETE /api/v1/follows/{sellerId}. Stops following; answers 204 even if the reseller did not follow.
+	 */
 	@DeleteMapping("/{sellerId}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void unfollow(@AuthenticationPrincipal Jwt jwt, @PathVariable long sellerId) {

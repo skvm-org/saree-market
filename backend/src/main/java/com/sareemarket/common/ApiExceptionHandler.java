@@ -6,6 +6,12 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.dao.TransientDataAccessResourceException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -121,6 +127,40 @@ class ApiExceptionHandler {
 		log.info("{} {} has a malformed body", request.getMethod(), request.getRequestURI());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(new ApiError("BAD_REQUEST", "Malformed request body", Map.of()));
+	}
+
+	/**
+	 * A database constraint refused the write, which in practice means two requests raced past a check that service code
+	 * makes first (a duplicate cart line, a second order for the same item). The service's own check gives the friendly
+	 * message; this is the safety net, so it is a 409 and not a 500. The constraint name is logged, never returned.
+	 */
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException e, HttpServletRequest request) {
+		log.warn("{} {} hit a database constraint: {}", request.getMethod(), request.getRequestURI(),
+				e.getMostSpecificCause().getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(new ApiError("CONFLICT", "This clashes with something that already exists", Map.of()));
+	}
+
+	/** Lost an optimistic-lock race, was picked as a deadlock victim, or could not get a row lock: the caller may retry. */
+	@ExceptionHandler(ConcurrencyFailureException.class)
+	ResponseEntity<ApiError> handleConcurrency(ConcurrencyFailureException e, HttpServletRequest request) {
+		log.warn("{} {} lost a concurrent update: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(new ApiError("CONFLICT", "Someone else changed this at the same moment. Please try again.", Map.of()));
+	}
+
+	/**
+	 * The database is unreachable, out of connections or too slow. That is an outage and not a bug in the request, so it
+	 * is a 503 with a Retry-After hint (clients retry reads), and it is logged as an error with the stack trace.
+	 */
+	@ExceptionHandler({ DataAccessResourceFailureException.class, TransientDataAccessResourceException.class,
+			CannotCreateTransactionException.class, QueryTimeoutException.class })
+	ResponseEntity<ApiError> handleDatabaseUnavailable(Exception e, HttpServletRequest request) {
+		log.error("Database unavailable on {} {}", request.getMethod(), request.getRequestURI(), e);
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+			.header("Retry-After", "5")
+			.body(new ApiError("SERVICE_UNAVAILABLE", "The service is busy right now. Please try again in a moment.", Map.of()));
 	}
 
 	@ExceptionHandler(MaxUploadSizeExceededException.class)

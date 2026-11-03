@@ -30,6 +30,11 @@ import com.sareemarket.collection.dto.UpdateCollectionRequest;
 
 import jakarta.validation.Valid;
 
+/**
+ * Seller endpoints for collections (a title, a price and a set of sarees' photos) plus the read endpoint that
+ * customers also use. Ownership rules live in CollectionService; this class only parses the request and passes the
+ * caller's id from the JWT. Per-photo changes (colour, price, quantity, status) are in the item feature.
+ */
 @RestController
 @RequestMapping("/api/v1")
 class CollectionController {
@@ -40,6 +45,13 @@ class CollectionController {
 		this.service = service;
 	}
 
+	/**
+	 * POST /api/v1/collections. Creates a collection with its photos in one multipart request. SELLER only; answers 201.
+	 * Followers are notified after it commits.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad field or a photo count outside 1 to 30;
+	 * 	400 INVALID_IMAGE for a file that is not a readable picture
+	 */
 	@PostMapping(path = "/collections", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@PreAuthorize("hasRole('SELLER')")
 	@ResponseStatus(HttpStatus.CREATED)
@@ -47,12 +59,25 @@ class CollectionController {
 		return service.create(userId(jwt), form);
 	}
 
+	/**
+	 * GET /api/v1/collections/{id}. A collection with all its photos. Callable by SELLER (own collections only),
+	 * CUSTOMER and ADMIN.
+	 *
+	 * @throws com.sareemarket.common.ApiException 404 NOT_FOUND for an unknown id; 403 FORBIDDEN when a seller asks for
+	 * 	another seller's collection
+	 */
 	@GetMapping("/collections/{id}")
 	@PreAuthorize("hasAnyRole('SELLER', 'CUSTOMER', 'ADMIN')")
 	CollectionDetailDto get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		return service.get(id, userId(jwt), "SELLER".equals(jwt.getClaimAsString("role")));
 	}
 
+	/**
+	 * PUT /api/v1/collections/{id}. Replaces the title, price and description. SELLER only, own collections.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad field; 404 NOT_FOUND; 403 FORBIDDEN
+	 * 	when the collection belongs to another seller
+	 */
 	@PutMapping("/collections/{id}")
 	@PreAuthorize("hasRole('SELLER')")
 	CollectionDetailDto update(@AuthenticationPrincipal Jwt jwt, @PathVariable long id,
@@ -60,6 +85,12 @@ class CollectionController {
 		return service.update(userId(jwt), id, request);
 	}
 
+	/**
+	 * DELETE /api/v1/collections/{id}. Removes the collection, its photos and their image files. SELLER only,
+	 * own collections; answers 204.
+	 *
+	 * @throws com.sareemarket.common.ApiException 404 NOT_FOUND; 403 FORBIDDEN when it belongs to another seller
+	 */
 	@DeleteMapping("/collections/{id}")
 	@PreAuthorize("hasRole('SELLER')")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
@@ -67,6 +98,13 @@ class CollectionController {
 		service.delete(userId(jwt), id);
 	}
 
+	/**
+	 * PATCH /api/v1/collections/{id}/items/status. Marks every photo in the collection AVAILABLE or SOLD_OUT at
+	 * once. SELLER only, own collections.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR when status is missing; 404 NOT_FOUND;
+	 * 	403 FORBIDDEN when the collection belongs to another seller
+	 */
 	@PatchMapping("/collections/{id}/items/status")
 	@PreAuthorize("hasRole('SELLER')")
 	CollectionDetailDto setAllStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable long id,
@@ -74,12 +112,25 @@ class CollectionController {
 		return service.setAllStatus(userId(jwt), id, request.status());
 	}
 
+	/**
+	 * GET /api/v1/sellers/me/collections. The logged-in seller's collections for the dashboard, newest first,
+	 * with counts and up to three preview photos each. SELLER only.
+	 */
 	@GetMapping("/sellers/me/collections")
 	@PreAuthorize("hasRole('SELLER')")
 	List<CollectionSummaryDto> mine(@AuthenticationPrincipal Jwt jwt) {
 		return service.listMine(userId(jwt));
 	}
 
+	/**
+	 * POST /api/v1/collections/{id}/items. Adds more photos to a collection, each with the given quantity
+	 * (default 1). SELLER only, own collections; answers 201. Followers are notified after it commits.
+	 *
+	 * @param quantity pieces of each new saree, as text so a bad value can be reported as a field error
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR for a bad quantity or a photo count outside
+	 * 	1 to 30; 400 INVALID_IMAGE for an unreadable file; 404 NOT_FOUND; 403 FORBIDDEN when the collection
+	 * 	belongs to another seller
+	 */
 	@PostMapping(path = "/collections/{id}/items", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@PreAuthorize("hasRole('SELLER')")
 	@ResponseStatus(HttpStatus.CREATED)
@@ -107,6 +158,9 @@ class CollectionController {
 				java.util.Map.of("quantity", "must be a whole number from 0 to 10000"));
 	}
 
+	/**
+	 * The logged-in user's id, which is the JWT subject.
+	 */
 	private static long userId(Jwt jwt) {
 		return Long.parseLong(jwt.getSubject());
 	}

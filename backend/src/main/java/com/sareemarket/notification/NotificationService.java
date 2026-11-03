@@ -15,7 +15,10 @@ import com.sareemarket.common.ApiException;
 import com.sareemarket.common.PageDto;
 import com.sareemarket.notification.dto.NotificationDto;
 
-/** What a reseller sees in the notifications list: read, count and tidy up. Writing them is InAppChannel's job. */
+/**
+ * What a reseller sees in the notifications list: read, count and tidy up. Writing them is InAppChannel's job.
+ * Used by NotificationController; every method is scoped to one reseller id taken from the JWT.
+ */
 @Service
 public class NotificationService {
 
@@ -31,7 +34,11 @@ public class NotificationService {
 		this.jdbc = jdbc;
 	}
 
-	/** Most recently changed first, so a notification that just grew from new uploads moves to the top. */
+	/**
+	 * Most recently changed first, so a notification that just grew from new uploads moves to the top.
+	 *
+	 * @param page zero-based page number; the page size is {@value #PAGE_SIZE}
+	 */
 	public PageDto<NotificationDto> list(long resellerId, int page) {
 		MapSqlParameterSource params = new MapSqlParameterSource("reseller", resellerId);
 		Long total = jdbc.queryForObject("SELECT count(*) FROM notification WHERE reseller_id = :reseller", params,
@@ -58,6 +65,9 @@ public class NotificationService {
 		return PageDto.of(items, page, PAGE_SIZE, total == null ? 0 : total);
 	}
 
+	/**
+	 * Number of unread notifications, for the bell badge.
+	 */
 	public long unreadCount(long resellerId) {
 		Long count = jdbc.queryForObject("""
 				SELECT count(*) FROM notification WHERE reseller_id = :reseller AND read_at IS NULL""",
@@ -65,7 +75,11 @@ public class NotificationService {
 		return count == null ? 0 : count;
 	}
 
-	/** Marking one that is already read is harmless; someone else's notification looks like it does not exist. */
+	/**
+	 * Marking one that is already read is harmless; someone else's notification looks like it does not exist.
+	 *
+	 * @throws ApiException 404 NOT_FOUND when the id is unknown or not the reseller's
+	 */
 	public void markRead(long resellerId, long id) {
 		int rows = jdbc.update("""
 				UPDATE notification SET read_at = COALESCE(read_at, now())
@@ -76,13 +90,20 @@ public class NotificationService {
 		}
 	}
 
+	/**
+	 * Marks all of the reseller's unread notifications read in one statement.
+	 */
 	public void markAllRead(long resellerId) {
 		jdbc.update("""
 				UPDATE notification SET read_at = now() WHERE reseller_id = :reseller AND read_at IS NULL""",
 				new MapSqlParameterSource("reseller", resellerId));
 	}
 
-	/** Every night at 03:00: notifications older than 30 days are deleted. */
+	/**
+	 * Every night at 03:00: notifications older than 30 days are deleted so the table stays small.
+	 *
+	 * @return how many rows were deleted
+	 */
 	@Scheduled(cron = "0 0 3 * * *")
 	public int deleteOld() {
 		int rows = jdbc.update("DELETE FROM notification WHERE created_at < now() - make_interval(days => :days)",
@@ -91,6 +112,9 @@ public class NotificationService {
 		return rows;
 	}
 
+	/**
+	 * The ready-to-show text of a notification, built from the type, photo count, shop name and collection title.
+	 */
 	static String message(NotificationType type, int count, String shop, String title) {
 		String sarees = count == 1 ? "1 saree" : count + " sarees";
 		return switch (type) {

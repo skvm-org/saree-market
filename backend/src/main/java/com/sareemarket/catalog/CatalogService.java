@@ -27,7 +27,12 @@ import com.sareemarket.common.PageDto;
 import com.sareemarket.item.ImageProcessor;
 import com.sareemarket.item.ItemStatus;
 
-/** Read side of the app: what resellers search and look at. Plain SQL, because the filters are built on the fly. */
+/**
+ * Read side of the app: what resellers search and look at. Plain SQL through NamedParameterJdbcTemplate, because the
+ * filters are built on the fly. Called by CatalogController (grid, collection list, image search, photo page) and by
+ * the wishlist, which reuses the cards (see cardsFor). Owns no state and writes nothing. Photos of disabled
+ * sellers are never listed.
+ */
 @Service
 public class CatalogService {
 
@@ -66,6 +71,10 @@ public class CatalogService {
 		this.collections = collections;
 	}
 
+	/**
+	 * Maps a row of CARD_COLUMNS to a card. The query must also select a "distance" column when withDistance is
+	 * true (image search); otherwise the card's distance is null.
+	 */
 	private static RowMapper<CatalogItemDto> card(boolean withDistance) {
 		return (rs, n) -> new CatalogItemDto(rs.getLong("id"), rs.getLong("collection_id"), rs.getString("title"),
 				rs.getString("colour"), rs.getInt("price"),
@@ -85,6 +94,10 @@ public class CatalogService {
 		return itemIds.stream().map(byId::get).filter(c -> c != null).toList();
 	}
 
+	/**
+	 * The photo grid: every saree that passes the filter, ordered by the filter's sort (ties broken by newest id).
+	 * Runs a count query and a page query with the same WHERE clause. viewerId is only used by the "following" filter.
+	 */
 	public PageDto<CatalogItemDto> search(CatalogFilter filter, long viewerId) {
 		MapSqlParameterSource params = new MapSqlParameterSource("viewer", viewerId);
 		String where = where(filter, params);
@@ -147,6 +160,10 @@ public class CatalogService {
 	 * the normal catalog. The picture goes through the same steps as every stored photo, so an identical picture
 	 * gets the identical hash. shortcut: this compares the hash of every photo that passes the filters, which is
 	 * fine for thousands to a few hundred thousand rows; a bigger catalog needs a similarity index.
+	 * Photos further than MAX_DISTANCE bits away are dropped. The distance is the number of differing bits between
+	 * item.image_hash (a 64-bit value) and the picture's hash.
+	 *
+	 * @throws ApiException 400 VALIDATION_ERROR when the image is missing or empty
 	 */
 	public PageDto<CatalogItemDto> imageSearch(MultipartFile image, CatalogFilter filter, long viewerId) {
 		if (image == null || image.isEmpty()) {
@@ -166,7 +183,25 @@ public class CatalogService {
 		return PageDto.of(items, filter.page(), PAGE_SIZE, total == null ? 0 : total);
 	}
 
-	/** Every value goes in as a bound parameter; only fixed text is added to the SQL. */
+	/**
+	 * Builds the WHERE clause shared by every catalog query. Every value goes in as a bound parameter; only fixed
+	 * text is added to the SQL. The conditions are joined with AND:
+	 * <ul>
+	 * <li>u.enabled: always on, so photos of a disabled seller never appear.</li>
+	 * <li>status: i.status equals the filter, unless it is ALL (idx_item_status; the default newest-first listing
+	 * of available photos uses the partial index idx_item_available_newest).</li>
+	 * <li>q: i.search_vector @@ to_tsquery('simple', ...) with prefix words, see prefixQuery(). The vector is kept
+	 * on the item row by triggers (collection title, description and the item's colour) and indexed by the GIN
+	 * index idx_item_search.</li>
+	 * <li>colour: i.colour ILIKE '%text%', no index; the table scan is narrowed by the other conditions.</li>
+	 * <li>minPrice, maxPrice: the saree's price, COALESCE(i.price_override, c.price), no index.</li>
+	 * <li>following: the seller is in the viewer's seller_follow rows.</li>
+	 * <li>sellerId: c.seller_id equals the id (idx_collection_seller).</li>
+	 * <li>since: i.created_at within the last N days.</li>
+	 * </ul>
+	 * The query using this must have FROM as its from clause and the aliases i (item), c (collection),
+	 * sp (seller_profile) and u (app_user).
+	 */
 	private static String where(CatalogFilter f, MapSqlParameterSource params) {
 		List<String> conditions = new ArrayList<>(List.of("u.enabled"));
 		if (f.status() != StatusFilter.ALL) {
@@ -207,7 +242,9 @@ public class CatalogService {
 	/**
 	 * "soft sil" becomes 'soft:* & sil:*': every word must match, and a word may be just the start of one.
 	 * Only letters, digits and the marks that belong to them (the vowel signs of Tamil, Hindi and so on) are kept,
-	 * so nothing typed can break the tsquery syntax.
+	 * so nothing typed can break the tsquery syntax. Only the first MAX_KEYWORDS words are used.
+	 *
+	 * @return the tsquery text, or null when the text has no usable word (then no keyword condition is added)
 	 */
 	static String prefixQuery(String text) {
 		if (text == null) {
@@ -221,11 +258,22 @@ public class CatalogService {
 		return words.isEmpty() ? null : String.join(" & ", words);
 	}
 
+	/**
+	 * Escapes the LIKE wildcards so a colour typed as "100%" matches those characters literally.
+	 */
 	private static String escapeLike(String text) {
 		return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 	}
 
-	/** Seller phone numbers go to resellers and admins only; the owning seller sees the photo without them. */
+	/**
+	 * One photo with its collection text and seller details, for the photo page. Seller phone numbers go to
+	 * resellers and admins only; the owning seller sees the photo without them. Wishlist, cart and follow state are
+	 * filled in for customers only.
+	 *
+	 * @param role the caller's role claim (CUSTOMER, ADMIN or SELLER)
+	 * @throws ApiException 404 NOT_FOUND when there is no such photo or its seller is disabled (hidden from customers,
+	 *	still visible to admins and to the owning seller); 403 FORBIDDEN when a seller opens another seller's photo
+	 */
 	public ItemDetailDto itemDetail(long itemId, long userId, String role) {
 		boolean seller = "SELLER".equals(role);
 		MapSqlParameterSource byId = new MapSqlParameterSource("id", itemId);
@@ -270,6 +318,9 @@ public class CatalogService {
 		return found.isEmpty() ? 0 : found.get(0);
 	}
 
+	/**
+	 * Whether the viewing customer has this saree in their wishlist; false for anyone else.
+	 */
 	private boolean inWishlist(String role, long userId, long itemId) {
 		if (!"CUSTOMER".equals(role)) {
 			return false;
@@ -289,11 +340,14 @@ public class CatalogService {
 		return modes.isEmpty() ? null : modes.get(0);
 	}
 
-	/** Orderable now: marked available by the seller and at least one piece left. */
+	/** Orderable now: marked available by the seller and at least one piece left. Needs "status" and "quantity" columns. */
 	private static boolean inStock(ResultSet rs) throws SQLException {
 		return "AVAILABLE".equals(rs.getString("status")) && rs.getInt("quantity") > 0;
 	}
 
+	/**
+	 * Reads a timestamptz column as an Instant.
+	 */
 	private static java.time.Instant instant(ResultSet rs, String column) throws SQLException {
 		return rs.getObject(column, OffsetDateTime.class).toInstant();
 	}

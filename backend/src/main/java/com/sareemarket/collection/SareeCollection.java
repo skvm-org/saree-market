@@ -11,6 +11,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * A collection: a title, a price and a description that a seller puts on a group of sarees (the item rows
+ * point back to it by collection_id). price is in whole rupees and is the default price of every photo in it,
+ * unless the photo has its own. description may be null. createdAt is set by the database and never changes.
+ */
 @Entity
 @Table(name = "collection")
 public class SareeCollection {
@@ -43,6 +48,9 @@ public class SareeCollection {
 		this.description = description;
 	}
 
+	/**
+	 * Replaces the editable fields. The seller and the creation time do not change.
+	 */
 	public void update(String title, int price, String description) {
 		this.title = title;
 		this.price = price;

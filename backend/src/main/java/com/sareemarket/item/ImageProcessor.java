@@ -39,6 +39,13 @@ public class ImageProcessor {
 
 	private final Semaphore slots = new Semaphore(MAX_CONCURRENT);
 
+	/**
+	 * Validates and converts one upload. The type is judged from the file's first bytes, not its name or Content-Type.
+	 * At most {@link #MAX_CONCURRENT} photos are decoded at the same time; others wait.
+	 *
+	 * @return the full copy (at most 1600 px, JPEG), the thumbnail (at most 400 px, JPEG) and the image hash
+	 * @throws ApiException 400 {@code INVALID_IMAGE} if the file cannot be read, is not a JPG, PNG or WebP, or cannot be decoded
+	 */
 	public ProcessedImage process(MultipartFile file) {
 		String name = file.getOriginalFilename() == null ? "photo" : file.getOriginalFilename();
 		byte[] original;
@@ -69,11 +76,13 @@ public class ImageProcessor {
 		}
 	}
 
+	/** The one error for every kind of bad upload, naming the file so the seller knows which one to remove. */
 	private static ApiException invalid(String name) {
 		return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_IMAGE",
 				"\"" + name + "\" is not a valid JPG, PNG or WebP photo");
 	}
 
+	/** Checks the magic bytes of JPEG, PNG and WebP (RIFF....WEBP). */
 	private static boolean looksLikeImage(byte[] b) {
 		boolean jpeg = b.length > 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF;
 		boolean png = b.length > 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';

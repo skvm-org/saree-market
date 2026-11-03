@@ -21,6 +21,10 @@ import com.sareemarket.order.dto.HoldDto;
 
 import jakarta.validation.Valid;
 
+/**
+ * REST endpoints for payment holds: checkout from the cart, listing the customer's open holds and cancelling one.
+ * All endpoints are CUSTOMER only. Logic is in {@link HoldService}.
+ */
 @RestController
 @RequestMapping("/api/v1")
 @PreAuthorize("hasRole('CUSTOMER')")
@@ -32,17 +36,31 @@ class HoldController {
 		this.holds = holds;
 	}
 
+	/**
+	 * POST /api/v1/cart/checkout. Reserves stock for two hours, one hold per seller in the cart (or only the seller
+	 * named in the request). Sellers that could not be held, and lines cut back for stock, are reported in the result
+	 * rather than failing the call.
+	 *
+	 * @throws com.sareemarket.common.ApiException 404 NOT_FOUND (address, or nothing from that seller in the cart),
+	 * 409 HOLD_LIMIT (more than 3 payments in progress), 409 TOTAL_TOO_LARGE
+	 */
 	@PostMapping("/cart/checkout")
 	CheckoutResultDto checkout(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CheckoutRequest request) {
 		return holds.checkout(Long.parseLong(jwt.getSubject()), request);
 	}
 
+	/**
+	 * DELETE /api/v1/holds/{id}. Cancels the customer's own hold and puts its stock back on sale. Returns 204.
+	 *
+	 * @throws com.sareemarket.common.ApiException 404 NOT_FOUND when the hold is not the customer's
+	 */
 	@DeleteMapping("/holds/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		holds.cancel(Long.parseLong(jwt.getSubject()), id);
 	}
 
+	/** GET /api/v1/holds. The customer's holds that have not yet expired, soonest expiry first. */
 	@GetMapping("/holds")
 	List<HoldDto> list(@AuthenticationPrincipal Jwt jwt) {
 		return holds.list(Long.parseLong(jwt.getSubject()));

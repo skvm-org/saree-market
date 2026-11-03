@@ -26,6 +26,9 @@ import com.sareemarket.common.ApiException;
 @Service
 public class CartService {
 
+	/**
+	 * The most distinct sarees one cart may hold.
+	 */
 	static final int MAX_LINES = 50;
 
 	private final NamedParameterJdbcTemplate jdbc;
@@ -80,6 +83,16 @@ public class CartService {
 	}
 
 	@Transactional
+	/**
+	 * Adds a saree to the cart, or changes its quantity if it is already there. Runs in one transaction that first
+	 * locks the customer's user row, so two requests cannot both pass the 50-line check. Nothing is reserved: stock
+	 * is checked again when the order is placed.
+	 *
+	 * @param quantity the new total for this line, not an increment
+	 * @throws ApiException 404 NOT_FOUND for an unknown saree; 409 NOT_AVAILABLE when it is not AVAILABLE, has no pieces
+	 * 	or its seller is disabled; 409 NOT_ENOUGH_STOCK when quantity is above the pieces left; 409 CART_FULL when a
+	 * 	new line would be the 51st
+	 */
 	public void setLine(long customerId, long itemId, int quantity) {
 		jdbc.queryForList("SELECT id FROM app_user WHERE id = :c FOR UPDATE", new MapSqlParameterSource("c", customerId),
 				Long.class);
@@ -111,6 +124,9 @@ public class CartService {
 				params);
 	}
 
+	/**
+	 * Removes the line. Does nothing if the saree is not in the cart.
+	 */
 	public void removeLine(long customerId, long itemId) {
 		jdbc.update("DELETE FROM cart_line WHERE customer_id = :c AND item_id = :i",
 				new MapSqlParameterSource("c", customerId).addValue("i", itemId));

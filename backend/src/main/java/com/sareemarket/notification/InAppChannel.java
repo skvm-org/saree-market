@@ -28,6 +28,11 @@ class InAppChannel implements NotificationChannel {
 		this.jdbc = jdbc;
 	}
 
+	/**
+	 * Adds the item count to the recent unread notification of each INSTANT follower, then inserts a new row for
+	 * every enabled INSTANT follower who still has none. MUTED followers get nothing. Has its own transaction
+	 * because the listener thread is not inside the seller's transaction any more.
+	 */
 	@Override
 	@Transactional
 	public void deliver(NotificationEvent event) {

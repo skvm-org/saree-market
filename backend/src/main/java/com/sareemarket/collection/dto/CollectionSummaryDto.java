@@ -18,6 +18,9 @@ public record CollectionSummaryDto(Long id, String title, int price,
 				List.of());
 	}
 
+	/**
+	 * A copy with the preview photo ids filled in.
+	 */
 	public CollectionSummaryDto withPreviews(List<Long> ids) {
 		return new CollectionSummaryDto(id, title, price, createdAt, itemCount, availableCount,
 				soldOutCount, coverItemId, ids);
