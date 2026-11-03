@@ -32,6 +32,10 @@ data class UpdateNameRequest(val name: String)
 @Serializable
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
 
+/** Moves the login phone; the password stands in for an SMS code, which the MVP does not have. */
+@Serializable
+data class ChangePhoneRequest(val newPhone: String, val currentPassword: String)
+
 /** A seller's own shop details, as read and as saved. */
 @Serializable
 data class ShopDetails(

@@ -19,6 +19,9 @@ interface AuthApi {
     @PATCH("api/v1/auth/me")
     suspend fun updateName(@Body request: UpdateNameRequest): UserDto
 
+    @PUT("api/v1/auth/me/phone")
+    suspend fun changePhone(@Body request: ChangePhoneRequest): UserDto
+
     @PUT("api/v1/auth/me/password")
     suspend fun changePassword(@Body request: ChangePasswordRequest)
 

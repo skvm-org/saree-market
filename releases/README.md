@@ -4,7 +4,7 @@ Both point at the live backend, `https://sareemarket.duckdns.org`. Install with 
 
 | File | What it is | Built from |
 | --- | --- | --- |
-| `saree-market-debug.apk` | **Latest.** Home opens on All sellers with Following second; Follow button on each collection card | branch `feature/home-all-sellers-first-follow-button` |
+| `saree-market-debug.apk` | **Latest.** Adds Change login phone on the Profile tab (needs the matching backend deploy) | branch `feature/change-login-phone` |
 | `saree-market-debug-previous.apk` | **Older.** The v3 redesign before type and fabric were removed (still asks for both) | branch `ui-redesign-v3` at `361f0fd` |
 
 Rebuild the latest with `cd android && ./gradlew assembleDebug -PapiBaseUrl=https://sareemarket.duckdns.org`, then copy `app/build/outputs/apk/debug/app-debug.apk` here.

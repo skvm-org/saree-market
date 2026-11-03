@@ -39,6 +39,8 @@ class FakeAuthApi : AuthApi {
     var meResult: () -> UserDto = { priya }
     var updateNameResult: (String) -> UserDto = { priya.copy(name = it) }
     var changePasswordResult: () -> Unit = {}
+    var changePhoneResult: (String) -> UserDto = { priya.copy(phone = it) }
+    var lastPhoneChange: ChangePhoneRequest? = null
     var shopResult: () -> ShopDetails = { ShopDetails("Lakshmi Silks", "Dindigul", "9876500001", null) }
     var updateShopResult: (ShopDetails) -> ShopDetails = { it }
     var lastPasswordChange: ChangePasswordRequest? = null
@@ -59,6 +61,11 @@ class FakeAuthApi : AuthApi {
     override suspend fun me(): UserDto = meResult()
 
     override suspend fun updateName(request: UpdateNameRequest): UserDto = updateNameResult(request.name)
+
+    override suspend fun changePhone(request: ChangePhoneRequest): UserDto {
+        lastPhoneChange = request
+        return changePhoneResult(request.newPhone)
+    }
 
     override suspend fun changePassword(request: ChangePasswordRequest) {
         lastPasswordChange = request

@@ -7,9 +7,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.Role
 import com.sareemarket.app.ui.profile.ChangePasswordContent
+import com.sareemarket.app.ui.profile.ChangePhoneContent
+import com.sareemarket.app.ui.profile.ChangePhoneUiState
 import com.sareemarket.app.ui.profile.ChangePasswordUiState
 import com.sareemarket.app.ui.profile.ProfileContent
 import com.sareemarket.app.ui.profile.ProfileUiState
@@ -35,6 +38,33 @@ class ProfileScreensTest {
         compose.onNodeWithTag("save").performClick()
 
         assertEquals(1, saves)
+    }
+
+    @Test
+    fun changePhoneShowsTheFieldErrorAndSubmits() {
+        var submits = 0
+        compose.setContent {
+            SareeTheme {
+                ChangePhoneContent(ChangePhoneUiState(newPhone = "9000000001", current = "pw", fieldErrors = mapOf("newPhone" to "This phone number is already registered")), {}, {}, {}, { submits++ })
+            }
+        }
+
+        compose.onNodeWithText("This phone number is already registered").assertIsDisplayed()
+        compose.onNodeWithTag("submit").performClick()
+
+        assertEquals(1, submits)
+    }
+
+    @Test
+    fun theProfileOffersChangeLoginPhone() {
+        var opened = 0
+        compose.setContent {
+            SareeTheme { ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.CUSTOMER), {}, {}, {}, onChangePhone = { opened++ }) }
+        }
+
+        compose.onNodeWithTag("change-phone").performScrollTo().performClick()
+
+        assertEquals(1, opened)
     }
 
     @Test

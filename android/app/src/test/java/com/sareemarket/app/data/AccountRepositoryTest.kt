@@ -12,6 +12,25 @@ class AccountRepositoryTest {
     private val repo = AuthRepository(api, store, testJson)
 
     @Test
+    fun changePhoneKeepsTheStoredSessionInStepAndTheToken() = runTest {
+        assertTrue(repo.changePhone("9000000001", "password1").isSuccess)
+
+        assertEquals("9000000001", store.saved?.phone)
+        assertEquals("token-1", store.saved?.token)
+        assertEquals("password1", api.lastPhoneChange?.currentPassword)
+    }
+
+    @Test
+    fun aRefusedPhoneChangeLeavesTheSessionAlone() = runTest {
+        api.changePhoneResult = { throw httpError(409, """{"code":"PHONE_TAKEN","message":"This phone number is already registered","fields":{}}""") }
+
+        val error = repo.changePhone("9000000001", "password1").exceptionOrNull() as ApiFailure
+
+        assertEquals("PHONE_TAKEN", error.code)
+        assertEquals("9876543210", store.saved?.phone)
+    }
+
+    @Test
     fun updateNameKeepsTheStoredSessionInStep() = runTest {
         assertTrue(repo.updateName("Meena").isSuccess)
 

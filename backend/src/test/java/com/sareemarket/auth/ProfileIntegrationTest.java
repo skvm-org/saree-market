@@ -85,4 +85,53 @@ class ProfileIntegrationTest extends IntegrationTestBase {
 		}
 	}
 
+	String loginToken(String phone, String password) throws Exception {
+		return com.jayway.jsonpath.JsonPath.read(mvc
+			.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"phone\":\"%s\",\"password\":\"%s\"}".formatted(phone, password)))
+			.andReturn().getResponse().getContentAsString(), "$.token");
+	}
+
+	@Test
+	void loginPhoneChangeNeedsThePasswordThenMovesTheLoginAndKeepsTheToken() throws Exception {
+		String phone = newPhone();
+		String fresh = newPhone();
+		mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"phone\":\"%s\",\"name\":\"Priya\",\"password\":\"password1\",\"role\":\"CUSTOMER\"}".formatted(phone)))
+			.andExpect(status().isCreated());
+		String token = loginToken(phone, "password1");
+
+		send(put("/api/v1/auth/me/phone"), token, "{\"newPhone\":\"" + fresh + "\",\"currentPassword\":\"nope\"}")
+			.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("WRONG_PASSWORD"));
+		send(put("/api/v1/auth/me/phone"), token, "{\"newPhone\":\"12345\",\"currentPassword\":\"password1\"}")
+			.andExpect(status().isBadRequest()).andExpect(jsonPath("$.fields.newPhone").exists());
+		send(put("/api/v1/auth/me/phone"), token, "{\"newPhone\":\"" + fresh + "\",\"currentPassword\":\"password1\"}")
+			.andExpect(status().isOk()).andExpect(jsonPath("$.phone").value(fresh));
+
+		getWith("/api/v1/auth/me", token).andExpect(status().isOk()).andExpect(jsonPath("$.phone").value(fresh));
+		mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"phone\":\"%s\",\"password\":\"password1\"}".formatted(phone)))
+			.andExpect(status().isUnauthorized());
+		mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"phone\":\"%s\",\"password\":\"password1\"}".formatted(fresh)))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void loginPhoneCannotBeAnotherAccountsNumberAndNeedsALogin() throws Exception {
+		String taken = newPhone();
+		mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"phone\":\"%s\",\"name\":\"Other\",\"password\":\"password1\",\"role\":\"CUSTOMER\"}".formatted(taken)))
+			.andExpect(status().isCreated());
+
+		for (String token : new String[] { registerSeller(), registerCustomer() }) {
+			send(put("/api/v1/auth/me/phone"), token, "{\"newPhone\":\"" + taken + "\",\"currentPassword\":\"password1\"}")
+				.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PHONE_TAKEN"))
+				.andExpect(jsonPath("$.fields.newPhone").exists());
+		}
+		mvc.perform(put("/api/v1/auth/me/phone").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"newPhone\":\"" + newPhone() + "\",\"currentPassword\":\"password1\"}"))
+			.andExpect(status().isUnauthorized());
+	}
+
 }
