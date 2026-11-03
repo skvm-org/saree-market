@@ -63,6 +63,7 @@ import com.sareemarket.app.data.OrderStatus
 import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.components.OrderStatusPill
 import com.sareemarket.app.ui.components.PrimaryButton
+import com.sareemarket.app.ui.components.OrderThumb
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
 import com.sareemarket.app.ui.components.SkeletonRows
@@ -145,7 +146,8 @@ fun OrderDetailContent(
                     }
                     Timeline(order)
                     order.lines.forEach { line ->
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                            OrderThumb(line.itemId, width = 40.dp)
                             Text("${line.quantity} × ${line.title}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                             Text(formatRupees(line.unitPrice * line.quantity), style = MaterialTheme.typography.bodyMedium)
                         }

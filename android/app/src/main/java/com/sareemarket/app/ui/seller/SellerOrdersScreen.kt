@@ -76,6 +76,7 @@ import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.components.OrderStatusPill
 import com.sareemarket.app.ui.components.PhotoViewer
 import com.sareemarket.app.ui.components.PrimaryButton
+import com.sareemarket.app.ui.components.OrderThumbs
 import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
 import com.sareemarket.app.ui.components.SkeletonRows
@@ -291,6 +292,7 @@ private fun OrderCard(
                 if (order.unread) Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(10.dp).semantics { contentDescription = "Updated" }.testTag("unread-${order.id}")) {}
                 OrderStatusPill(order.status, Modifier.testTag("status-${order.id}"))
             }
+            OrderThumbs(order.lines)
             val first = order.lines.firstOrNull()?.title.orEmpty()
             Text(
                 if (order.lines.size > 1) "$first +${order.lines.size - 1} more" else first,

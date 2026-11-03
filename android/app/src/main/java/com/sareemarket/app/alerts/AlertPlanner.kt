@@ -21,9 +21,20 @@ object AlertPlanner {
      */
     fun orderText(lastToConfirm: Int, lastUnread: Int, now: OrderSummary): String? = when {
         now.toConfirm > lastToConfirm -> (now.toConfirm - lastToConfirm).let { if (it == 1) "1 new order to confirm" else "$it new orders to confirm" }
-        now.unread > lastUnread -> "An order was updated"
+        now.unread > lastUnread -> ORDER_UPDATED
         else -> null
     }
+
+    /**
+     * "An order was updated" made specific: the newest unread order update in [notifications] ("Lakshmi Silks confirmed
+     * your order #12"), or [generic] when there is none (a seller's unread orders have no notification rows).
+     */
+    fun orderUpdateText(generic: String, notifications: List<AppNotification>): String =
+        if (generic != ORDER_UPDATED) generic
+        else notifications.filter { !it.read && it.type == NotificationType.ORDER_UPDATE }
+            .maxByOrNull { Instant.parse(it.updatedAt) }?.message ?: generic
+
+    const val ORDER_UPDATED = "An order was updated"
 
     /** The point to remember so the same collections are not announced twice. */
     fun newest(fresh: List<AppNotification>): Instant = fresh.maxOf { Instant.parse(it.updatedAt) }

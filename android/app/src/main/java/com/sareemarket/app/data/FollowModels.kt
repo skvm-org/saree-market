@@ -20,7 +20,7 @@ data class FollowItem(
 data class FollowBody(val notifyMode: NotifyMode)
 
 @Serializable
-enum class NotificationType { NEW_COLLECTION, ITEMS_ADDED, BACK_IN_STOCK }
+enum class NotificationType { NEW_COLLECTION, ITEMS_ADDED, BACK_IN_STOCK, ORDER_UPDATE }
 
 /** One line in the notifications list. [message] is ready to show; the times are ISO-8601 strings. */
 @Serializable
@@ -30,14 +30,18 @@ data class AppNotification(
     val itemCount: Int,
     val sellerId: Long,
     val shopName: String,
-    val collectionId: Long,
-    val collectionTitle: String,
+    /** Set for follower notifications; null for an [NotificationType.ORDER_UPDATE], which has an [orderId] instead. */
+    val collectionId: Long? = null,
+    val collectionTitle: String? = null,
     val message: String,
     val read: Boolean,
     val createdAt: String,
     val updatedAt: String,
-    /** A photo of the collection, for the round thumbnail. */
+    /** A photo of the collection (or of the first saree ordered), for the round thumbnail. */
     val coverItemId: Long? = null,
+    val orderId: Long? = null,
+    /** The order's new status for an order update, e.g. CONFIRMED. */
+    val orderStatus: String? = null,
 )
 
 @Serializable

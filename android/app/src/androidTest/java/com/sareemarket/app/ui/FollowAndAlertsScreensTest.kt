@@ -98,6 +98,22 @@ class FollowAndAlertsScreensTest {
         compose.setContent { SareeTheme { NotificationsContent(state, onOpen, onAll, {}) } }
 
     @Test
+    fun anOrderUpdateShowsItsMessageAndOpensTheOrderNotACollection() {
+        val update = AppNotification(
+            7, NotificationType.ORDER_UPDATE, 1, 1, "Lakshmi Silks", message = "Lakshmi Silks confirmed your order #12", read = false,
+            createdAt = Instant.now().toString(), updatedAt = Instant.now().toString(), coverItemId = 10, orderId = 12, orderStatus = "CONFIRMED",
+        )
+        var opened: AppNotification? = null
+        showNotes(NotificationsState(listOf(update), loading = false), onOpen = { opened = it })
+
+        compose.onNodeWithText("Confirmed your order #12").assertExists()
+        compose.onNodeWithTag("note-7").performClick()
+
+        assertEquals(12L, opened?.orderId)
+        assertEquals(null, opened?.collectionId)
+    }
+
+    @Test
     fun showsMessagesWithTimeAndUnreadDots() {
         showNotes(NotificationsState(listOf(note(1, false, "Lakshmi Silks added 18 sarees · Diwali silks"), note(2, true, "Older news")), loading = false))
 

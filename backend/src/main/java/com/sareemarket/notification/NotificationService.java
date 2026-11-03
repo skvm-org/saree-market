@@ -47,20 +47,27 @@ public class NotificationService {
 		List<NotificationDto> items = jdbc.query("""
 				SELECT n.id, n.type, n.item_count, n.seller_id, sp.shop_name, n.collection_id, c.title,
 				       n.read_at IS NOT NULL AS read, n.created_at, n.updated_at,
-				       (SELECT min(i.id) FROM item i WHERE i.collection_id = n.collection_id) AS cover_item_id
+				       n.order_id, n.order_status,
+				       COALESCE((SELECT min(i.id) FROM item i WHERE i.collection_id = n.collection_id),
+				                (SELECT min(l.item_id) FROM order_line l WHERE l.order_id = n.order_id)) AS cover_item_id
 				FROM notification n
 				JOIN seller_profile sp ON sp.user_id = n.seller_id
-				JOIN collection c ON c.id = n.collection_id
+				LEFT JOIN collection c ON c.id = n.collection_id
 				WHERE n.reseller_id = :reseller
 				ORDER BY n.updated_at DESC, n.id DESC LIMIT :limit OFFSET :offset""", params, (rs, i) -> {
 			NotificationType type = NotificationType.valueOf(rs.getString("type"));
 			int count = rs.getInt("item_count");
 			String shop = rs.getString("shop_name");
 			String title = rs.getString("title");
+			Long orderId = (Long) rs.getObject("order_id");
+			String orderStatus = rs.getString("order_status");
+			String text = type == NotificationType.ORDER_UPDATE ? orderMessage(orderStatus, orderId, shop)
+					: message(type, count, shop, title);
 			return new NotificationDto(rs.getLong("id"), type, count, rs.getLong("seller_id"), shop,
-					rs.getLong("collection_id"), title, message(type, count, shop, title), rs.getBoolean("read"),
+					(Long) rs.getObject("collection_id"), title, text, rs.getBoolean("read"),
 					rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-					rs.getObject("updated_at", OffsetDateTime.class).toInstant(), (Long) rs.getObject("cover_item_id"));
+					rs.getObject("updated_at", OffsetDateTime.class).toInstant(), (Long) rs.getObject("cover_item_id"),
+					orderId, orderStatus);
 		});
 		return PageDto.of(items, page, PAGE_SIZE, total == null ? 0 : total);
 	}
@@ -121,6 +128,22 @@ public class NotificationService {
 			case NEW_COLLECTION -> shop + " added " + sarees + " · " + title;
 			case ITEMS_ADDED -> shop + " added " + sarees + " to " + title;
 			case BACK_IN_STOCK -> sarees + (count == 1 ? " is" : " are") + " back in stock at " + shop + " · " + title;
+			case ORDER_UPDATE -> throw new IllegalArgumentException("Order updates are worded by orderMessage");
+		};
+	}
+
+	/**
+	 * The ready-to-show text of an order update, from the order's new status, its number and the shop's name.
+	 */
+	static String orderMessage(String status, long orderId, String shop) {
+		return switch (status) {
+			case "CONFIRMED" -> shop + " confirmed your order #" + orderId;
+			case "PACKED" -> shop + " packed your order #" + orderId;
+			case "SHIPPED" -> shop + " shipped your order #" + orderId;
+			case "DELIVERED" -> "Your order #" + orderId + " from " + shop + " was delivered";
+			case "PAYMENT_REJECTED" -> shop + " could not match your payment for order #" + orderId;
+			case "CANCELLED" -> shop + " cancelled your order #" + orderId;
+			default -> shop + " updated your order #" + orderId;
 		};
 	}
 

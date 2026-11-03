@@ -114,7 +114,7 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     MySellersScreen(onOpenSeller = { nav.navigate("seller/$it") }, onDiscover = { openTab(TAB_CATALOG) }, onBack = { nav.popBackStack() })
                 }
                 composable(ROUTE_ALERTS) {
-                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onBack = { nav.popBackStack() })
+                    NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onOpenOrder = { nav.navigate("order/$it") }, onBack = { nav.popBackStack() })
                 }
                 composable("addresses") {
                     AddressesScreen(onBack = { nav.popBackStack() })

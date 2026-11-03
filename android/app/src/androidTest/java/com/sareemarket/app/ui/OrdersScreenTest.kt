@@ -92,6 +92,13 @@ class OrdersScreenTest {
     }
 
     @Test
+    fun anOrderRowShowsThePhotosOfWhatWasOrdered() {
+        showList(OrdersState(items = listOf(order(5, OrderStatus.CONFIRMED)), loading = false))
+
+        compose.onNodeWithTag("order-thumbs", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
     fun anUnreadOrderHasADot() {
         showList(OrdersState(items = listOf(order(1, unread = true)), loading = false))
 
