@@ -60,10 +60,11 @@ class OrdersScreenTest {
     private var copied: String? = null
     private var received = false
     private var cancelReason: String? = "unset"
+    private var openedItem: Long? = null
 
     private fun showDetail(state: OrderDetailState) = compose.setContent {
         SareeTheme {
-            OrderDetailContent(state, {}, {}, { copied = it }, { received = true }, { cancelReason = it })
+            OrderDetailContent(state, {}, {}, { copied = it }, { received = true }, { cancelReason = it }, { openedItem = it })
         }
     }
 
@@ -158,6 +159,25 @@ class OrdersScreenTest {
 
         compose.onNodeWithTag("tracking-card").assertDoesNotExist()
         compose.onNodeWithTag("receive-order").assertDoesNotExist()
+    }
+
+    @Test
+    fun tappingASareeOnTheOrderOpensItsPage() {
+        showDetail(OrderDetailState(order(5), loading = false))
+
+        compose.onNodeWithTag("order-line-0").performClick()
+
+        assertEquals(10L, openedItem)
+    }
+
+    @Test
+    fun aSareeTheSellerHasDeletedHasNoLinkToOpen() {
+        val gone = order(5).copy(lines = listOf(OrderLine(null, "Removed saree", null, 800, 1)))
+        showDetail(OrderDetailState(gone, loading = false))
+
+        compose.onNodeWithTag("order-line-0").performClick()
+
+        assertEquals(null, openedItem)
     }
 
     @Test

@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -54,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -90,10 +93,17 @@ fun HoldScreen(
     onBack: () -> Unit,
     onPaid: (Long) -> Unit,
     onClosed: () -> Unit,
+    onEditAddress: (Long) -> Unit = {},
+    onAddAddress: () -> Unit = {},
     onOpenOrders: () -> Unit = {},
     viewModel: HoldViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Back from editing or adding an address: look at the saved addresses again while the sheet is open.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshAddresses()
+        onPauseOrDispose {}
+    }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val now by produceState(Instant.now()) {
@@ -137,6 +147,10 @@ fun HoldScreen(
         onBackToCart = onClosed,
         onOpenOrders = onOpenOrders,
         onRetry = viewModel::load,
+        address = HoldAddressActions(
+            viewModel::openAddressSheet, viewModel::closeAddressSheet, viewModel::selectAddress, onEditAddress, onAddAddress,
+            viewModel::applyAddress,
+        ),
     )
 }
 
@@ -156,6 +170,7 @@ fun HoldContent(
     onBackToCart: () -> Unit,
     onRetry: () -> Unit,
     onOpenOrders: () -> Unit = {},
+    address: HoldAddressActions = HoldAddressActions(),
 ) {
     var confirmingCancel by remember { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -187,6 +202,7 @@ fun HoldContent(
                             Text(formatRupees(line.unitPrice * line.quantity), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
+                    DeliverTo(hold.address, canChange = !state.expired, onChange = address.onOpen)
                     val left = if (state.expired) "" else timeRemaining(hold.expiresAt, now)
                     if (state.expired || left.isEmpty()) {
                         Text("This payment window has ended.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("hold-ended"))
@@ -202,6 +218,7 @@ fun HoldContent(
             }
         }
     }
+    state.addressSheet?.let { ChangeAddressSheet(it, address) }
     if (confirmingCancel) {
         AlertDialog(
             onDismissRequest = { confirmingCancel = false },
@@ -212,6 +229,59 @@ fun HoldContent(
             },
             dismissButton = { TextButton(onClick = { confirmingCancel = false }, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Keep") } },
         )
+    }
+}
+
+/** What the "change address" sheet on the payment screen can do; the defaults do nothing (for previews and tests). */
+data class HoldAddressActions(
+    val onOpen: () -> Unit = {},
+    val onClose: () -> Unit = {},
+    val onSelect: (Long?) -> Unit = {},
+    val onEdit: (Long) -> Unit = {},
+    val onAdd: () -> Unit = {},
+    val onUse: () -> Unit = {},
+)
+
+/** Where the parcel goes: the address copied onto this hold, with a button to send it to another saved address before paying. */
+@Composable
+private fun DeliverTo(address: com.sareemarket.app.data.AddressSnapshot, canChange: Boolean, onChange: () -> Unit) {
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth().testTag("hold-address-card")) {
+        Row(Modifier.padding(start = Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(vertical = Spacing.md).semantics(mergeDescendants = true) {}.testTag("hold-address"), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text("Deliver to", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${address.name} · ${address.phone}", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    listOfNotNull(address.line1, address.line2, "${address.city}, ${address.state} ${address.pin}").joinToString("\n"),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (canChange) {
+                TextButton(onClick = onChange, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("change-address")) { Text("Change") }
+            }
+        }
+    }
+}
+
+/** Pick another saved address (or edit or add one) for this hold, then "Use this address". Totals and the countdown stay as they are. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChangeAddressSheet(ui: HoldAddressUi, actions: HoldAddressActions) {
+    ModalBottomSheet(onDismissRequest = actions.onClose) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.margin).padding(bottom = Spacing.lg).testTag("change-address-sheet"),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            Text("Deliver to", style = MaterialTheme.typography.headlineSmall)
+            AddressPicker(ui.addresses, ui.loading, ui.selectedId, actions.onSelect, actions.onEdit, actions.onAdd)
+            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("change-address-error")) }
+            PrimaryButton(
+                "Use this address",
+                onClick = actions.onUse,
+                loading = ui.busy,
+                enabled = ui.selectedId != null,
+                modifier = Modifier.fillMaxWidth().testTag("use-address"),
+            )
+        }
     }
 }
 

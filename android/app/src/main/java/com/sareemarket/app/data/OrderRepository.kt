@@ -38,6 +38,10 @@ class OrderRepository @Inject constructor(
 
     suspend fun cancelHold(id: Long): Result<Unit> = changing { api.cancelHold(id).requireSuccess() }
 
+    /** Delivers an open hold to another saved address. Totals and the countdown do not change. */
+    suspend fun changeHoldAddress(holdId: Long, addressId: Long): Result<Hold> =
+        apiCall(json) { api.changeHoldAddress(holdId, HoldAddressBody(addressId)) }
+
     /** The customer paid: [utr] is the 12-digit reference from their UPI app, [proof] an optional screenshot (a URI string). */
     suspend fun pay(holdId: Long, utr: String, proof: String?): Result<Order> =
         changing { api.payHold(holdId, text(utr), proof?.let { proofPart(photos, it) }) }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,6 +81,7 @@ fun CheckoutSheet(
     ui: CheckoutUi,
     onSelect: (Long?) -> Unit,
     onAddAddress: () -> Unit,
+    onEditAddress: (Long) -> Unit,
     onNote: (String) -> Unit,
     onContinue: () -> Unit,
     onDismiss: () -> Unit,
@@ -91,11 +93,7 @@ fun CheckoutSheet(
         ) {
             Text("Pay ${ui.seller.shopName}", style = MaterialTheme.typography.headlineSmall)
             Text("Deliver to", style = MaterialTheme.typography.labelLarge)
-            if (!ui.loadingAddresses && ui.addresses.isEmpty()) {
-                Text("You have no saved address yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("no-addresses"))
-            }
-            ui.addresses.forEach { a -> AddressChoice(a, a.id == ui.selectedAddressId) { onSelect(a.id) } }
-            TextButton(onClick = onAddAddress, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("checkout-add-address")) { Text("Add a new address") }
+            AddressPicker(ui.addresses, ui.loadingAddresses, ui.selectedAddressId, onSelect, onEditAddress, onAddAddress)
             OutlinedTextField(
                 value = ui.note,
                 onValueChange = onNote,
@@ -124,8 +122,27 @@ fun CheckoutSheet(
     }
 }
 
+/** The saved addresses as radio choices, each with an Edit button, and "Add a new address". Used by checkout and by the payment screen. */
 @Composable
-private fun AddressChoice(address: Address, selected: Boolean, onClick: () -> Unit) {
+internal fun AddressPicker(
+    addresses: List<Address>,
+    loading: Boolean,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit,
+    onEdit: (Long) -> Unit,
+    onAdd: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        if (!loading && addresses.isEmpty()) {
+            Text("You have no saved address yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("no-addresses"))
+        }
+        addresses.forEach { a -> AddressChoice(a, a.id == selectedId, onClick = { onSelect(a.id) }, onEdit = { onEdit(a.id) }) }
+        TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("checkout-add-address")) { Text("Add a new address") }
+    }
+}
+
+@Composable
+private fun AddressChoice(address: Address, selected: Boolean, onClick: () -> Unit, onEdit: () -> Unit) {
     Surface(
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -137,6 +154,9 @@ private fun AddressChoice(address: Address, selected: Boolean, onClick: () -> Un
             Column(Modifier.weight(1f)) {
                 Text("${address.name} · ${address.phone}", style = MaterialTheme.typography.titleSmall)
                 Text("${address.line1}, ${address.city} ${address.pin}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = onEdit, modifier = Modifier.size(MinTouchTarget).testTag("address-edit-${address.id}")) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit address")
             }
         }
     }

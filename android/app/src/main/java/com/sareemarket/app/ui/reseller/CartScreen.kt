@@ -82,6 +82,7 @@ fun CartScreen(
     onOpenItem: (Long) -> Unit,
     onOpenHold: (Long) -> Unit,
     onAddAddress: () -> Unit,
+    onEditAddress: (Long) -> Unit,
     onDiscover: () -> Unit,
     viewModel: CartViewModel = hiltViewModel(),
 ) {
@@ -103,7 +104,7 @@ fun CartScreen(
         viewModel::reload, viewModel::pullRefresh, onOpenHold,
     )
     state.checkout?.let { ui ->
-        CheckoutSheet(ui, viewModel::selectAddress, onAddAddress, viewModel::onNote, viewModel::confirmCheckout, viewModel::dismissCheckout)
+        CheckoutSheet(ui, viewModel::selectAddress, onAddAddress, onEditAddress, viewModel::onNote, viewModel::confirmCheckout, viewModel::dismissCheckout)
     }
 }
 

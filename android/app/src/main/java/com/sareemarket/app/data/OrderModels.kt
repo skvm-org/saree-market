@@ -55,6 +55,10 @@ data class Hold(
     val expiresAt: String,
 )
 
+/** The saved address an open payment hold should be delivered to instead. */
+@Serializable
+data class HoldAddressBody(val addressId: Long)
+
 @Serializable
 data class CheckoutBody(val addressId: Long, val note: String? = null, val sellerId: Long? = null)
 
