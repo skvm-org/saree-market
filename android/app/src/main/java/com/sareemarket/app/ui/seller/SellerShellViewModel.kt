@@ -17,8 +17,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** The number on the Orders tab: only orders that need the seller to act, not every update. */
-internal fun sellerBadge(summary: OrderSummary): Long = summary.toConfirm.toLong()
+/** The number on the Orders tab: only orders that need the seller to act (still to ship), not every update. */
+internal fun sellerBadge(summary: OrderSummary): Long = summary.toShip.toLong()
 
 /**
  * Whether customers can pay this shop. The server returns a null UPI ID when it was never set or was cleared, so only a
@@ -34,7 +34,7 @@ class SellerShellViewModel @Inject constructor(
     private val alerts: NewCollectionAlerts,
 ) : ViewModel() {
 
-    /** Orders whose payment waits for the seller to confirm: the number on the Orders tab. */
+    /** Orders still to ship: the number on the Orders tab. */
     val pending: StateFlow<Long> = orders.summary.map(::sellerBadge).stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
     fun refreshPending() {

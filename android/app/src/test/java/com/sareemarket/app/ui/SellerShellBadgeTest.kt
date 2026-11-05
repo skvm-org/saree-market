@@ -8,12 +8,12 @@ import org.junit.Test
 class SellerShellBadgeTest {
 
     @Test
-    fun theSellerBadgeCountsOrdersWaitingForConfirmation() {
-        assertEquals(3L, sellerBadge(OrderSummary(toConfirm = 3, unread = 9, toPack = 2)))
+    fun theSellerBadgeCountsOrdersStillToShip() {
+        assertEquals(3L, sellerBadge(OrderSummary(toShip = 3, unread = 9, shipped = 2)))
     }
 
     @Test
-    fun nothingToConfirmMeansNoBadge() {
-        assertEquals(0L, sellerBadge(OrderSummary(unread = 5, toPack = 2, toShip = 1)))
+    fun nothingToShipMeansNoBadge() {
+        assertEquals(0L, sellerBadge(OrderSummary(unread = 5, shipped = 2)))
     }
 }

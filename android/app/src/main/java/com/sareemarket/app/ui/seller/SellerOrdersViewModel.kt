@@ -17,15 +17,13 @@ import kotlinx.coroutines.launch
 
 /** Which orders the list shows; the tiles above it are the buttons. [state] is null for every order. */
 enum class SellerOrderFilter(val state: OrderStatus?) {
-    TO_CONFIRM(OrderStatus.PAYMENT_SUBMITTED),
-    TO_PACK(OrderStatus.CONFIRMED),
-    TO_SHIP(OrderStatus.PACKED),
+    TO_SHIP(OrderStatus.CONFIRMED),
     SHIPPED(OrderStatus.SHIPPED),
     ALL(null),
 }
 
 data class SellerOrdersState(
-    val filter: SellerOrderFilter = SellerOrderFilter.TO_CONFIRM,
+    val filter: SellerOrderFilter = SellerOrderFilter.TO_SHIP,
     val items: List<Order> = emptyList(),
     val nextPage: Int = 0,
     val hasMore: Boolean = false,
@@ -38,7 +36,7 @@ data class SellerOrdersState(
     val summary: OrderSummary = OrderSummary(),
 )
 
-/** The seller's orders: who paid, what to confirm, pack and ship, and the counts above the list. */
+/** The seller's orders: who paid, what is still to ship, and the counts above the list. */
 @HiltViewModel
 class SellerOrdersViewModel @Inject constructor(private val repository: OrderRepository) : ViewModel() {
 
@@ -83,21 +81,27 @@ class SellerOrdersViewModel @Inject constructor(private val repository: OrderRep
         job = viewModelScope.launch { fetch(s.nextPage) }
     }
 
-    fun confirmPayment(id: Long) = act(id) { repository.confirmPayment(id) }
+    /** The parcel is with the courier: both values are required, so nothing is sent until both are filled in. */
+    fun ship(id: Long, courier: String, trackingNumber: String) = needingTracking(courier, trackingNumber) {
+        act(id) { repository.ship(id, courier, trackingNumber) }
+    }
 
-    fun pack(id: Long) = act(id) { repository.pack(id) }
+    /** Corrects a mistyped courier or tracking number on a shipped order. */
+    fun editTracking(id: Long, courier: String, trackingNumber: String) = needingTracking(courier, trackingNumber) {
+        act(id) { repository.updateTracking(id, courier, trackingNumber) }
+    }
 
-    fun deliver(id: Long) = act(id) { repository.deliver(id) }
-
-    fun ship(id: Long, courier: String?, trackingNumber: String?) = act(id) { repository.ship(id, courier, trackingNumber) }
-
-    fun rejectPayment(id: Long, reason: String) = needingReason(reason) { act(id) { repository.rejectPayment(id, reason) } }
-
-    fun cancel(id: Long, reason: String) = needingReason(reason) { act(id) { repository.cancelAsSeller(id, reason) } }
-
-    private fun needingReason(reason: String, run: () -> Unit) {
+    fun cancel(id: Long, reason: String) {
         if (reason.isBlank()) {
             _state.update { it.copy(error = "Tell the customer why.") }
+            return
+        }
+        act(id) { repository.cancelAsSeller(id, reason) }
+    }
+
+    private fun needingTracking(courier: String, trackingNumber: String, run: () -> Unit) {
+        if (courier.isBlank() || trackingNumber.isBlank()) {
+            _state.update { it.copy(error = "Enter the courier and the tracking number.") }
             return
         }
         run()

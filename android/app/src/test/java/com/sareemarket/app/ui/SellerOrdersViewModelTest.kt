@@ -40,11 +40,11 @@ class SellerOrdersViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun opensOnToConfirmAndLoadsThatState() {
+    fun opensOnToShipAndLoadsThatState() {
         val vm = vm()
 
-        assertEquals(SellerOrderFilter.TO_CONFIRM, vm.state.value.filter)
-        assertTrue("received PAYMENT_SUBMITTED 0" in api.calls)
+        assertEquals(SellerOrderFilter.TO_SHIP, vm.state.value.filter)
+        assertTrue("received CONFIRMED 0" in api.calls)
         assertFalse(vm.state.value.loading)
     }
 
@@ -52,10 +52,10 @@ class SellerOrdersViewModelTest {
     fun selectingATileLoadsItsStateAndDropsTheOldRows() {
         val vm = vm()
 
-        vm.selectFilter(SellerOrderFilter.TO_PACK)
+        vm.selectFilter(SellerOrderFilter.SHIPPED)
 
-        assertTrue("received CONFIRMED 0" in api.calls)
-        assertEquals(SellerOrderFilter.TO_PACK, vm.state.value.filter)
+        assertTrue("received SHIPPED 0" in api.calls)
+        assertEquals(SellerOrderFilter.SHIPPED, vm.state.value.filter)
     }
 
     @Test
@@ -72,19 +72,19 @@ class SellerOrdersViewModelTest {
         val vm = vm()
         val before = api.calls.count { it.startsWith("received") }
 
-        vm.selectFilter(SellerOrderFilter.TO_CONFIRM)
+        vm.selectFilter(SellerOrderFilter.TO_SHIP)
 
         assertEquals(before, api.calls.count { it.startsWith("received") })
     }
 
     @Test
-    fun confirmingCallsTheServerThenReloadsTheListAndCounts() {
+    fun shippingCallsTheServerThenReloadsTheListAndCounts() {
         val vm = vm()
         api.calls.clear()
 
-        vm.confirmPayment(5)
+        vm.ship(5, " DTDC ", " D123 ")
 
-        assertEquals("confirm 5", api.calls.first())
+        assertEquals("ship 5 DTDC D123", api.calls.first())
         assertTrue(api.calls.any { it.startsWith("received") })
         assertTrue("summary" in api.calls)
         assertNull(vm.state.value.busyId)
@@ -98,12 +98,12 @@ class SellerOrdersViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         api.calls.clear()
 
-        vm.confirmPayment(5)
-        vm.confirmPayment(5)
-        vm.pack(6)
+        vm.ship(5, "DTDC", "D123")
+        vm.ship(5, "DTDC", "D123")
+        vm.editTracking(6, "DTDC", "D124")
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(1, api.calls.count { it.startsWith("confirm") || it.startsWith("pack") })
+        assertEquals(1, api.calls.count { it.startsWith("ship") || it.startsWith("tracking") })
     }
 
     @Test
@@ -112,24 +112,11 @@ class SellerOrdersViewModelTest {
         api.calls.clear()
         api.onAction = { _, _ -> throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is CANCELLED"}""") }
 
-        vm.confirmPayment(5)
+        vm.ship(5, "DTDC", "D123")
 
         assertEquals("This can't be done to an order that is CANCELLED", vm.state.value.error)
         assertTrue(api.calls.any { it.startsWith("received") }) // the order may have moved on
         assertNull(vm.state.value.busyId)
-    }
-
-    @Test
-    fun rejectingNeedsAReason() {
-        val vm = vm()
-        api.calls.clear()
-
-        vm.rejectPayment(5, "   ")
-
-        assertTrue(api.calls.none { it.startsWith("reject") })
-        assertNotNull(vm.state.value.error)
-        vm.rejectPayment(5, " Not received ")
-        assertTrue("reject 5 Not received" in api.calls)
     }
 
     @Test
@@ -141,29 +128,31 @@ class SellerOrdersViewModelTest {
         assertTrue(api.calls.none { it.startsWith("cancel") })
 
         vm.cancel(5, "Sold in the shop")
-        assertTrue("cancel-reason 5 Sold in the shop" in api.calls)
+        assertTrue("cancel 5 Sold in the shop" in api.calls)
     }
 
     @Test
-    fun shippingSendsTheOptionalFieldsTrimmed() {
+    fun shippingNeedsBothTheCourierAndTheTrackingNumber() {
         val vm = vm()
         api.calls.clear()
 
         vm.ship(5, " DTDC ", "")
+        vm.ship(5, "  ", "D123")
 
-        assertTrue("ship 5 DTDC null" in api.calls)
+        assertTrue(api.calls.none { it.startsWith("ship") })
+        assertNotNull(vm.state.value.error)
     }
 
     @Test
-    fun packAndDeliverCallTheirRoutes() {
+    fun correctingTheTrackingSendsBothValuesTrimmedAndNeedsBoth() {
         val vm = vm()
         api.calls.clear()
 
-        vm.pack(5)
-        vm.deliver(5)
+        vm.editTracking(5, "Delhivery", "")
+        assertTrue(api.calls.none { it.startsWith("tracking") })
 
-        assertTrue("pack 5" in api.calls)
-        assertTrue("deliver 5" in api.calls)
+        vm.editTracking(5, " Delhivery ", " X9 ")
+        assertTrue("tracking 5 Delhivery X9" in api.calls)
     }
 
     @Test
@@ -198,11 +187,11 @@ class SellerOrdersViewModelTest {
 
     @Test
     fun theCountsComeFromTheServersSummary() {
-        api.summary = { OrderSummary(toConfirm = 3, toPack = 2, toShip = 1, shipped = 4) }
+        api.summary = { OrderSummary(toShip = 3, shipped = 4) }
 
         val vm = vm()
 
-        assertEquals(3, vm.state.value.summary.toConfirm)
+        assertEquals(3, vm.state.value.summary.toShip)
         assertEquals(4, vm.state.value.summary.shipped)
     }
 

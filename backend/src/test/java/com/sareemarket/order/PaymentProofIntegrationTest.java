@@ -18,7 +18,7 @@ class PaymentProofIntegrationTest extends OrderTestSupport {
 	final String UTR = newUtr();
 
 	@Test
-	void proofTurnsHoldIntoPaymentSubmittedOrder() throws Exception {
+	void proofTurnsHoldIntoConfirmedOrder() throws Exception {
 		Customer c = customer();
 		Shop s = shop("s@ybl", 50);
 		long a = saree(s, 800, null, 5);
@@ -26,7 +26,7 @@ class PaymentProofIntegrationTest extends OrderTestSupport {
 		checkout(c).andExpect(status().isOk());
 
 		pay(c.token(), holdOf(c), UTR, proofImage()).andExpect(status().isCreated())
-			.andExpect(jsonPath("$.status").value("PAYMENT_SUBMITTED"))
+			.andExpect(jsonPath("$.status").value("CONFIRMED"))
 			.andExpect(jsonPath("$.paymentReference").value(UTR))
 			.andExpect(jsonPath("$.hasProof").value(true))
 			.andExpect(jsonPath("$.shopName").value(s.name()))
@@ -37,7 +37,7 @@ class PaymentProofIntegrationTest extends OrderTestSupport {
 			.andExpect(jsonPath("$.grandTotal").value(1650))
 			.andExpect(jsonPath("$.address.pin").value("638001"))
 			.andExpect(jsonPath("$.customer").doesNotExist())
-			.andExpect(jsonPath("$.history[*].status", contains("PAYMENT_SUBMITTED")));
+			.andExpect(jsonPath("$.history[*].status", contains("CONFIRMED")));
 
 		getWith("/api/v1/holds", c.token()).andExpect(jsonPath("$").isEmpty());
 		assertThat(stock(a)).isEqualTo(3);

@@ -60,7 +60,7 @@ class CustomerOrdersIntegrationTest extends OrderTestSupport {
 		postWith("/api/v1/orders/" + order + "/cancel", c.token()).andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("CANCELLED"))
 			.andExpect(jsonPath("$.cancelledBy").value("CUSTOMER"))
-			.andExpect(jsonPath("$.history[*].status", contains("PAYMENT_SUBMITTED", "CANCELLED")));
+			.andExpect(jsonPath("$.history[*].status", contains("CONFIRMED", "CANCELLED")));
 
 		assertThat(stock(a)).isEqualTo(5);
 		assertThat(jdbc.queryForObject("SELECT seller_unread FROM customer_order WHERE id = ?", Boolean.class, order))
@@ -68,18 +68,49 @@ class CustomerOrdersIntegrationTest extends OrderTestSupport {
 	}
 
 	@Test
-	void customerCannotCancelConfirmedOrShipped() throws Exception {
+	void customerCancelStoresTheOptionalReasonAndTellsTheSeller() throws Exception {
+		Customer c = customer();
+		Shop s = shop("s@ybl", 0);
+		long order = paidOrder(c, s, saree(s, 800, null, 5), newUtr());
+		postWith("/api/v1/orders/seen", s.token()).andExpect(status().isNoContent());
+
+		postJson("/api/v1/orders/" + order + "/cancel", c.token(), "{\"reason\":\"Ordered by mistake\"}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.cancelReason").value("Ordered by mistake"));
+
+		getWith("/api/v1/orders/" + order, s.token()).andExpect(jsonPath("$.cancelledBy").value("CUSTOMER"))
+			.andExpect(jsonPath("$.cancelReason").value("Ordered by mistake"))
+			.andExpect(jsonPath("$.unread").value(true));
+	}
+
+	@Test
+	void customerCannotCancelOnceShippedDeliveredOrCancelled() throws Exception {
 		Customer c = customer();
 		Shop s = shop("s@ybl", 0);
 		long a = saree(s, 800, null, 5);
 		long order = paidOrder(c, s, a, newUtr());
 
-		for (String state : new String[] { "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED" }) {
+		for (String state : new String[] { "SHIPPED", "DELIVERED", "CANCELLED" }) {
 			jdbc.update("UPDATE customer_order SET status = ? WHERE id = ?", state, order);
 			postWith("/api/v1/orders/" + order + "/cancel", c.token()).andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("BAD_STATE"));
 		}
 		assertThat(stock(a)).isEqualTo(4);
+	}
+
+	@Test
+	void customerReceivesOnlyAShippedOrderOfTheirOwn() throws Exception {
+		Customer c = customer();
+		Shop s = shop("s@ybl", 0);
+		long order = paidOrder(c, s, saree(s, 800, null, 5), newUtr());
+
+		postWith("/api/v1/orders/" + order + "/receive", c.token()).andExpect(status().isConflict())
+			.andExpect(jsonPath("$.code").value("BAD_STATE"));
+		jdbc.update("UPDATE customer_order SET status = 'SHIPPED' WHERE id = ?", order);
+		postWith("/api/v1/orders/" + order + "/receive", customer().token()).andExpect(status().isNotFound());
+		postWith("/api/v1/orders/" + order + "/receive", c.token()).andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("DELIVERED"));
+		postWith("/api/v1/orders/" + order + "/receive", c.token()).andExpect(status().isConflict());
 	}
 
 	@Test
@@ -116,7 +147,7 @@ class CustomerOrdersIntegrationTest extends OrderTestSupport {
 		checkout(c).andExpect(status().isOk());
 
 		getWith("/api/v1/orders/summary", c.token()).andExpect(jsonPath("$.activeHolds").value(1))
-			.andExpect(jsonPath("$.toConfirm").value(0));
+			.andExpect(jsonPath("$.toShip").value(0));
 	}
 
 	@Test

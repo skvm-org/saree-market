@@ -158,8 +158,7 @@ private fun OrdersList(state: OrdersState, now: Instant, onOpenOrder: (Long) -> 
         modifier = Modifier.fillMaxSize().testTag("orders"),
     ) {
         items(state.holds, key = { "hold-${it.id}" }) { hold -> HoldCard(hold, now, onOpenHold) }
-        // Orders that need the customer come first; the sort is stable, so the rest keep the server's order.
-        items(state.items.sortedBy { it.status != OrderStatus.PAYMENT_REJECTED }, key = { it.id }) { order -> OrderRow(order, now, onOpenOrder) }
+        items(state.items, key = { it.id }) { order -> OrderRow(order, onOpenOrder) }
         state.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("error")) } }
         if (state.loadingMore) {
             item { Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() } }
@@ -184,11 +183,10 @@ private fun HoldCard(hold: Hold, now: Instant, onOpenHold: (Long) -> Unit) {
 }
 
 @Composable
-private fun OrderRow(order: Order, now: Instant, onOpenOrder: (Long) -> Unit) {
-    val needsYou = order.status == OrderStatus.PAYMENT_REJECTED
+private fun OrderRow(order: Order, onOpenOrder: (Long) -> Unit) {
     Surface(
         shape = CardShape,
-        color = if (needsYou) SareeColors.GoldBg else MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
         border = CardBorder,
         modifier = Modifier.fillMaxWidth().clickable(onClickLabel = "Open order", role = Role.Button) { onOpenOrder(order.id) }.testTag("order-${order.id}"),
     ) {
@@ -210,12 +208,11 @@ private fun OrderRow(order: Order, now: Instant, onOpenOrder: (Long) -> Unit) {
             )
             // What happens next, in words, so the list answers "does this need me?" without opening the order.
             val next = when (order.status) {
-                OrderStatus.PAYMENT_REJECTED -> "Send the right UTR" + (order.paymentDeadline?.let { timeRemaining(it, now) }?.takeIf { it.isNotEmpty() }?.let { " within $it" } ?: "")
-                OrderStatus.PAYMENT_SUBMITTED -> "Waiting for the seller to check your payment"
-                OrderStatus.SHIPPED -> "On its way"
+                OrderStatus.CONFIRMED -> "Waiting for the seller to ship it"
+                OrderStatus.SHIPPED -> "On its way: open it for the tracking number"
                 else -> null
             }
-            next?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = if (needsYou) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface, modifier = Modifier.testTag("next-${order.id}")) }
+            next?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.testTag("next-${order.id}")) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OrderStatusPill(order.status, Modifier.testTag("status-${order.id}"))
                 Text(timeAgo(order.createdAt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))

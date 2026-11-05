@@ -17,16 +17,16 @@ object AlertPlanner {
 
     /**
      * The text for an order alert, or null when nothing new has arrived since the last check. A seller hears about
-     * orders newly waiting for confirmation; anyone hears when the number of orders with unseen updates rises.
+     * orders newly waiting to be shipped; anyone hears when the number of orders with unseen updates rises.
      */
-    fun orderText(lastToConfirm: Int, lastUnread: Int, now: OrderSummary): String? = when {
-        now.toConfirm > lastToConfirm -> (now.toConfirm - lastToConfirm).let { if (it == 1) "1 new order to confirm" else "$it new orders to confirm" }
+    fun orderText(lastToShip: Int, lastUnread: Int, now: OrderSummary): String? = when {
+        now.toShip > lastToShip -> (now.toShip - lastToShip).let { if (it == 1) "1 new order to ship" else "$it new orders to ship" }
         now.unread > lastUnread -> ORDER_UPDATED
         else -> null
     }
 
     /**
-     * "An order was updated" made specific: the newest unread order update in [notifications] ("Lakshmi Silks confirmed
+     * "An order was updated" made specific: the newest unread order update in [notifications] ("Lakshmi Silks shipped
      * your order #12"), or [generic] when there is none (a seller's unread orders have no notification rows).
      */
     fun orderUpdateText(generic: String, notifications: List<AppNotification>): String =

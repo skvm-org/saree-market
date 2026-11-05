@@ -11,6 +11,7 @@ import retrofit2.Response
 
 val testJson = Json {
     ignoreUnknownKeys = true
+    coerceInputValues = true // as in the network module: an unknown enum value becomes the default
     explicitNulls = false
 }
 

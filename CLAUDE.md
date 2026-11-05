@@ -1,6 +1,6 @@
 # Saree Market Catalog — MVP
 
-A saree marketplace app: sellers list their collections with quantities; customers (resellers are customers) search by keyword, filters or image, add sarees to a cart and order. Each seller is paid directly by UPI: the customer enters the UTR and the seller confirms it. No payment gateway, no external services.
+A saree marketplace app: sellers list their collections with quantities; customers (resellers are customers) search by keyword, filters or image, add sarees to a cart and order. Each seller is paid directly by UPI: the customer enters the UTR and the order is confirmed at once; the seller adds the courier's tracking number to ship it. No payment gateway, no external services.
 
 Full scope: `docs/MVP_BRIEF.md`. Read it before starting any feature. If it conflicts with the longer product spec or functional flow docs, **MVP_BRIEF.md wins**.
 

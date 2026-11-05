@@ -51,7 +51,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -90,10 +89,6 @@ import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
 import com.sareemarket.app.ui.theme.Spacing
 import com.sareemarket.app.ui.timeAgo
-import com.sareemarket.app.ui.timeLeft
-import com.sareemarket.app.ui.timeRemaining
-import java.time.Instant
-import kotlinx.coroutines.delay
 
 private const val LOAD_MORE_AHEAD_ORDERS = 4
 
@@ -101,13 +96,12 @@ private const val LOAD_MORE_AHEAD_ORDERS = 4
 private sealed interface Ask {
     val order: Order
 
-    data class ConfirmPayment(override val order: Order) : Ask
-    data class Reject(override val order: Order) : Ask
     data class Cancel(override val order: Order) : Ask
     data class Ship(override val order: Order) : Ask
+    data class EditTracking(override val order: Order) : Ask
 }
 
-/** Orders from customers: check the payment, pack, ship, deliver. */
+/** Orders from customers: see what is paid and still to ship, add the tracking number once the courier has the parcel. */
 @Composable
 fun SellerOrdersScreen(onOpenSettings: () -> Unit, hasUpiId: Boolean, viewModel: SellerOrdersViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -117,16 +111,9 @@ fun SellerOrdersScreen(onOpenSettings: () -> Unit, hasUpiId: Boolean, viewModel:
         viewModel.reload()
         onPauseOrDispose {}
     }
-    val now by produceState(Instant.now()) {
-        while (true) {
-            value = Instant.now()
-            delay(30_000L)
-        }
-    }
     SellerOrdersContent(
-        state, hasUpiId, now, onOpenSettings, call, whatsapp, viewModel::selectFilter, viewModel::confirmPayment,
-        viewModel::rejectPayment, viewModel::pack, viewModel::ship, viewModel::deliver, viewModel::cancel,
-        viewModel::loadMore, viewModel::reload, viewModel::pullRefresh,
+        state, hasUpiId, onOpenSettings, call, whatsapp, viewModel::selectFilter, viewModel::ship, viewModel::editTracking,
+        viewModel::cancel, viewModel::loadMore, viewModel::reload, viewModel::pullRefresh,
     )
 }
 
@@ -134,16 +121,12 @@ fun SellerOrdersScreen(onOpenSettings: () -> Unit, hasUpiId: Boolean, viewModel:
 fun SellerOrdersContent(
     state: SellerOrdersState,
     hasUpiId: Boolean,
-    now: Instant,
     onOpenSettings: () -> Unit,
     onCall: (String) -> Unit,
     onWhatsApp: (String) -> Unit,
     onFilter: (SellerOrderFilter) -> Unit,
-    onConfirm: (Long) -> Unit,
-    onReject: (Long, String) -> Unit,
-    onPack: (Long) -> Unit,
-    onShip: (Long, String?, String?) -> Unit,
-    onDeliver: (Long) -> Unit,
+    onShip: (Long, String, String) -> Unit,
+    onEditTracking: (Long, String, String) -> Unit,
     onCancel: (Long, String) -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
@@ -168,18 +151,16 @@ fun SellerOrdersContent(
                     state.items.isEmpty() -> EmptyState(
                         Icons.Filled.Inbox,
                         when (state.filter) {
-                            SellerOrderFilter.TO_CONFIRM -> "No payments to check."
-                            SellerOrderFilter.TO_PACK -> "Nothing to pack."
                             SellerOrderFilter.TO_SHIP -> "Nothing waiting to be shipped."
                             SellerOrderFilter.SHIPPED -> "Nothing on its way."
                             SellerOrderFilter.ALL -> "No orders yet."
                         },
-                        if (state.filter == SellerOrderFilter.TO_CONFIRM) "When a customer pays you, the order shows here." else null,
+                        if (state.filter == SellerOrderFilter.TO_SHIP) "When a customer pays you, the order shows here." else null,
                         Modifier.align(Alignment.Center),
                         titleTag = "orders-empty",
                     )
                     else -> PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh) {
-                        OrderList(state, now, onCall, onWhatsApp, onPack, onDeliver, { ask = it }, { proofOf = it }, onLoadMore)
+                        OrderList(state, onCall, onWhatsApp, { ask = it }, { proofOf = it }, onLoadMore)
                     }
                 }
             }
@@ -187,29 +168,25 @@ fun SellerOrdersContent(
         }
     }
     when (val a = ask) {
-        is Ask.ConfirmPayment -> ConfirmPaymentDialog(a.order, { ask = null }) { ask = null; onConfirm(a.order.id) }
-        is Ask.Reject -> ReasonDialog(
-            "The payment was not found", "Tell ${a.order.customer?.name ?: "the customer"} what you could not find. They get two hours to send the right UTR.",
-            "Send", { ask = null },
-        ) { ask = null; onReject(a.order.id, it) }
         is Ask.Cancel -> ReasonDialog(
-            "Cancel this order?", "The sarees go back on sale. If the customer paid, you will need to refund them yourself.",
+            "Cancel this order?", "The sarees go back on sale and the customer is told why. If the customer paid, you will need to refund them yourself.",
             "Cancel order", { ask = null },
         ) { ask = null; onCancel(a.order.id, it) }
-        is Ask.Ship -> ShipDialog({ ask = null }) { courier, tracking -> ask = null; onShip(a.order.id, courier, tracking) }
+        is Ask.Ship -> TrackingDialog("Add tracking", "Mark shipped", "", "", { ask = null }) { courier, tracking -> ask = null; onShip(a.order.id, courier, tracking) }
+        is Ask.EditTracking -> TrackingDialog(
+            "Edit tracking", "Save", a.order.courier.orEmpty(), a.order.trackingNumber.orEmpty(), { ask = null },
+        ) { courier, tracking -> ask = null; onEditTracking(a.order.id, courier, tracking) }
         null -> Unit
     }
     proofOf?.let { PhotoViewer(orderProofUrl(it.id, it.updatedAt), "Payment screenshot") { proofOf = null } }
 }
 
-/** The five states an order passes through, as chips with their counts; each filters the list under it. They wrap, so none is hidden off the edge. */
+/** The three views of the orders, as chips (two with counts); each filters the list under it. They wrap, so none is hidden off the edge. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFilter: (SellerOrderFilter) -> Unit) {
     FlowRow(Modifier.fillMaxWidth().testTag("summary"), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         listOf(
-            Triple(SellerOrderFilter.TO_CONFIRM, "To confirm", summary.toConfirm),
-            Triple(SellerOrderFilter.TO_PACK, "To pack", summary.toPack),
             Triple(SellerOrderFilter.TO_SHIP, "To ship", summary.toShip),
             Triple(SellerOrderFilter.SHIPPED, "Shipped", summary.shipped),
             Triple(SellerOrderFilter.ALL, "All", -1),
@@ -240,11 +217,8 @@ private fun FilterTiles(summary: OrderSummary, selected: SellerOrderFilter, onFi
 @Composable
 private fun OrderList(
     state: SellerOrdersState,
-    now: Instant,
     onCall: (String) -> Unit,
     onWhatsApp: (String) -> Unit,
-    onPack: (Long) -> Unit,
-    onDeliver: (Long) -> Unit,
     ask: (Ask) -> Unit,
     onProof: (Order) -> Unit,
     onLoadMore: () -> Unit,
@@ -262,7 +236,7 @@ private fun OrderList(
         modifier = Modifier.fillMaxSize().testTag("orders"),
     ) {
         items(state.items, key = { it.id }) { order ->
-            OrderCard(order, state.busyId != null, now, onCall, onWhatsApp, onPack, onDeliver, ask, onProof)
+            OrderCard(order, state.busyId != null, onCall, onWhatsApp, ask, onProof)
         }
         if (state.loadingMore) {
             item { Box(Modifier.fillMaxWidth().padding(Spacing.md), Alignment.Center) { CircularProgressIndicator() } }
@@ -274,11 +248,8 @@ private fun OrderList(
 private fun OrderCard(
     order: Order,
     busy: Boolean,
-    now: Instant,
     onCall: (String) -> Unit,
     onWhatsApp: (String) -> Unit,
-    onPack: (Long) -> Unit,
-    onDeliver: (Long) -> Unit,
     ask: (Ask) -> Unit,
     onProof: (Order) -> Unit,
 ) {
@@ -333,41 +304,28 @@ private fun OrderCard(
                     modifier = Modifier.testTag("tracking-${order.id}"),
                 )
             }
-            Actions(order, busy, now, onPack, onDeliver, ask)
+            Actions(order, busy, ask)
         }
     }
 }
 
 @Composable
-private fun Actions(order: Order, busy: Boolean, now: Instant, onPack: (Long) -> Unit, onDeliver: (Long) -> Unit, ask: (Ask) -> Unit) {
+private fun Actions(order: Order, busy: Boolean, ask: (Ask) -> Unit) {
     val id = order.id
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         when (order.status) {
-            OrderStatus.PAYMENT_SUBMITTED -> {
-                PrimaryButton("Payment received", onClick = { ask(Ask.ConfirmPayment(order)) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-confirm-$id"))
-                TonalButton("Not found", onClick = { ask(Ask.Reject(order)) }, enabled = !busy, modifier = Modifier.testTag("act-reject-$id"))
-            }
-            OrderStatus.PAYMENT_REJECTED -> {
-                val left = order.paymentDeadline?.let { timeRemaining(it, now) }.orEmpty()
-                Text(
-                    "Waiting for the customer's corrected UTR" + if (left.isNotEmpty()) ", $left left" else "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.testTag("waiting-$id"),
-                )
-            }
-            OrderStatus.CONFIRMED -> PrimaryButton("Mark packed", onClick = { onPack(id) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-pack-$id"))
-            OrderStatus.PACKED -> PrimaryButton("Ship", onClick = { ask(Ask.Ship(order)) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-ship-$id"))
-            OrderStatus.SHIPPED -> PrimaryButton("Mark delivered", onClick = { onDeliver(id) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-deliver-$id"))
-            OrderStatus.DELIVERED -> Unit
+            OrderStatus.CONFIRMED -> PrimaryButton("Add tracking", onClick = { ask(Ask.Ship(order)) }, enabled = !busy, modifier = Modifier.fillMaxWidth().testTag("act-ship-$id"))
+            OrderStatus.SHIPPED -> TonalButton("Edit tracking", onClick = { ask(Ask.EditTracking(order)) }, enabled = !busy, modifier = Modifier.testTag("act-edit-tracking-$id"))
             OrderStatus.CANCELLED -> Text(
                 "Cancelled by ${when (order.cancelledBy) { "CUSTOMER" -> "the customer"; "SELLER" -> "you"; else -> "the app" }}" + (order.cancelReason?.let { ": $it" } ?: ""),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.testTag("cancelled-$id"),
             )
+            OrderStatus.DELIVERED, OrderStatus.UNKNOWN -> Unit
         }
-        val cancellable = order.status in setOf(OrderStatus.PAYMENT_SUBMITTED, OrderStatus.PAYMENT_REJECTED, OrderStatus.CONFIRMED, OrderStatus.PACKED)
-        if (cancellable) {
+        // Until it ships, the seller can still cancel (for example when the payment never arrived).
+        if (order.status == OrderStatus.CONFIRMED) {
             TextButton(onClick = { ask(Ask.Cancel(order)) }, enabled = !busy, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("act-cancel-$id")) { Text("Cancel order") }
         }
     }

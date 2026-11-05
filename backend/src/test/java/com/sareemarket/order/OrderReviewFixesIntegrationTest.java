@@ -23,7 +23,7 @@ class OrderReviewFixesIntegrationTest extends OrderTestSupport {
 		postJson("/api/v1/orders/" + order + "/cancel", s.token(), "{\"reason\":\"" + "x".repeat(250) + "\"}")
 			.andExpect(status().isBadRequest());
 		assertThat(jdbc.queryForObject("SELECT status FROM customer_order WHERE id = ?", String.class, order))
-			.isEqualTo("PAYMENT_SUBMITTED");
+			.isEqualTo("CONFIRMED");
 	}
 
 	/** Releases and checkouts over the same sarees in opposite orders must neither deadlock nor lose stock. */

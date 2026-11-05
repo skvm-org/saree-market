@@ -83,7 +83,7 @@ fun SellerHomeScreen(
     location: String,
     onNewCollection: () -> Unit,
     onOpen: (Long) -> Unit,
-    toConfirm: Long = 0,
+    toShip: Long = 0,
     onOpenOrders: () -> Unit = {},
     hasUpiId: Boolean = true,
     onAddUpi: () -> Unit = {},
@@ -95,7 +95,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toConfirm = toConfirm, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toShip = toShip, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi)
 }
 
 @Composable
@@ -107,7 +107,7 @@ fun SellerHomeContent(
     onRetry: () -> Unit,
     onRefresh: () -> Unit = {},
     location: String = "",
-    toConfirm: Long = 0,
+    toShip: Long = 0,
     onOpenOrders: () -> Unit = {},
     hasUpiId: Boolean = true,
     onAddUpi: () -> Unit = {},
@@ -151,14 +151,14 @@ fun SellerHomeContent(
                                     contentPadding = PaddingValues(top = Spacing.md, bottom = Spacing.lg),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {
-                                    if (toConfirm > 0) item(span = { GridItemSpan(maxLineSpan) }) {
+                                    if (toShip > 0) item(span = { GridItemSpan(maxLineSpan) }) {
                                         Surface(
                                             onClick = onOpenOrders, shape = CardShape, color = SareeColors.GoldBg,
-                                            modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("confirm-banner"),
+                                            modifier = Modifier.fillMaxWidth().heightIn(min = MinTouchTarget).testTag("ship-banner"),
                                         ) {
                                             Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
-                                                    if (toConfirm == 1L) "1 payment to confirm" else "$toConfirm payments to confirm",
+                                                    if (toShip == 1L) "1 order to ship" else "$toShip orders to ship",
                                                     style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
                                                 )
                                                 Text("Open orders", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primaryContainer)

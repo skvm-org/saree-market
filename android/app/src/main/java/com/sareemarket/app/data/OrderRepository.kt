@@ -42,33 +42,30 @@ class OrderRepository @Inject constructor(
     suspend fun pay(holdId: Long, utr: String, proof: String?): Result<Order> =
         changing { api.payHold(holdId, text(utr), proof?.let { proofPart(photos, it) }) }
 
-    /** After a rejection: a corrected UTR and, optionally, a new screenshot. */
-    suspend fun resubmit(orderId: Long, utr: String, proof: String?): Result<Order> =
-        changing { api.resubmit(orderId, text(utr), proof?.let { proofPart(photos, it) }) }
-
     suspend fun mine(state: OrderStatus?, page: Int): Result<OrderPage> = apiCall(json) { api.mine(state?.name, page) }
 
     // ---- the seller's side ----
 
     suspend fun received(state: OrderStatus?, page: Int): Result<OrderPage> = apiCall(json) { api.received(state?.name, page) }
 
-    suspend fun confirmPayment(id: Long): Result<Order> = changing { api.confirmPayment(id) }
+    /** The parcel is with the courier. Both values are required; the server tells the customer. */
+    suspend fun ship(id: Long, courier: String, trackingNumber: String): Result<Order> =
+        changing { api.ship(id, ShipBody(courier.trim(), trackingNumber.trim())) }
 
-    suspend fun rejectPayment(id: Long, reason: String): Result<Order> = changing { api.rejectPayment(id, RejectBody(reason.trim())) }
+    /** The seller corrects a mistyped courier or tracking number on a shipped order. */
+    suspend fun updateTracking(id: Long, courier: String, trackingNumber: String): Result<Order> =
+        changing { api.updateTracking(id, ShipBody(courier.trim(), trackingNumber.trim())) }
 
-    suspend fun pack(id: Long): Result<Order> = changing { api.pack(id) }
-
-    /** Courier and tracking number are optional; blank ones are sent as nothing. */
-    suspend fun ship(id: Long, courier: String?, trackingNumber: String?): Result<Order> =
-        changing { api.ship(id, ShipBody(courier?.trim()?.ifEmpty { null }, trackingNumber?.trim()?.ifEmpty { null })) }
-
-    suspend fun deliver(id: Long): Result<Order> = changing { api.deliver(id) }
-
-    suspend fun cancelAsSeller(id: Long, reason: String): Result<Order> = changing { api.cancelWithReason(id, CancelBody(reason.trim())) }
+    suspend fun cancelAsSeller(id: Long, reason: String): Result<Order> = changing { api.cancel(id, CancelBody(reason.trim())) }
 
     suspend fun order(id: Long): Result<Order> = apiCall(json) { api.order(id) }
 
-    suspend fun cancel(id: Long): Result<Order> = changing { api.cancel(id) }
+    /** The customer cancels a confirmed order; [reason] is optional. The app does not refund: that is settled with the seller. */
+    suspend fun cancel(id: Long, reason: String? = null): Result<Order> =
+        changing { api.cancel(id, CancelBody(reason?.trim()?.ifEmpty { null })) }
+
+    /** The customer got the parcel. */
+    suspend fun receive(id: Long): Result<Order> = changing { api.receive(id) }
 
     /** The customer has looked at their orders: clears the badge. */
     suspend fun markSeen(): Result<Unit> = apiCall(json) { api.seen().requireSuccess() }.also {

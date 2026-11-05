@@ -45,13 +45,6 @@ class OrderRepositoryTest {
     }
 
     @Test
-    fun resubmitUsesTheOrderRoute() = runTest {
-        repo.resubmit(5, "412345678902", null)
-
-        assertEquals("resubmit 5 false", api.calls.first())
-    }
-
-    @Test
     fun serverErrorsBecomeApiFailuresWithTheirCode() = runTest {
         api.onCheckout = { throw httpError(409, """{"code":"HOLD_LIMIT","message":"You can have 3 payments in progress"}""") }
         api.onPay = { _, _, _ -> throw httpError(409, """{"code":"UTR_IN_USE","message":"That UTR is already used on another order"}""") }
@@ -81,11 +74,26 @@ class OrderRepositoryTest {
     }
 
     @Test
-    fun cancelRefreshesTheSummary() = runTest {
-        val result = repo.cancel(5)
+    fun customerCancelSendsTheOptionalReasonAndRefreshesTheSummary() = runTest {
+        val result = repo.cancel(5, "  Ordered by mistake ")
 
         assertEquals(OrderStatus.CANCELLED, result.getOrNull()?.status)
-        assertEquals(listOf("cancel 5", "summary"), api.calls)
+        assertEquals(listOf("cancel 5 Ordered by mistake", "summary"), api.calls)
+    }
+
+    @Test
+    fun customerCancelWithoutAReasonSendsNull() = runTest {
+        repo.cancel(5, "   ")
+
+        assertEquals("cancel 5 null", api.calls.first())
+    }
+
+    @Test
+    fun receiveCallsItsRouteAndRefreshesTheSummary() = runTest {
+        val result = repo.receive(5)
+
+        assertEquals(OrderStatus.DELIVERED, result.getOrNull()?.status)
+        assertEquals(listOf("receive 5", "summary"), api.calls)
     }
 
     @Test
@@ -96,33 +104,25 @@ class OrderRepositoryTest {
     }
 
     @Test
-    fun confirmPackAndDeliverCallTheirRoutesAndRefreshTheSummary() = runTest {
-        repo.confirmPayment(5)
-        repo.pack(5)
-        repo.deliver(5)
+    fun shipTrimsAndSendsBothValuesAndRefreshesTheSummary() = runTest {
+        val result = repo.ship(5, "  DTDC ", " D123 ")
 
-        assertEquals(listOf("confirm 5", "summary", "pack 5", "summary", "deliver 5", "summary"), api.calls)
+        assertEquals(listOf("ship 5 DTDC D123", "summary"), api.calls)
+        assertEquals(OrderStatus.SHIPPED, result.getOrNull()?.status)
     }
 
     @Test
-    fun rejectSendsTheReason() = runTest {
-        repo.rejectPayment(5, "Not received")
+    fun updateTrackingUsesTheTrackingRoute() = runTest {
+        repo.updateTracking(5, "Delhivery", "X9")
 
-        assertEquals("reject 5 Not received", api.calls.first())
-    }
-
-    @Test
-    fun shipTrimsAndSendsNullForBlankFields() = runTest {
-        repo.ship(5, "  DTDC ", "   ")
-
-        assertEquals("ship 5 DTDC null", api.calls.first())
+        assertEquals(listOf("tracking 5 Delhivery X9", "summary"), api.calls)
     }
 
     @Test
     fun sellerCancelSendsTheReason() = runTest {
         val result = repo.cancelAsSeller(5, "Sold in the shop")
 
-        assertEquals("cancel-reason 5 Sold in the shop", api.calls.first())
+        assertEquals("cancel 5 Sold in the shop", api.calls.first())
         assertEquals(OrderStatus.CANCELLED, result.getOrNull()?.status)
     }
 
@@ -130,7 +130,7 @@ class OrderRepositoryTest {
     fun aBadStateAnswerKeepsTheServersMessage() = runTest {
         api.onAction = { _, _ -> throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is CANCELLED"}""") }
 
-        val result = repo.confirmPayment(5)
+        val result = repo.ship(5, "DTDC", "D123")
 
         assertEquals("This can't be done to an order that is CANCELLED", result.exceptionOrNull()?.message)
         assertEquals("BAD_STATE", (result.exceptionOrNull() as ApiFailure).code)

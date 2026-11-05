@@ -1,7 +1,8 @@
 package com.sareemarket.order.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Optional shipping details shown to the customer; blank values are stored as null. */
-public record ShipRequest(@Size(max = 60) String courier, @Size(max = 60) String trackingNumber) {
+/** The courier and tracking number the seller got when handing the parcel over. Both are required. */
+public record ShipRequest(@NotBlank @Size(max = 60) String courier, @NotBlank @Size(max = 60) String trackingNumber) {
 }

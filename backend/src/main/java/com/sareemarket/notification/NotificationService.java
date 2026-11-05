@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.sareemarket.common.ApiException;
+import com.sareemarket.notification.event.OrderUpdated;
 import com.sareemarket.common.PageDto;
 import com.sareemarket.notification.dto.NotificationDto;
 
@@ -47,12 +48,13 @@ public class NotificationService {
 		List<NotificationDto> items = jdbc.query("""
 				SELECT n.id, n.type, n.item_count, n.seller_id, sp.shop_name, n.collection_id, c.title,
 				       n.read_at IS NOT NULL AS read, n.created_at, n.updated_at,
-				       n.order_id, n.order_status,
+				       n.order_id, n.order_status, o.courier, o.tracking_number,
 				       COALESCE((SELECT min(i.id) FROM item i WHERE i.collection_id = n.collection_id),
 				                (SELECT min(l.item_id) FROM order_line l WHERE l.order_id = n.order_id)) AS cover_item_id
 				FROM notification n
 				JOIN seller_profile sp ON sp.user_id = n.seller_id
 				LEFT JOIN collection c ON c.id = n.collection_id
+				LEFT JOIN customer_order o ON o.id = n.order_id
 				WHERE n.reseller_id = :reseller
 				ORDER BY n.updated_at DESC, n.id DESC LIMIT :limit OFFSET :offset""", params, (rs, i) -> {
 			NotificationType type = NotificationType.valueOf(rs.getString("type"));
@@ -61,7 +63,7 @@ public class NotificationService {
 			String title = rs.getString("title");
 			Long orderId = (Long) rs.getObject("order_id");
 			String orderStatus = rs.getString("order_status");
-			String text = type == NotificationType.ORDER_UPDATE ? orderMessage(orderStatus, orderId, shop)
+			String text = type == NotificationType.ORDER_UPDATE ? orderMessage(orderStatus, orderId, shop, rs.getString("courier"), rs.getString("tracking_number"))
 					: message(type, count, shop, title);
 			return new NotificationDto(rs.getLong("id"), type, count, rs.getLong("seller_id"), shop,
 					(Long) rs.getObject("collection_id"), title, text, rs.getBoolean("read"),
@@ -133,16 +135,21 @@ public class NotificationService {
 	}
 
 	/**
-	 * The ready-to-show text of an order update, from the order's new status, its number and the shop's name.
+	 * The ready-to-show text of an order update, from the order's new status, its number, the shop's name and the order's
+	 * current courier and tracking number. A shipped order's text carries the tracking so the customer can read it
+	 * straight from the notification; TRACKING_UPDATED is the seller correcting it. CONFIRMED, PACKED and
+	 * PAYMENT_REJECTED are no longer produced but stay worded for notifications still inside their 30 days.
 	 */
-	static String orderMessage(String status, long orderId, String shop) {
+	static String orderMessage(String status, long orderId, String shop, String courier, String trackingNumber) {
+		String tracking = trackingNumber == null ? "" : ". Tracking: " + (courier == null ? "" : courier + " ") + trackingNumber;
 		return switch (status) {
+			case "SHIPPED" -> shop + " shipped your order #" + orderId + tracking;
+			case OrderUpdated.TRACKING_UPDATED -> "Tracking updated for your order #" + orderId + " from " + shop + tracking;
+			case "DELIVERED" -> "Your order #" + orderId + " from " + shop + " was delivered";
+			case "CANCELLED" -> shop + " cancelled your order #" + orderId;
 			case "CONFIRMED" -> shop + " confirmed your order #" + orderId;
 			case "PACKED" -> shop + " packed your order #" + orderId;
-			case "SHIPPED" -> shop + " shipped your order #" + orderId;
-			case "DELIVERED" -> "Your order #" + orderId + " from " + shop + " was delivered";
 			case "PAYMENT_REJECTED" -> shop + " could not match your payment for order #" + orderId;
-			case "CANCELLED" -> shop + " cancelled your order #" + orderId;
 			default -> shop + " updated your order #" + orderId;
 		};
 	}

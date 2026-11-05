@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Releases payment holds and rejected-payment orders whose two hours ran out. Scheduling is enabled in AsyncConfig. */
+/** Releases payment holds whose two hours ran out. Scheduling is enabled in AsyncConfig. */
 @Component
 class OrderExpiryJob {
 
@@ -13,24 +13,20 @@ class OrderExpiryJob {
 
 	private final HoldService holds;
 
-	private final OrderService orders;
-
-	OrderExpiryJob(HoldService holds, OrderService orders) {
+	OrderExpiryJob(HoldService holds) {
 		this.holds = holds;
-		this.orders = orders;
 	}
 
 	/**
 	 * Runs five minutes apart, first run after one minute. Failures are logged and left for the next run; every hold
-	 * and order is handled in its own transaction by the services.
+	 * is handled in its own transaction by the service.
 	 */
 	@Scheduled(initialDelay = 60_000, fixedDelay = 300_000)
 	void run() {
 		try {
 			int released = holds.expireOverdue();
-			int cancelled = orders.expireRejected();
-			if (released + cancelled > 0) {
-				log.info("Expiry run: {} holds released, {} orders cancelled", released, cancelled);
+			if (released > 0) {
+				log.info("Expiry run: {} holds released", released);
 			}
 		}
 		catch (RuntimeException e) {
