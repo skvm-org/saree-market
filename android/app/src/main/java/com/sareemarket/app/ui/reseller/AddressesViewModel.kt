@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui.reseller
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.Address
@@ -36,11 +37,27 @@ data class AddressesState(
     val fieldErrors: Map<String, String> = emptyMap(),
     /** A problem with the form as a whole (for example the 10-address limit). */
     val formError: String? = null,
+    /** Set when the form was opened straight from checkout and is now saved or closed: the screen should go back. */
+    val finished: Boolean = false,
 )
 
-/** The customer's saved delivery addresses: list, add, edit, delete. */
+/**
+ * The customer's saved delivery addresses: list, add, edit, delete. Checkout opens it with an `edit` address id or
+ * `add` set, so the form appears at once and the screen goes back to the checkout sheet when the form is saved or closed.
+ */
 @HiltViewModel
-class AddressesViewModel @Inject constructor(private val repository: AddressRepository) : ViewModel() {
+class AddressesViewModel @Inject constructor(
+    private val repository: AddressRepository,
+    handle: SavedStateHandle,
+) : ViewModel() {
+
+    private val editId: Long? = handle.get<Long>("edit")?.takeIf { it > 0 }
+    private val addFirst: Boolean = handle.get<Boolean>("add") == true
+
+    /** Opened from checkout for one job (edit this address, or add one), not to manage the list. */
+    private val direct = editId != null || addFirst
+
+    private var openedDirectly = false
 
     private val _state = MutableStateFlow(AddressesState())
     val state: StateFlow<AddressesState> = _state.asStateFlow()
@@ -53,9 +70,24 @@ class AddressesViewModel @Inject constructor(private val repository: AddressRepo
         _state.update { it.copy(loading = it.items.isEmpty(), error = null) }
         viewModelScope.launch {
             repository.list().fold(
-                onSuccess = { list -> _state.update { it.copy(items = list, loading = false) } },
+                onSuccess = { list ->
+                    _state.update { it.copy(items = list, loading = false) }
+                    openRequestedForm(list)
+                },
                 onFailure = { e -> _state.update { it.copy(loading = false, error = e.message) } },
             )
+        }
+    }
+
+    /** Once, after the first load: opens the form checkout asked for. An address that no longer exists just shows the list. */
+    private fun openRequestedForm(list: List<Address>) {
+        if (!direct || openedDirectly) return
+        openedDirectly = true
+        val target = editId?.let { id -> list.firstOrNull { it.id == id } }
+        when {
+            target != null -> startEdit(target)
+            addFirst -> startAdd()
+            else -> _state.update { it.copy(finished = true) }
         }
     }
 
@@ -72,7 +104,7 @@ class AddressesViewModel @Inject constructor(private val repository: AddressRepo
         )
     }
 
-    fun cancelForm() = _state.update { it.copy(form = null, fieldErrors = emptyMap(), formError = null) }
+    fun cancelForm() = _state.update { it.copy(form = null, fieldErrors = emptyMap(), formError = null, finished = direct) }
 
     fun onField(key: String, value: String) = _state.update { s ->
         val form = s.form ?: return@update s
@@ -108,7 +140,7 @@ class AddressesViewModel @Inject constructor(private val repository: AddressRepo
             val result = if (form.id == null) repository.create(body) else repository.update(form.id, body)
             result.fold(
                 onSuccess = {
-                    _state.update { it.copy(saving = false, form = null) }
+                    _state.update { it.copy(saving = false, form = null, finished = direct) }
                     load()
                 },
                 onFailure = { e ->

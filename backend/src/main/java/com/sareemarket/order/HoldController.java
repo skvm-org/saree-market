@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -17,12 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sareemarket.order.dto.CheckoutRequest;
 import com.sareemarket.order.dto.CheckoutResultDto;
+import com.sareemarket.order.dto.HoldAddressRequest;
 import com.sareemarket.order.dto.HoldDto;
 
 import jakarta.validation.Valid;
 
 /**
- * REST endpoints for payment holds: checkout from the cart, listing the customer's open holds and cancelling one.
+ * REST endpoints for payment holds: checkout from the cart, listing the customer's open holds, changing a hold's address and cancelling one.
  * All endpoints are CUSTOMER only. Logic is in {@link HoldService}.
  */
 @RestController
@@ -58,6 +60,18 @@ class HoldController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
 		holds.cancel(Long.parseLong(jwt.getSubject()), id);
+	}
+
+	/**
+	 * PUT /api/v1/holds/{id}/address (body: addressId). Moves the customer's open hold to another of their saved
+	 * addresses before they pay; returns the updated hold. Totals and the two hours are unchanged.
+	 *
+	 * @throws com.sareemarket.common.ApiException 400 VALIDATION_ERROR (no addressId), 404 NOT_FOUND (the hold or the
+	 * address is not the customer's), 409 HOLD_EXPIRED
+	 */
+	@PutMapping("/holds/{id}/address")
+	HoldDto changeAddress(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @Valid @RequestBody HoldAddressRequest body) {
+		return holds.changeAddress(Long.parseLong(jwt.getSubject()), id, body.addressId());
 	}
 
 	/** GET /api/v1/holds. The customer's holds that have not yet expired, soonest expiry first. */

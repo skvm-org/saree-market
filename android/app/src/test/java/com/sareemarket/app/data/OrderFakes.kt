@@ -59,6 +59,7 @@ class FakeShoppingApi : ShoppingApi {
     var onRemoveLine: (Long) -> Response<Unit> = { Response.success(Unit) }
     var onWishlist: (Int) -> CatalogPage = { page -> CatalogPage(emptyList(), page, 20, 0, 0) }
     var onAddress: (AddressForm) -> Address = { homeAddress }
+    var addressList: () -> List<Address> = { listOf(homeAddress) }
     var failWishlistRemove: Exception? = null
 
     override suspend fun cart(): Cart {
@@ -94,7 +95,7 @@ class FakeShoppingApi : ShoppingApi {
 
     override suspend fun addresses(): List<Address> {
         calls += "addresses"
-        return listOf(homeAddress)
+        return addressList()
     }
 
     override suspend fun createAddress(form: AddressForm): Address {
@@ -132,6 +133,13 @@ class FakeOrderApi : OrderApi {
     override suspend fun holds(): List<Hold> {
         calls += "holds"
         return holds.invoke()
+    }
+
+    var onChangeAddress: (Long, Long) -> Hold = { id, _ -> hold(id) }
+
+    override suspend fun changeHoldAddress(id: Long, body: HoldAddressBody): Hold {
+        calls += "holdAddress $id ${body.addressId}"
+        return onChangeAddress(id, body.addressId)
     }
 
     override suspend fun cancelHold(id: Long): Response<Unit> {

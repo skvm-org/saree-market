@@ -146,7 +146,7 @@ class CartScreenTest {
                 val ui = androidx.compose.runtime.remember {
                     androidx.compose.runtime.mutableStateOf(CheckoutUi(seller(1, listOf(line(10))), listOf(home), null, false))
                 }
-                CheckoutSheet(ui.value, { selected = it; ui.value = ui.value.copy(selectedAddressId = it) }, {}, {}, {}, {})
+                CheckoutSheet(ui.value, { selected = it; ui.value = ui.value.copy(selectedAddressId = it) }, {}, {}, {}, {}, {})
             }
         }
 
@@ -154,6 +154,28 @@ class CartScreenTest {
         compose.onNodeWithTag("address-choice-1").performClick()
         compose.onNodeWithTag("continue-payment").assertIsEnabled()
         assertEquals(1L, selected)
+    }
+
+    @Test
+    fun eachAddressInTheCheckoutSheetCanBeEditedWithoutChangingTheSelection() {
+        val home = Address(1, "Home", "9876543210", "12 Gandhi Road", null, "Erode", "Tamil Nadu", "638001", true)
+        val office = Address(2, "Office", "9876543211", "5 Market Street", null, "Chennai", "Tamil Nadu", "600001", false)
+        var edited: Long? = null
+        var selected: Long? = null
+        compose.setContent {
+            SareeTheme {
+                CheckoutSheet(
+                    CheckoutUi(seller(1, listOf(line(10))), listOf(home, office), 1L, false),
+                    { selected = it }, {}, { edited = it }, {}, {}, {},
+                )
+            }
+        }
+
+        compose.onNodeWithTag("address-edit-2").performClick()
+
+        assertEquals(2L, edited)
+        assertEquals(null, selected)
+        compose.onNodeWithTag("address-edit-1").assertIsDisplayed()
     }
 
     @Test
@@ -165,7 +187,7 @@ class CartScreenTest {
                         seller(1, listOf(line(10))), emptyList(), null, false,
                         result = CheckoutResult(emptyList(), emptyList(), listOf(SkippedSeller(1, "Lakshmi Silks", "NOTHING_IN_STOCK"))),
                     ),
-                    {}, {}, {}, {}, {},
+                    {}, {}, {}, {}, {}, {},
                 )
             }
         }

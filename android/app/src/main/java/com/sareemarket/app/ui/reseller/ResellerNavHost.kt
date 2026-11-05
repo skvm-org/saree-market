@@ -103,7 +103,8 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                     CartScreen(
                         onOpenItem = { nav.navigate("item/$it") },
                         onOpenHold = { nav.navigate("hold/$it") },
-                        onAddAddress = { nav.navigate("addresses") },
+                        onAddAddress = { nav.navigate("addresses?add=true") },
+                        onEditAddress = { nav.navigate("addresses?edit=$it") },
                         onDiscover = { openTab(TAB_CATALOG) },
                     )
                 }
@@ -116,7 +117,13 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                 composable(ROUTE_ALERTS) {
                     NotificationsScreen(onOpenCollection = { nav.navigate("collection/$it") }, onOpenOrder = { nav.navigate("order/$it") }, onBack = { nav.popBackStack() })
                 }
-                composable("addresses") {
+                composable(
+                    "addresses?edit={edit}&add={add}",
+                    arguments = listOf(
+                        navArgument("edit") { type = NavType.LongType; defaultValue = -1L },
+                        navArgument("add") { type = NavType.BoolType; defaultValue = false },
+                    ),
+                ) {
                     AddressesScreen(onBack = { nav.popBackStack() })
                 }
                 composable("hold/{id}", arguments = id) {
@@ -124,11 +131,13 @@ fun ResellerNavHost(onLogout: () -> Unit) {
                         onBack = { nav.popBackStack() },
                         onPaid = { orderId -> nav.navigate("order/$orderId") { popUpTo("hold/{id}") { inclusive = true } } },
                         onClosed = { nav.closeHold() },
+                        onEditAddress = { nav.navigate("addresses?edit=$it") },
+                        onAddAddress = { nav.navigate("addresses?add=true") },
                         onOpenOrders = { nav.closeHold(TAB_ORDERS) },
                     )
                 }
                 composable("order/{id}", arguments = id) {
-                    OrderDetailScreen(onBack = { nav.popBackStack() })
+                    OrderDetailScreen(onBack = { nav.popBackStack() }, onOpenItem = { nav.navigate("item/$it") })
                 }
                 composable("item/{id}", arguments = id) {
                     ProvideSharedScopes(transition, this) {

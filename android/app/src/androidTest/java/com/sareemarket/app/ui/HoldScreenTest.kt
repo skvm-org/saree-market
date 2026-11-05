@@ -10,9 +10,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import com.sareemarket.app.data.Address
 import com.sareemarket.app.data.AddressSnapshot
 import com.sareemarket.app.data.Hold
 import com.sareemarket.app.data.OrderLine
+import com.sareemarket.app.ui.reseller.HoldAddressActions
+import com.sareemarket.app.ui.reseller.HoldAddressUi
 import com.sareemarket.app.ui.reseller.HoldContent
 import com.sareemarket.app.ui.reseller.HoldState
 import com.sareemarket.app.ui.theme.SareeTheme
@@ -39,15 +42,28 @@ class HoldScreenTest {
     private var backToCart = false
     private var utr = ""
 
+    private var openedSheet = false
+    private var usedAddress = false
+    private var selectedAddress: Long? = null
+    private var editedAddress: Long? = null
+    private var addedAddress = false
+
     private fun show(state: HoldState, note: String? = null) = compose.setContent {
         SareeTheme {
             HoldContent(
                 state, now, note,
                 onUtr = { utr = it }, onCopy = { copied = it }, onPayWithUpi = {}, onPickProof = {}, onClearProof = {},
                 onPay = { paid = true }, onCancel = { cancelled = true }, onBack = {}, onBackToCart = { backToCart = true }, onRetry = {},
+                address = HoldAddressActions(
+                    onOpen = { openedSheet = true }, onSelect = { selectedAddress = it }, onEdit = { editedAddress = it },
+                    onAdd = { addedAddress = true }, onUse = { usedAddress = true },
+                ),
             )
         }
     }
+
+    private val home = Address(1, "Home", "9876543210", "12 Gandhi Road", null, "Erode", "Tamil Nadu", "638001", true)
+    private val office = Address(2, "Office", "9876543211", "5 Market Street", null, "Chennai", "Tamil Nadu", "600001", false)
 
     @Test
     fun showsTheTotalTheBreakdownAndTheCountdown() {
@@ -56,6 +72,68 @@ class HoldScreenTest {
         compose.onNodeWithTag("hold-total").assertTextEquals("₹850")
         compose.onNodeWithTag("hold-breakdown").assertTextContains("₹800", substring = true)
         compose.onNodeWithTag("hold-countdown").assertTextContains("1 h 42 min", substring = true)
+    }
+
+    @Test
+    fun showsWhereTheParcelIsGoingAboveThePaymentSteps() {
+        show(HoldState(hold = hold, loading = false))
+
+        compose.onNodeWithTag("hold-address").assertIsDisplayed()
+        compose.onNodeWithTag("hold-address").assertTextContains("Home · 9876543210", substring = true)
+        compose.onNodeWithTag("hold-address").assertTextContains("12 Gandhi Road", substring = true)
+        compose.onNodeWithTag("hold-address").assertTextContains("Erode, Tamil Nadu 638001", substring = true)
+    }
+
+    @Test
+    fun theChangeButtonOpensTheAddressSheet() {
+        show(HoldState(hold = hold, loading = false))
+
+        compose.onNodeWithTag("change-address").performClick()
+
+        assertEquals(true, openedSheet)
+    }
+
+    @Test
+    fun anExpiredHoldCannotChangeItsAddress() {
+        show(HoldState(hold = hold, loading = false, expired = true))
+
+        compose.onNodeWithTag("change-address").assertDoesNotExist()
+    }
+
+    @Test
+    fun theAddressSheetListsTheSavedAddressesAndReportsChoosingEditingAndAdding() {
+        show(HoldState(hold = hold, loading = false, addressSheet = HoldAddressUi(listOf(home, office), selectedId = 1, loading = false)))
+
+        compose.onNodeWithTag("change-address-sheet").assertIsDisplayed()
+        compose.onNodeWithTag("address-choice-2").performClick()
+        compose.onNodeWithTag("address-edit-2").performClick()
+        compose.onNodeWithTag("checkout-add-address").performClick()
+
+        assertEquals(2L, selectedAddress)
+        assertEquals(2L, editedAddress)
+        assertEquals(true, addedAddress)
+    }
+
+    @Test
+    fun useThisAddressNeedsASelectionAndReportsTheTap() {
+        show(HoldState(hold = hold, loading = false, addressSheet = HoldAddressUi(listOf(home, office), selectedId = null, loading = false)))
+        compose.onNodeWithTag("use-address").assertIsNotEnabled()
+    }
+
+    @Test
+    fun useThisAddressAppliesTheSelectedOne() {
+        show(HoldState(hold = hold, loading = false, addressSheet = HoldAddressUi(listOf(home, office), selectedId = 2, loading = false)))
+
+        compose.onNodeWithTag("use-address").assertIsEnabled().performClick()
+
+        assertEquals(true, usedAddress)
+    }
+
+    @Test
+    fun aRefusedChangeShowsTheMessageInTheSheet() {
+        show(HoldState(hold = hold, loading = false, addressSheet = HoldAddressUi(listOf(home), selectedId = 1, loading = false, error = "Address not found")))
+
+        compose.onNodeWithTag("change-address-error").assertTextContains("Address not found")
     }
 
     @Test

@@ -24,6 +24,10 @@ interface OrderApi {
     @DELETE("api/v1/holds/{id}")
     suspend fun cancelHold(@Path("id") id: Long): Response<Unit>
 
+    /** Points an open hold at another saved address; the server copies it onto the hold and returns the hold. */
+    @PUT("api/v1/holds/{id}/address")
+    suspend fun changeHoldAddress(@Path("id") id: Long, @Body body: HoldAddressBody): Hold
+
     @Multipart
     @POST("api/v1/holds/{id}/payment")
     suspend fun payHold(@Path("id") id: Long, @Part("utr") utr: RequestBody, @Part proof: MultipartBody.Part?): Order

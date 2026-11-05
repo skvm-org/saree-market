@@ -3,6 +3,9 @@ package com.sareemarket.app.ui.reseller
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sareemarket.app.data.Address
+import com.sareemarket.app.data.AddressRepository
+import com.sareemarket.app.data.AddressSnapshot
 import com.sareemarket.app.data.ApiFailure
 import com.sareemarket.app.data.CartRepository
 import com.sareemarket.app.data.Hold
@@ -30,11 +33,25 @@ data class HoldState(
     val paidOrderId: Long? = null,
     /** The customer released the hold: the screen goes back to the cart. */
     val closed: Boolean = false,
+    /** The "change address" sheet while it is open. */
+    val addressSheet: HoldAddressUi? = null,
 ) {
     val canPay: Boolean get() = hold != null && utr.length == UTR_LENGTH && !busy && !expired
 }
 
+/** The sheet for moving an open hold to another saved address. */
+data class HoldAddressUi(
+    val addresses: List<Address> = emptyList(),
+    val selectedId: Long? = null,
+    val loading: Boolean = true,
+    val busy: Boolean = false,
+    val error: String? = null,
+)
+
 private const val UTR_LENGTH = 12
+
+private fun Address.isSameAs(s: AddressSnapshot) =
+    name == s.name && phone == s.phone && line1 == s.line1 && line2 == s.line2 && city == s.city && state == s.state && pin == s.pin
 
 /** One payment hold: how long is left, whom to pay, and the UTR (plus optional screenshot) that turns it into an order. */
 @HiltViewModel
@@ -42,6 +59,7 @@ class HoldViewModel @Inject constructor(
     handle: SavedStateHandle,
     private val orders: OrderRepository,
     private val cart: CartRepository,
+    private val addresses: AddressRepository,
 ) : ViewModel() {
 
     private val holdId: Long = checkNotNull(handle["id"])
@@ -85,6 +103,55 @@ class HoldViewModel @Inject constructor(
                 onFailure = { e ->
                     val ended = (e as? ApiFailure)?.code == "HOLD_EXPIRED"
                     _state.update { it.copy(busy = false, payError = e.message, expired = it.expired || ended) }
+                },
+            )
+        }
+    }
+
+    fun openAddressSheet() {
+        if (_state.value.hold == null || _state.value.expired) return
+        _state.update { it.copy(addressSheet = HoldAddressUi()) }
+        refreshAddresses()
+    }
+
+    fun closeAddressSheet() = _state.update { it.copy(addressSheet = null) }
+
+    fun selectAddress(id: Long?) = _state.update { s -> s.copy(addressSheet = s.addressSheet?.copy(selectedId = id, error = null)) }
+
+    /**
+     * Looks at the saved addresses again, also when the customer comes back from editing or adding one. The selection stays
+     * on the same address; one that was just added is selected; and at first the address the hold already goes to is selected.
+     */
+    fun refreshAddresses() {
+        if (_state.value.addressSheet == null) return
+        viewModelScope.launch {
+            addresses.list().fold(
+                onSuccess = { list ->
+                    _state.update { s ->
+                        val sheet = s.addressSheet ?: return@update s
+                        val keep = sheet.selectedId?.takeIf { id -> list.any { it.id == id } }
+                        val added = if (sheet.loading) null else list.filter { a -> sheet.addresses.none { it.id == a.id } }.maxByOrNull { it.id }
+                        val current = s.hold?.address?.let { snap -> list.firstOrNull { it.isSameAs(snap) }?.id }
+                        s.copy(addressSheet = sheet.copy(addresses = list, selectedId = added?.id ?: keep ?: current, loading = false))
+                    }
+                },
+                onFailure = { e -> _state.update { s -> s.copy(addressSheet = s.addressSheet?.copy(loading = false, error = e.message)) } },
+            )
+        }
+    }
+
+    /** Sends the hold to the selected address. Allowed even for the address it already has, so an edit can be applied. */
+    fun applyAddress() {
+        val sheet = _state.value.addressSheet ?: return
+        val id = sheet.selectedId ?: return
+        if (sheet.busy) return
+        _state.update { it.copy(addressSheet = sheet.copy(busy = true, error = null)) }
+        viewModelScope.launch {
+            orders.changeHoldAddress(holdId, id).fold(
+                onSuccess = { hold -> _state.update { it.copy(hold = hold, addressSheet = null) } },
+                onFailure = { e ->
+                    val ended = (e as? ApiFailure)?.code == "HOLD_EXPIRED"
+                    _state.update { s -> s.copy(expired = s.expired || ended, addressSheet = s.addressSheet?.copy(busy = false, error = e.message)) }
                 },
             )
         }

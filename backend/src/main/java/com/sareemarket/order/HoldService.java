@@ -214,13 +214,43 @@ public class HoldService {
 
 	/** The customer's holds that are still within their two hours, soonest expiry first. */
 	public List<HoldDto> list(long customerId) {
-		MapSqlParameterSource params = new MapSqlParameterSource("c", customerId);
+		return query("h.customer_id = :c AND h.expires_at > now()", new MapSqlParameterSource("c", customerId));
+	}
+
+	/**
+	 * The customer moves an open hold to another of their saved addresses before paying: the address is copied onto the
+	 * hold again (so later edits to the saved address do not change it). Stock, totals and the two hours are untouched;
+	 * the shipping fee is a flat per-seller amount and does not depend on the address.
+	 *
+	 * @throws ApiException 404 NOT_FOUND (the hold or the address is not the customer's), 409 HOLD_EXPIRED
+	 */
+	@Transactional
+	public HoldDto changeAddress(long customerId, long holdId, long addressId) {
+		MapSqlParameterSource params = new MapSqlParameterSource("h", holdId).addValue("c", customerId);
+		List<Boolean> lapsed = jdbc.queryForList(
+				"SELECT expires_at <= now() FROM payment_hold WHERE id = :h AND customer_id = :c FOR UPDATE", params,
+				Boolean.class);
+		if (lapsed.isEmpty()) {
+			throw new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Payment not found");
+		}
+		if (lapsed.get(0)) {
+			throw new ApiException(HttpStatus.CONFLICT, "HOLD_EXPIRED", "This payment window has ended");
+		}
+		AddressDto address = addresses.get(customerId, addressId);
+		AddressSnapshotDto snapshot = new AddressSnapshotDto(address.name(), address.phone(), address.line1(),
+				address.line2(), address.city(), address.state(), address.pin());
+		jdbc.update("UPDATE payment_hold SET address = CAST(:address AS jsonb) WHERE id = :h",
+				params.addValue("address", json.writeValueAsString(snapshot)));
+		return query("h.id = :h AND h.customer_id = :c", params).get(0);
+	}
+
+	/** Holds matching a WHERE condition (code, never input), soonest expiry first, with their lines. */
+	private List<HoldDto> query(String where, MapSqlParameterSource params) {
 		return jdbc.query("""
 				SELECT h.id, h.seller_id, sp.shop_name, sp.upi_id, h.items_total, h.shipping_fee, h.grand_total,
 				       h.address, h.customer_note, h.expires_at
-				FROM payment_hold h JOIN seller_profile sp ON sp.user_id = h.seller_id
-				WHERE h.customer_id = :c AND h.expires_at > now()
-				ORDER BY h.expires_at, h.id""", params, (rs, n) -> new HoldDto(rs.getLong("id"), rs.getLong("seller_id"),
+				FROM payment_hold h JOIN seller_profile sp ON sp.user_id = h.seller_id""" + " WHERE " + where
+				+ " ORDER BY h.expires_at, h.id", params, (rs, n) -> new HoldDto(rs.getLong("id"), rs.getLong("seller_id"),
 				rs.getString("shop_name"), rs.getString("upi_id"), lines(rs.getLong("id")), rs.getInt("items_total"),
 				rs.getInt("shipping_fee"), rs.getInt("grand_total"),
 				json.readValue(rs.getString("address"), AddressSnapshotDto.class), rs.getString("customer_note"),

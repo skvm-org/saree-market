@@ -1,5 +1,6 @@
 package com.sareemarket.app.ui
 
+import androidx.lifecycle.SavedStateHandle
 import com.sareemarket.app.data.AddressRepository
 import com.sareemarket.app.data.FakeShoppingApi
 import com.sareemarket.app.data.homeAddress
@@ -24,7 +25,7 @@ import org.junit.Test
 class AddressesViewModelTest {
 
     private val api = FakeShoppingApi()
-    private fun vm() = AddressesViewModel(AddressRepository(api, testJson))
+    private fun vm(args: Map<String, Any?> = emptyMap()) = AddressesViewModel(AddressRepository(api, testJson), SavedStateHandle(args))
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -135,6 +136,62 @@ class AddressesViewModelTest {
 
         vm.cancelForm()
 
+        assertNull(vm.state.value.form)
+    }
+
+    @Test
+    fun checkoutEditOpensTheFormOnThatAddressAndReturnsOnceSaved() {
+        val vm = vm(mapOf("edit" to homeAddress.id))
+
+        assertEquals(homeAddress.id, vm.state.value.form?.id)
+        assertEquals(homeAddress.line1, vm.state.value.form?.line1)
+        assertFalse(vm.state.value.finished)
+
+        vm.onField("line1", "7 New Street")
+        vm.save()
+
+        assertTrue(vm.state.value.finished)
+        assertNull(vm.state.value.form)
+    }
+
+    @Test
+    fun checkoutAddOpensABlankFormAndReturnsOnceSaved() {
+        val vm = vm(mapOf("add" to true))
+
+        assertNotNull(vm.state.value.form)
+        assertNull(vm.state.value.form?.id)
+        vm.fillValid()
+        vm.save()
+
+        assertTrue(vm.state.value.finished)
+    }
+
+    @Test
+    fun closingTheFormOpenedFromCheckoutReturnsToCheckout() {
+        val vm = vm(mapOf("edit" to homeAddress.id))
+
+        vm.cancelForm()
+
+        assertTrue(vm.state.value.finished)
+    }
+
+    @Test
+    fun anAddressThatNoLongerExistsReturnsToCheckoutWithoutAForm() {
+        val vm = vm(mapOf("edit" to 999L))
+
+        assertNull(vm.state.value.form)
+        assertTrue(vm.state.value.finished)
+    }
+
+    @Test
+    fun managingTheListNeverFinishesOnItsOwn() {
+        val vm = vm()
+        vm.startAdd()
+        vm.fillValid()
+
+        vm.save()
+
+        assertFalse(vm.state.value.finished)
         assertNull(vm.state.value.form)
     }
 }

@@ -79,6 +79,8 @@ import com.sareemarket.app.ui.timeLeft
 @Composable
 fun AddressesScreen(onBack: () -> Unit, onPicked: ((Address) -> Unit)? = null, viewModel: AddressesViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Opened from checkout to edit or add one address: once that is saved or closed, return to the checkout sheet.
+    LaunchedEffect(state.finished) { if (state.finished) onBack() }
     AddressesContent(
         state, onBack, onPicked, viewModel::startAdd, viewModel::startEdit, viewModel::delete, viewModel::load,
         viewModel::onField, viewModel::setDefault, viewModel::save, viewModel::cancelForm,

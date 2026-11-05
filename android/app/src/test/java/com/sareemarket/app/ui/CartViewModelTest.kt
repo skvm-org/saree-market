@@ -117,6 +117,50 @@ class CartViewModelTest {
     }
 
     @Test
+    fun anAddressAddedWhileTheSheetIsOpenBecomesTheSelection() {
+        shopping.cart = { cartOf(cartSeller(1)) }
+        val vm = vm()
+        vm.startCheckout(1)
+        assertEquals(homeAddress.id, vm.state.value.checkout?.selectedAddressId)
+        val office = homeAddress.copy(id = 7, name = "Office", isDefault = false)
+        shopping.addressList = { listOf(homeAddress, office) }
+
+        vm.refreshAddresses()
+
+        assertEquals(7L, vm.state.value.checkout?.selectedAddressId)
+        assertEquals(2, vm.state.value.checkout?.addresses?.size)
+    }
+
+    @Test
+    fun anEditedAddressKeepsItsSelection() {
+        shopping.cart = { cartOf(cartSeller(1)) }
+        val vm = vm()
+        vm.startCheckout(1)
+        val office = homeAddress.copy(id = 7, name = "Office", isDefault = false)
+        shopping.addressList = { listOf(homeAddress, office) }
+        vm.refreshAddresses()
+        vm.selectAddress(homeAddress.id)
+        shopping.addressList = { listOf(homeAddress.copy(line1 = "9 New Road"), office) }
+
+        vm.refreshAddresses()
+
+        assertEquals(homeAddress.id, vm.state.value.checkout?.selectedAddressId)
+        assertEquals("9 New Road", vm.state.value.checkout?.addresses?.first { it.id == homeAddress.id }?.line1)
+    }
+
+    @Test
+    fun openingTheSheetForTheFirstTimeDoesNotTreatEveryAddressAsNew() {
+        shopping.cart = { cartOf(cartSeller(1)) }
+        val office = homeAddress.copy(id = 7, name = "Office", isDefault = false)
+        shopping.addressList = { listOf(homeAddress, office) }
+        val vm = vm()
+
+        vm.startCheckout(1)
+
+        assertEquals(homeAddress.id, vm.state.value.checkout?.selectedAddressId) // the default, not the highest id
+    }
+
+    @Test
     fun aSellerNotAcceptingOrdersCannotStartCheckout() {
         shopping.cart = { cartOf(cartSeller(1, acceptsOrders = false)) }
         val vm = vm()

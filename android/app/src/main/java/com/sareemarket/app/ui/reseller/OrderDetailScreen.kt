@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,13 +86,13 @@ import kotlinx.coroutines.delay
 
 /** One order: where it stands, its tracking number, what is in it, and what the customer can still do. */
 @Composable
-fun OrderDetailScreen(onBack: () -> Unit, viewModel: OrderDetailViewModel = hiltViewModel()) {
+fun OrderDetailScreen(onBack: () -> Unit, onOpenItem: (Long) -> Unit, viewModel: OrderDetailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     OrderDetailContent(
         state, onBack, viewModel::reload,
         onCopy = { clipboard.setText(AnnotatedString(it)) },
-        onReceive = viewModel::receive, onCancel = viewModel::cancel,
+        onReceive = viewModel::receive, onCancel = viewModel::cancel, onOpenItem = onOpenItem,
     )
 }
 
@@ -103,6 +104,7 @@ fun OrderDetailContent(
     onCopy: (String) -> Unit,
     onReceive: () -> Unit,
     onCancel: (String?) -> Unit,
+    onOpenItem: (Long) -> Unit,
 ) {
     var confirmingCancel by remember { mutableStateOf(false) }
     var confirmingReceive by remember { mutableStateOf(false) }
@@ -132,11 +134,22 @@ fun OrderDetailContent(
                     }
                     if (order.courier != null || order.trackingNumber != null) TrackingCard(order, onCopy)
                     Timeline(order)
-                    order.lines.forEach { line ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            OrderThumb(line.itemId, width = 40.dp)
+                    order.lines.forEachIndexed { index, line ->
+                        // A saree that still exists opens its page; one the seller has since deleted has nothing to open.
+                        val itemId = line.itemId
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = MinTouchTarget)
+                                .then(if (itemId != null) Modifier.clickable(onClickLabel = "View saree", role = Role.Button) { onOpenItem(itemId) } else Modifier)
+                                .testTag("order-line-$index"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        ) {
+                            OrderThumb(itemId, width = 40.dp)
                             Text("${line.quantity} × ${line.title}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                             Text(formatRupees(line.unitPrice * line.quantity), style = MaterialTheme.typography.bodyMedium)
+                            if (itemId != null) {
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                     Row {

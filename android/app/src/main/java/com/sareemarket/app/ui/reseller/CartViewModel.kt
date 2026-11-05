@@ -107,7 +107,9 @@ class CartViewModel @Inject constructor(
                     _state.update { s ->
                         val c = s.checkout ?: return@update s
                         val keep = c.selectedAddressId?.takeIf { id -> list.any { it.id == id } }
-                        val pick = keep ?: (list.firstOrNull { it.isDefault } ?: list.firstOrNull())?.id
+                        // An address that was not in the list the sheet already showed was just added: use it.
+                        val added = if (c.loadingAddresses) null else list.filter { a -> c.addresses.none { it.id == a.id } }.maxByOrNull { it.id }
+                        val pick = added?.id ?: keep ?: (list.firstOrNull { it.isDefault } ?: list.firstOrNull())?.id
                         s.copy(checkout = c.copy(addresses = list, selectedAddressId = pick, loadingAddresses = false))
                     }
                 },
