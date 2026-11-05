@@ -125,7 +125,9 @@ public class CatalogService {
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE' AND x.quantity > 0) AS available,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND (x.status = 'SOLD_OUT' OR x.quantity = 0)) AS sold_out,
-				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
+				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover,
+				       """ + com.sareemarket.common.PhotoVersions.sql("cc.seller_id") + """
+				        AS seller_photo_version
 				FROM collection cc
 				JOIN seller_profile sp ON sp.user_id = cc.seller_id
 				""" + matching + " ORDER BY " + filter.sort().collectionOrderBy()
@@ -134,7 +136,7 @@ public class CatalogService {
 							rs.getInt("price"), instant(rs, "created_at"),
 							rs.getLong("item_count"), rs.getLong("available"), rs.getLong("sold_out"),
 							rs.getObject("cover", Long.class), List.of(), rs.getLong("seller_id"),
-							rs.getString("shop_name"));
+							rs.getString("shop_name"), rs.getObject("seller_photo_version", Long.class));
 				});
 		return PageDto.of(withPreviews(cards), filter.page(), PAGE_SIZE, total == null ? 0 : total);
 	}
@@ -151,7 +153,7 @@ public class CatalogService {
 		return cards.stream()
 			.map(c -> new CatalogCollectionDto(c.id(), c.title(), c.price(), c.createdAt(),
 					c.itemCount(), c.availableCount(), c.soldOutCount(), c.coverItemId(),
-					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName()))
+					previews.getOrDefault(c.id(), List.of()), c.sellerId(), c.shopName(), c.sellerPhotoVersion()))
 			.toList();
 	}
 
@@ -281,8 +283,8 @@ public class CatalogService {
 				SELECT i.id, i.collection_id, c.title, c.description,
 				       i.colour, i.price_override, COALESCE(i.price_override, c.price) AS price, i.status,
 				       i.quantity, i.created_at, c.seller_id, sp.shop_name, sp.market_location, sp.contact_phone,
-				       sp.whatsapp_number, u.enabled
-				""" + FROM + " WHERE i.id = :id", byId, (rs, n) -> {
+				       sp.whatsapp_number, u.enabled, """ + com.sareemarket.common.PhotoVersions.sql("c.seller_id")
+				+ " AS seller_photo_version " + FROM + " WHERE i.id = :id", byId, (rs, n) -> {
 			long sellerId = rs.getLong("seller_id");
 			boolean visible = rs.getBoolean("enabled") || "ADMIN".equals(role) || (seller && sellerId == userId);
 			if (!visible) {
@@ -299,7 +301,8 @@ public class CatalogService {
 					rs.getInt("quantity"), inStock(rs), instant(rs, "created_at"),
 					new SellerContactDto(sellerId, rs.getString("shop_name"), rs.getString("market_location"),
 							contact ? rs.getString("contact_phone") : null,
-							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId)),
+							contact ? rs.getString("whatsapp_number") : null, followMode(role, userId, sellerId),
+							rs.getObject("seller_photo_version", Long.class)),
 					inWishlist(role, userId, itemId), inCart(role, userId, itemId));
 		});
 		return found.stream()

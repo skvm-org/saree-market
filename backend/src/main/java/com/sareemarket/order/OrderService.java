@@ -421,7 +421,9 @@ public class OrderService {
 
 	/** Base query for an order with its seller shop and UPI id and its customer's name and phone. */
 	static final String SELECT = """
-			SELECT o.*, sp.shop_name, sp.upi_id, u.name AS customer_name, u.phone AS customer_phone
+			SELECT o.*, sp.shop_name, sp.upi_id, u.name AS customer_name, u.phone AS customer_phone,
+			       """ + com.sareemarket.common.PhotoVersions.sql("o.customer_id") + """
+			        AS customer_photo_version
 			FROM customer_order o
 			JOIN seller_profile sp ON sp.user_id = o.seller_id
 			JOIN app_user u ON u.id = o.customer_id""";
@@ -435,7 +437,8 @@ public class OrderService {
 		boolean seller = viewer == Viewer.SELLER;
 		return new OrderDto(id, OrderStatus.valueOf(rs.getString("status")), rs.getLong("seller_id"),
 				rs.getString("shop_name"), rs.getString("upi_id"),
-				seller ? new OrderPartyDto(rs.getString("customer_name"), rs.getString("customer_phone")) : null,
+				seller ? new OrderPartyDto(rs.getLong("customer_id"), rs.getString("customer_name"), rs.getString("customer_phone"),
+						rs.getObject("customer_photo_version", Long.class)) : null,
 				lines(id), rs.getInt("items_total"), rs.getInt("shipping_fee"), rs.getInt("grand_total"),
 				json.readValue(rs.getString("address"), AddressSnapshotDto.class), rs.getString("customer_note"),
 				rs.getString("payment_reference"), rs.getString("payment_proof_key") != null,

@@ -55,6 +55,12 @@ fun proofPart(source: PhotoSource, photo: String): MultipartBody.Part {
     return MultipartBody.Part.createFormData("proof", info.name, PhotoRequestBody(source, photo, info) {})
 }
 
+/** The picture an account uses as its profile picture, as the multipart part named "photo". */
+fun profilePhotoPart(source: PhotoSource, photo: String): MultipartBody.Part {
+    val info = source.info(photo)
+    return MultipartBody.Part.createFormData("photo", info.name, PhotoRequestBody(source, photo, info) {})
+}
+
 /** The picture a customer searches with, as the multipart part named "image". */
 fun imagePart(source: PhotoSource, photo: String): MultipartBody.Part {
     val info = source.info(photo)

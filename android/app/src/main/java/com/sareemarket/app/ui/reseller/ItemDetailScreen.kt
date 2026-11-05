@@ -38,7 +38,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.timeAgo
 import com.sareemarket.app.ui.ShareText
@@ -358,7 +358,7 @@ fun ItemDetailContent(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs),
                         ) {
-                            InitialAvatar(detail.seller.shopName, 48.dp)
+                            Avatar(detail.seller.shopName, detail.seller.id, detail.seller.photoVersion, 48.dp, modifier = Modifier.testTag("seller-avatar"))
                             Column(Modifier.weight(1f)) {
                                 Text(detail.seller.shopName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(detail.seller.marketLocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

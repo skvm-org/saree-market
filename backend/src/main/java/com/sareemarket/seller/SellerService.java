@@ -57,9 +57,10 @@ public class SellerService {
 		SellerProfile profile = profiles.findById(id)
 			.filter(p -> users.findById(p.getUserId()).map(u -> u.isEnabled()).orElse(false))
 			.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Seller not found"));
+		Long photoVersion = users.findById(id).map(u -> u.photoVersion()).orElse(null);
 		return new SellerDetailDto(profile.getUserId(), profile.getShopName(), profile.getMarketLocation(),
 				profile.getContactPhone(), profile.getWhatsappNumber(),
-				followMode(viewerId, id, viewerIsReseller), collections.listMine(id));
+				followMode(viewerId, id, viewerIsReseller), collections.listMine(id), photoVersion);
 	}
 
 	/**

@@ -19,6 +19,8 @@ data class CollectionSummary(
     /** Who sells it; set only on the reseller catalog, where cards come from many shops. */
     val sellerId: Long? = null,
     val shopName: String? = null,
+    /** When the seller's profile picture last changed, or null when they have none; part of the picture's URL. */
+    val sellerPhotoVersion: Long? = null,
 )
 
 @Serializable

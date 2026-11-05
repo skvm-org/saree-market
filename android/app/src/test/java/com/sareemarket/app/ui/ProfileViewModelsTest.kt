@@ -1,6 +1,8 @@
 package com.sareemarket.app.ui
 
 import com.sareemarket.app.data.AuthRepository
+import com.sareemarket.app.data.FakePhotoSource
+import com.sareemarket.app.data.ProfilePhotoRepository
 import com.sareemarket.app.data.FakeAuthApi
 import com.sareemarket.app.data.FakeSessionStore
 import com.sareemarket.app.data.Role
@@ -32,6 +34,7 @@ class ProfileViewModelsTest {
     private val api = FakeAuthApi()
     private val store = FakeSessionStore(session(Role.SELLER))
     private val repo = AuthRepository(api, store, testJson)
+    private val photos = ProfilePhotoRepository(api, store, FakePhotoSource(mapOf("content://me/1" to ByteArray(10))), testJson)
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -41,7 +44,7 @@ class ProfileViewModelsTest {
 
     @Test
     fun profileStartsFromTheStoredSession() {
-        val vm = ProfileViewModel(repo)
+        val vm = ProfileViewModel(repo, photos)
 
         assertEquals("Priya", vm.state.value.name)
         assertEquals("9876543210", vm.state.value.phone)
@@ -50,7 +53,7 @@ class ProfileViewModelsTest {
 
     @Test
     fun blankNameIsRefusedWithoutCallingTheServer() {
-        val vm = ProfileViewModel(repo)
+        val vm = ProfileViewModel(repo, photos)
         vm.onNameChange("   ")
 
         vm.save()
@@ -61,7 +64,7 @@ class ProfileViewModelsTest {
 
     @Test
     fun savingTheNameUpdatesTheSessionAndShowsSaved() {
-        val vm = ProfileViewModel(repo)
+        val vm = ProfileViewModel(repo, photos)
         vm.onNameChange("  Meena ")
 
         vm.save()
@@ -72,7 +75,7 @@ class ProfileViewModelsTest {
 
     @Test
     fun editingAfterSavingClearsTheSavedMessage() {
-        val vm = ProfileViewModel(repo)
+        val vm = ProfileViewModel(repo, photos)
         vm.save()
 
         vm.onNameChange("Priyanka")
@@ -327,9 +330,65 @@ class ProfileViewModelsTest {
 
     @Test
     fun blankNameIsFlaggedWhenLeft() {
-        val vm = ProfileViewModel(repo)
+        val vm = ProfileViewModel(repo, photos)
         vm.onNameChange("")
         vm.onBlur()
         assertEquals("Enter your name", vm.state.value.error)
     }
+
+    @Test
+    fun uploadingAPhotoSendsItAndTheStateTakesTheNewVersion() {
+        val vm = ProfileViewModel(repo, photos)
+        assertFalse(vm.state.value.hasPhoto)
+
+        vm.uploadPhoto("content://me/1")
+
+        assertTrue(api.uploadedPartNames.single().contains("name=\"photo\""))
+        assertEquals(1_700_000_000_000, vm.state.value.photoVersion)
+        assertEquals(1_700_000_000_000, store.saved?.photoVersion)
+        assertTrue(vm.state.value.hasPhoto)
+        assertEquals("Profile picture updated", vm.state.value.photoMessage)
+        assertFalse(vm.state.value.photoBusy)
+        assertEquals(7L, vm.state.value.userId)
+    }
+
+    @Test
+    fun removingThePhotoClearsTheVersionAndTellsTheUser() {
+        store.saved?.let { runBlockingSave(it.copy(photoVersion = 123)) }
+        val vm = ProfileViewModel(repo, photos)
+        assertTrue(vm.state.value.hasPhoto)
+
+        vm.removePhoto()
+
+        assertEquals(1, api.removeCalls)
+        assertNull(vm.state.value.photoVersion)
+        assertNull(store.saved?.photoVersion)
+        assertEquals("Profile picture removed", vm.state.value.photoMessage)
+    }
+
+    @Test
+    fun aRefusedPhotoShowsTheServersMessageAndKeepsTheOldPicture() {
+        store.saved?.let { runBlockingSave(it.copy(photoVersion = 123)) }
+        api.uploadPhotoResult = { throw httpError(400, """{"code":"INVALID_IMAGE","message":"\"me.jpg\" is not a valid JPG, PNG or WebP photo","fields":{}}""") }
+        val vm = ProfileViewModel(repo, photos)
+
+        vm.uploadPhoto("content://me/1")
+
+        assertEquals("\"me.jpg\" is not a valid JPG, PNG or WebP photo", vm.state.value.photoError)
+        assertNull(vm.state.value.photoMessage)
+        assertEquals(123L, vm.state.value.photoVersion)
+        assertFalse(vm.state.value.photoBusy)
+    }
+
+    @Test
+    fun theMessageIsForgottenOnceShown() {
+        val vm = ProfileViewModel(repo, photos)
+        vm.uploadPhoto("content://me/1")
+
+        vm.onSavedShown()
+
+        assertNull(vm.state.value.photoMessage)
+    }
+
+    private fun runBlockingSave(session: com.sareemarket.app.data.Session) = kotlinx.coroutines.runBlocking { store.save(session) }
 }

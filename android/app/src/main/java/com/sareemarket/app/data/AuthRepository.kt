@@ -45,7 +45,9 @@ class AuthRepository @Inject constructor(
     /** Checks the saved token is still accepted. Network trouble keeps the session: the user may just be offline. */
     suspend fun refreshSession() {
         try {
-            api.me()
+            val me = api.me()
+            // A picture set or removed on another device shows here too.
+            sessionStore.session.first()?.takeIf { it.photoVersion != me.photoVersion }?.let { sessionStore.save(it.copy(photoVersion = me.photoVersion)) }
         } catch (e: HttpException) {
             // 401 is handled by AuthInterceptor; 403 means the account was disabled.
             if (e.code() == 403) sessionStore.clear()
@@ -57,6 +59,6 @@ class AuthRepository @Inject constructor(
     private suspend fun authenticate(call: suspend () -> AuthResponse): Result<Unit> =
         apiCall(json, call).map { response ->
             val user = response.user
-            sessionStore.save(Session(response.token, user.id, user.name, user.phone, user.role))
+            sessionStore.save(Session(response.token, user.id, user.name, user.phone, user.role, user.photoVersion))
         }
 }

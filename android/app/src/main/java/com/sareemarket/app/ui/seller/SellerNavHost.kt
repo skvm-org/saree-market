@@ -85,6 +85,8 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                     onOpenOrders = { nav.navigate(SELLER_ORDERS) { popUpTo(HOME); launchSingleTop = true } },
                     hasUpiId = shopHasUpiId(shop),
                     onAddUpi = { nav.navigate(SHOP) },
+                    userId = session.userId,
+                    photoVersion = session.photoVersion,
                 )
             }
             composable(SELLER_NEW) {

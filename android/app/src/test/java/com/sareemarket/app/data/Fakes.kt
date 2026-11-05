@@ -48,6 +48,10 @@ class FakeAuthApi : AuthApi {
     var lastShopUpdate: ShopDetails? = null
     var lastRegister: RegisterRequest? = null
     var loginCalls = 0
+    var uploadPhotoResult: () -> UserDto = { priya.copy(photoVersion = 1_700_000_000_000) }
+    var removePhotoResult: () -> Unit = {}
+    var uploadedPartNames = mutableListOf<String>()
+    var removeCalls = 0
 
     override suspend fun login(request: LoginRequest): AuthResponse {
         loginCalls++
@@ -71,6 +75,17 @@ class FakeAuthApi : AuthApi {
     override suspend fun changePassword(request: ChangePasswordRequest) {
         lastPasswordChange = request
         changePasswordResult()
+    }
+
+    override suspend fun uploadPhoto(photo: okhttp3.MultipartBody.Part): UserDto {
+        uploadedPartNames += photo.headers?.get("Content-Disposition").orEmpty()
+        return uploadPhotoResult()
+    }
+
+    override suspend fun removePhoto(): Response<Unit> {
+        removeCalls++
+        removePhotoResult()
+        return Response.success(Unit)
     }
 
     override suspend fun shopDetails(): ShopDetails = shopResult()

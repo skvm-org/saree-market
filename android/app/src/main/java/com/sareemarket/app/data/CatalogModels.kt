@@ -47,6 +47,8 @@ data class SellerContact(
     val whatsappNumber: String? = null,
     /** INSTANT or MUTED when the reseller follows this shop, otherwise null. */
     val followMode: String? = null,
+    /** When the seller's profile picture last changed, or null when they have none. */
+    val photoVersion: Long? = null,
 )
 
 @Serializable
@@ -82,6 +84,8 @@ data class SellerPage(
     /** INSTANT or MUTED when the reseller follows this shop, otherwise null. */
     val followMode: String? = null,
     val collections: List<CollectionSummary> = emptyList(),
+    /** When the seller's profile picture last changed, or null when they have none. */
+    val photoVersion: Long? = null,
 )
 
 enum class CatalogSort(val param: String, val label: String) {

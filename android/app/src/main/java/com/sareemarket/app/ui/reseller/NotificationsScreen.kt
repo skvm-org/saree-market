@@ -9,7 +9,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import coil3.compose.AsyncImage
-import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.dayLabel
 import com.sareemarket.app.ui.theme.CardShape
@@ -167,7 +167,7 @@ private fun NotificationRow(notification: AppNotification, onOpen: (AppNotificat
             Box(Modifier.size(48.dp).clip(CircleShape).background(SareeColors.SurfaceMuted)) {
                 notification.coverItemId?.let {
                     AsyncImage(model = imageUrl(it, thumb = true), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                } ?: InitialAvatar(notification.shopName, 48.dp)
+                } ?: Avatar(notification.shopName, notification.sellerId, notification.sellerPhotoVersion, 48.dp)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(notification.shopName, style = MaterialTheme.typography.labelLarge)

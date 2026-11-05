@@ -49,6 +49,8 @@ public class NotificationService {
 				SELECT n.id, n.type, n.item_count, n.seller_id, sp.shop_name, n.collection_id, c.title,
 				       n.read_at IS NOT NULL AS read, n.created_at, n.updated_at,
 				       n.order_id, n.order_status, o.courier, o.tracking_number,
+				       """ + com.sareemarket.common.PhotoVersions.sql("n.seller_id") + """
+				        AS seller_photo_version,
 				       COALESCE((SELECT min(i.id) FROM item i WHERE i.collection_id = n.collection_id),
 				                (SELECT min(l.item_id) FROM order_line l WHERE l.order_id = n.order_id)) AS cover_item_id
 				FROM notification n
@@ -69,7 +71,7 @@ public class NotificationService {
 					(Long) rs.getObject("collection_id"), title, text, rs.getBoolean("read"),
 					rs.getObject("created_at", OffsetDateTime.class).toInstant(),
 					rs.getObject("updated_at", OffsetDateTime.class).toInstant(), (Long) rs.getObject("cover_item_id"),
-					orderId, orderStatus);
+					orderId, orderStatus, rs.getObject("seller_photo_version", Long.class));
 		});
 		return PageDto.of(items, page, PAGE_SIZE, total == null ? 0 : total);
 	}

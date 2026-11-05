@@ -102,4 +102,35 @@ class AuthRepositoryTest {
 
         assertNull(store.saved)
     }
+
+    @Test
+    fun loginKeepsTheProfilePictureVersion() = runTest {
+        api.loginResult = { AuthResponse("token-1", priya.copy(photoVersion = 555)) }
+
+        repo.login("9876543210", "password1")
+
+        assertEquals(555L, store.saved?.photoVersion)
+    }
+
+    @Test
+    fun refreshingTheSessionPicksUpAPictureChangedOnAnotherDevice() = runTest {
+        repo.login("9876543210", "password1")
+        assertNull(store.saved?.photoVersion)
+        api.meResult = { priya.copy(photoVersion = 777) }
+
+        repo.refreshSession()
+
+        assertEquals(777L, store.saved?.photoVersion)
+    }
+
+    @Test
+    fun refreshingTheSessionLeavesAnUnchangedPictureAlone() = runTest {
+        api.loginResult = { AuthResponse("token-1", priya.copy(photoVersion = 555)) }
+        repo.login("9876543210", "password1")
+        api.meResult = { priya.copy(photoVersion = 555) }
+
+        repo.refreshSession()
+
+        assertEquals(555L, store.saved?.photoVersion)
+    }
 }

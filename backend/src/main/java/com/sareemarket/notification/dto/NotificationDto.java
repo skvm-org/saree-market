@@ -16,8 +16,9 @@ import com.sareemarket.notification.NotificationType;
  * round thumbnail; null when there is none
  * @param orderId the order an ORDER_UPDATE is about; null for follower notifications, whose collectionId is set instead
  * @param orderStatus the order's new status for an ORDER_UPDATE; null otherwise
+ * @param sellerPhotoVersion the version of the seller's profile picture, or null when they have none
  */
 public record NotificationDto(Long id, NotificationType type, int itemCount, Long sellerId, String shopName,
 		Long collectionId, String collectionTitle, String message, boolean read, Instant createdAt,
-		Instant updatedAt, Long coverItemId, Long orderId, String orderStatus) {
+		Instant updatedAt, Long coverItemId, Long orderId, String orderStatus, Long sellerPhotoVersion) {
 }

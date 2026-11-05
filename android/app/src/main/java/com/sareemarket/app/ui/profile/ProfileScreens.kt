@@ -13,7 +13,20 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.unit.dp
 import com.sareemarket.app.ui.components.CardBorder
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.components.InitialAvatar
+import java.io.File
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.theme.MinTouchTarget
 import com.sareemarket.app.ui.theme.SareeColors
@@ -103,7 +116,25 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    ProfileContent(state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts, onChangePhone)
+    val context = LocalContext.current
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        if (saved) cameraUri?.let { viewModel.uploadPhoto(it.toString()) }
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { viewModel.uploadPhoto(it.toString()) }
+    }
+    ProfileContent(
+        state, null, viewModel::onNameChange, viewModel::save, viewModel::onBlur, viewModel::onSavedShown, onLogout, onChangePassword, onOpenShop, missingUpi, shortcuts, onChangePhone,
+        onPickPhoto = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        onTakePhoto = {
+            val file = File.createTempFile("profile", ".jpg", File(context.cacheDir, "camera").apply { mkdirs() })
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            cameraUri = uri
+            camera.launch(uri)
+        },
+        onRemovePhoto = viewModel::removePhoto,
+    )
 }
 
 /** Who you are at the top, the name to edit, then the account actions as one list with Log out set apart at the end. */
@@ -122,11 +153,39 @@ fun ProfileContent(
     missingUpi: Boolean = false,
     shortcuts: List<ProfileShortcut> = emptyList(),
     onChangePhone: () -> Unit = {},
+    /** Choose a picture from the gallery, take one with the camera, or remove the current one. */
+    onPickPhoto: () -> Unit = {},
+    onTakePhoto: () -> Unit = {},
+    onRemovePhoto: () -> Unit = {},
 ) {
     var confirmingLogout by remember { mutableStateOf(false) }
-    ProfilePage("My profile", onBack, if (state.saved) "Name saved" else null, onSavedShown) {
+    var choosingPhoto by remember { mutableStateOf(false) }
+    ProfilePage("My profile", onBack, state.photoMessage ?: if (state.saved) "Name saved" else null, onSavedShown) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            InitialAvatar(state.name.ifBlank { state.original }, 72.dp, modifier = Modifier.testTag("avatar"))
+            // The picture is the tap target; the camera badge sits on its corner, outside the circular clip so it is not cut off.
+            Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size(84.dp)
+                        .clip(CircleShape)
+                        .clickable(onClickLabel = "Change profile picture", role = androidx.compose.ui.semantics.Role.Button, enabled = !state.photoBusy) { choosingPhoto = true }
+                        .testTag("avatar"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Avatar(state.name.ifBlank { state.original }, state.userId, state.photoVersion, 72.dp)
+                    if (state.photoBusy) CircularProgressIndicator(Modifier.size(32.dp).testTag("photo-busy"))
+                }
+                Surface(
+                    onClick = { if (!state.photoBusy) choosingPhoto = true },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.background),
+                    modifier = Modifier.align(Alignment.BottomEnd).size(30.dp).testTag("avatar-badge"),
+                ) {
+                    Icon(Icons.Filled.PhotoCamera, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(6.dp))
+                }
+            }
+            ErrorText(state.photoError)
             Text(state.original.ifBlank { state.name }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = Spacing.sm).testTag("profile-name"))
             Text("+91 ${state.phone}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("phone"))
             Text(
@@ -170,6 +229,29 @@ fun ProfileContent(
         )
     }
     if (confirmingLogout) LogoutDialog(onDismiss = { confirmingLogout = false }, onConfirm = { confirmingLogout = false; onLogout() })
+    if (choosingPhoto) {
+        ProfilePhotoSheet(
+            hasPhoto = state.hasPhoto,
+            onDismiss = { choosingPhoto = false },
+            onGallery = { choosingPhoto = false; onPickPhoto() },
+            onCamera = { choosingPhoto = false; onTakePhoto() },
+            onRemove = { choosingPhoto = false; onRemovePhoto() },
+        )
+    }
+}
+
+/** Where the profile picture comes from: the gallery or the camera, plus Remove when there is one already. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfilePhotoSheet(hasPhoto: Boolean, onDismiss: () -> Unit, onGallery: () -> Unit, onCamera: () -> Unit, onRemove: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(bottom = Spacing.lg).testTag("photo-sheet")) {
+            Text("Profile picture", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = Spacing.margin, vertical = Spacing.sm))
+            ProfileRow(Icons.Filled.PhotoLibrary, "Choose from gallery", "choose-photo", onGallery)
+            ProfileRow(Icons.Filled.PhotoCamera, "Take a photo", "take-photo", onCamera)
+            if (hasPhoto) ProfileRow(Icons.Filled.Delete, "Remove photo", "remove-photo", onRemove, destructive = true)
+        }
+    }
 }
 
 @Composable

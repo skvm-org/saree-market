@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 enum class Role { SELLER, CUSTOMER, ADMIN }
 
 @Serializable
-data class UserDto(val id: Long, val name: String, val phone: String, val role: Role)
+/** [photoVersion] is when the profile picture last changed (epoch milliseconds), or null when there is none; it is part of the picture's URL. */
+data class UserDto(val id: Long, val name: String, val phone: String, val role: Role, val photoVersion: Long? = null)
 
 @Serializable
 data class AuthResponse(val token: String, val user: UserDto)
@@ -59,4 +60,4 @@ data class ShopDetails(
 data class ApiError(val code: String, val message: String, val fields: Map<String, String> = emptyMap())
 
 /** What the app keeps between launches. */
-data class Session(val token: String, val userId: Long, val name: String, val phone: String, val role: Role)
+data class Session(val token: String, val userId: Long, val name: String, val phone: String, val role: Role, val photoVersion: Long? = null)

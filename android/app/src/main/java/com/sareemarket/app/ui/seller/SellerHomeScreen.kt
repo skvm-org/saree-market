@@ -66,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.sareemarket.app.data.CollectionSummary
 import com.sareemarket.app.ui.components.CardBorder
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.components.InitialAvatar
 import com.sareemarket.app.ui.components.PrimaryButton
 import com.sareemarket.app.ui.components.imageUrl
@@ -87,6 +88,8 @@ fun SellerHomeScreen(
     onOpenOrders: () -> Unit = {},
     hasUpiId: Boolean = true,
     onAddUpi: () -> Unit = {},
+    userId: Long? = null,
+    photoVersion: Long? = null,
     viewModel: SellerHomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -95,7 +98,7 @@ fun SellerHomeScreen(
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toShip = toShip, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi)
+    SellerHomeContent(state, shopName, onNewCollection, onOpen, onRetry = viewModel::refresh, onRefresh = viewModel::pullRefresh, location = location, toShip = toShip, onOpenOrders = onOpenOrders, hasUpiId = hasUpiId, onAddUpi = onAddUpi, userId = userId, photoVersion = photoVersion)
 }
 
 @Composable
@@ -111,6 +114,8 @@ fun SellerHomeContent(
     onOpenOrders: () -> Unit = {},
     hasUpiId: Boolean = true,
     onAddUpi: () -> Unit = {},
+    userId: Long? = null,
+    photoVersion: Long? = null,
 ) {
     // The Add tab is always on screen, so there is no floating button to cover a card; an empty shop gets a button in the page itself.
     val wide = LocalConfiguration.current.screenWidthDp >= 600
@@ -122,7 +127,7 @@ fun SellerHomeContent(
                 .padding(padding)
                 .safeDrawingPadding(),
         ) {
-            ShopHeader(sellerName, location, state, wide, hasUpiId, onAddUpi)
+            ShopHeader(sellerName, location, state, wide, hasUpiId, onAddUpi, userId, photoVersion)
             Box(Modifier.fillMaxSize().padding(horizontal = Spacing.margin)) {
                 when (state) {
                     SellerHomeState.Loading -> SkeletonCollections()
@@ -185,7 +190,7 @@ fun SellerHomeContent(
 
 /** Shop name and place, the UPI prompt while it is missing, then the two stock totals as tiles. */
 @Composable
-private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean, hasUpiId: Boolean, onAddUpi: () -> Unit) {
+private fun ShopHeader(shopName: String, location: String, state: SellerHomeState, wide: Boolean, hasUpiId: Boolean, onAddUpi: () -> Unit, userId: Long?, photoVersion: Long?) {
     val collections = (state as? SellerHomeState.Loaded)?.collections.orEmpty()
     val available = collections.sumOf { it.availableCount }
     val soldOut = collections.sumOf { it.soldOutCount }
@@ -195,7 +200,7 @@ private fun ShopHeader(shopName: String, location: String, state: SellerHomeStat
     ) {
         val identity: @Composable (Modifier) -> Unit = { modifier ->
             Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-                InitialAvatar(shopName, 44.dp)
+                Avatar(shopName, userId, photoVersion, 44.dp, modifier = Modifier.testTag("shop-avatar"))
                 Column(Modifier.weight(1f)) {
                     Text(shopName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("shop-name"))
                     if (location.isNotBlank()) {
@@ -259,7 +264,7 @@ internal fun CollectionCard(
         Column(Modifier.padding(vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
             collection.shopName?.let { shop ->
                 Row(Modifier.padding(horizontal = Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-                    InitialAvatar(shop, 32.dp)
+                    Avatar(shop, collection.sellerId, collection.sellerPhotoVersion, 32.dp)
                     Column(Modifier.weight(1f)) {
                         Text(shop, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         collection.createdAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }

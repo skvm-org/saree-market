@@ -82,7 +82,7 @@ data class StatusEntry(val status: OrderStatus = OrderStatus.UNKNOWN, val at: St
 
 /** The customer, as the seller sees them. Only the seller's view carries it. */
 @Serializable
-data class OrderParty(val name: String, val phone: String)
+data class OrderParty(val name: String, val phone: String, val id: Long? = null, val photoVersion: Long? = null)
 
 /** Both are required: the courier the parcel went with and the number the customer can track it by. */
 @Serializable
