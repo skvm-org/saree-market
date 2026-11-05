@@ -2,9 +2,9 @@
 
 ## Goal
 
-Replace scrolling through WhatsApp groups with one app where buying a saree is a few taps. Sellers list their sarees in collections and say how many pieces they have. Customers (shopkeepers who resell, and anyone else) find sarees across all sellers by keyword, filters or a photo, add them to a cart, and check out. Each seller gets their own order, is paid directly by UPI, confirms the payment, and packs and ships it.
+Replace scrolling through WhatsApp groups with one app where buying a saree is a few taps. Sellers list their sarees in collections and say how many pieces they have. Customers (shopkeepers who resell, and anyone else) find sarees across all sellers by keyword, filters or a photo, add them to a cart, and check out. Each seller gets their own order, is paid directly by UPI, and ships it, adding the courier's tracking number for the customer.
 
-The app moves the order and the paperwork, not the money: customers pay the seller's UPI ID outside the app and enter the UTR (the transaction reference) as proof, and the seller checks their own bank or UPI app before confirming. There is no payment gateway.
+The app moves the order and the paperwork, not the money: customers pay the seller's UPI ID outside the app and enter the UTR (the transaction reference) as proof. The order is confirmed as soon as the UTR is submitted; the seller checks their own bank or UPI app and cancels it with a reason if the money never arrived. There is no payment gateway.
 
 ## Frontends
 
@@ -31,7 +31,7 @@ Seller contact details are visible only to logged-in customers and admins. A sel
 - **Item** — one saree design = one photo. Inherits collection defaults; can override colour and price. The seller sets a **quantity** (pieces in stock, 0 to 10,000) and a mark, `AVAILABLE` or `SOLD_OUT`. A saree can be ordered only when it is marked available and has at least one piece
 - **Cart** — sarees a customer means to buy, grouped by seller. Nothing is reserved while it sits in the cart
 - **Payment hold** — checkout reserves the pieces for 2 hours, one hold per seller, while the customer pays that seller's UPI ID. No order exists until the customer submits the UTR
-- **Order** — made when the customer submits the UTR; the seller confirms the payment, packs, ships and delivers it. Prices, address and shipping fee are copied into the order so later edits do not change it
+- **Order** — made, already confirmed, when the customer submits the UTR; the seller then adds the courier and tracking number to ship it, and the customer marks it received. Prices, address and shipping fee are copied into the order so later edits do not change it
 - **Follow** — a customer subscribes to a seller, like joining that seller's WhatsApp group. Sellers are publishers, customers are subscribers. Following controls notifications only; search always covers every seller
 - **Notification** — an in-app message to a follower when a followed seller publishes new sarees
 
@@ -51,14 +51,14 @@ cart_line       customer_id, item_id, quantity, added_at, updated_at   PK (custo
 payment_hold    id, customer_id, seller_id, items_total, shipping_fee, grand_total, address (JSONB), customer_note, created_at, expires_at   unique (customer_id, seller_id)
 hold_line       id, hold_id, item_id, title, colour, unit_price, quantity
 customer_order  id, customer_id, seller_id, status, items_total, shipping_fee, grand_total, address (JSONB), customer_note,
-                payment_reference (the 12-digit UTR), payment_proof_key, rejection_reason, rejection_count, payment_deadline,
+                payment_reference (the 12-digit UTR), payment_proof_key, rejection_reason, rejection_count, payment_deadline (the last three are unused since V17 and are dropped by a later migration),
                 cancel_reason, cancelled_by, courier, tracking_number, customer_unread, seller_unread, created_at, updated_at
 order_line      id, order_id, item_id, title, colour, unit_price, quantity
 order_status_history  id, order_id, status, at
 ```
 
 - Notification types: `NEW_COLLECTION`, `ITEMS_ADDED` (new photos added to an existing collection), `BACK_IN_STOCK` (items switched from sold out to available)
-- Order statuses: `PAYMENT_SUBMITTED`, `PAYMENT_REJECTED`, `CONFIRMED`, `PACKED`, `SHIPPED`, `DELIVERED`, `CANCELLED`
+- Order statuses: `CONFIRMED`, `SHIPPED`, `DELIVERED`, `CANCELLED`. `PAYMENT_SUBMITTED`, `PAYMENT_REJECTED` and `PACKED` belong to the earlier flow; V17 moved every order off them, and the names stay in the database constraint until a later migration
 - The follow and notification tables keep the column name `reseller_id` from when the role was called reseller
 - Index: `seller_follow(seller_id)` for fan-out, `notification(reseller_id, read_at, created_at)` for the bell; a unique index on `customer_order(payment_reference)` for live orders, so one payment cannot back two orders
 
@@ -147,16 +147,17 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 
 ### 7. Checkout, payment hold and order
 - **Pay <shop>** in the cart starts checkout for that seller: choose an address, add a note, continue. Checkout reserves what is available (a short line is reserved at the available count and the customer is told) and creates one payment hold, valid for 2 hours. A customer has at most 3 holds, one per seller. A hold the customer cancels or lets lapse gives the pieces back
-- The hold screen shows the total, a countdown, the seller's UPI ID with Copy and **Pay with UPI app** (a `upi://pay` link), and asks for the 12-digit **UTR** (required) and an optional screenshot. **I have paid** turns the hold into an order awaiting the seller and takes the order's lines out of the cart
+- The hold screen shows the total, a countdown, the seller's UPI ID with Copy and **Pay with UPI app** (a `upi://pay` link), and asks for the 12-digit **UTR** (required) and an optional screenshot. **I have paid** turns the hold into a confirmed order and takes the order's lines out of the cart; the seller is told it is new
 - The UTR must be exactly 12 digits and not already used by a live order; the screenshot must be a real image and is seen only by that customer and seller
-- A customer can cancel an order until the seller has confirmed it; stock is returned. If the seller says the payment was not found, the customer gets 2 hours to send a correct UTR (once); a second rejection, or the time running out, cancels the order
-- Order screen: a timeline, the lines, the address, courier and tracking when shipped, and the seller's reason when rejected or cancelled
+- A customer can cancel an order until it ships (optional reason); stock is returned and the seller is told. The app does not refund: the cancel dialog says the customer settles the refund with the seller. A seller can cancel the same way, with a reason, for example when the payment never arrived
+- Order screen: a timeline (Confirmed, Shipped, Delivered), the lines, the address, and once shipped the courier and tracking number with a **Copy** button. A shipped order has a **Received** button that marks it delivered. A cancelled order shows who cancelled it and why
+- When the seller adds the tracking number the customer gets a notification that carries the courier and number; if the seller corrects it, the customer is told again
 - Alerts: the Orders tab shows a badge (unread updates plus payments in progress); the 15-minute background check shows an Android notification for order updates
 
 ### 8. Seller: orders
-- Orders tab with five filters: To confirm, To pack, To ship, Shipped, All (counts from the server). Each order shows the customer's name and phone with Call and WhatsApp, the lines, the city and PIN, the total, the UTR and a **View screenshot** link
-- **Payment received** asks "Did ₹X arrive with UTR …? Check your bank or UPI app first" before confirming. **Not found** and **Cancel order** need a reason. **Mark packed**, **Ship** (courier and tracking number optional) and **Mark delivered** move the order along; a shipped order can no longer be cancelled. The Orders tab badge counts orders waiting for confirmation
-- The 15-minute background check tells a seller about new orders to confirm
+- Orders tab with three filters: To ship (confirmed orders waiting for a tracking number), Shipped, All (counts from the server). Each order shows the customer's name and phone with Call and WhatsApp, the lines, the city and PIN, the total, the UTR and a **View screenshot** link
+- **Add tracking** takes the courier name and the tracking number, both required, and ships the order; a shipped order has **Edit tracking** to correct a typo. **Cancel order** needs a reason and is available until the order ships. There is no payment-confirm, pack or deliver step: the customer marks the order received. The Orders tab badge counts orders still to ship
+- The 15-minute background check tells a seller about new orders to ship
 
 ### 9. Admin (minimal, backend only in the MVP)
 - No admin screens in the Android app. Admin is the seeded user plus the endpoints below, covered by integration tests; admin screens come with the Angular app
@@ -193,9 +194,10 @@ With ~100 sellers posting daily and ~15 customers, notifying everyone of everyth
 | GET | /orders/mine?state=&page= | Customer |
 | GET | /orders/received?state=&page= | Seller |
 | GET | /orders/{id}, /orders/{id}/proof | The order's customer or seller |
-| POST | /orders/{id}/payment (multipart; after a rejection) | Customer |
-| POST | /orders/{id}/confirm-payment, /reject-payment (reason), /pack, /ship (courier, trackingNumber), /deliver | Seller (own) |
-| POST | /orders/{id}/cancel (the seller gives a reason) | Customer, Seller |
+| POST | /orders/{id}/ship (courier, trackingNumber, both required) | Seller (own) |
+| PUT | /orders/{id}/tracking (courier, trackingNumber) | Seller (own, while shipped) |
+| POST | /orders/{id}/receive | Customer (own, while shipped) |
+| POST | /orders/{id}/cancel (the seller gives a reason; the customer's is optional) | Customer, Seller (until shipped) |
 | GET | /orders/summary | Customer, Seller |
 | POST | /orders/seen | Customer, Seller |
 | GET | /images/{itemId}/full, /images/{itemId}/thumb | Logged-in users |
@@ -225,8 +227,8 @@ Layouts come from `docs/design/stitch/v2/code.html` (one `screen-*` section each
 | My sellers (`screen-my-sellers`) | /my-sellers | Customer | Followed sellers, mute, unfollow |
 | Notifications (`screen-notifications`) | /notifications | Customer | Notification list; bell icon in the top bar on every screen |
 | Wishlist, Cart, Checkout sheet (customer app, no Stitch screen) | /wishlist, /cart | Customer | Saved sarees; cart grouped by seller with Pay buttons; address choice before paying |
-| Payment hold, Orders, Order detail (customer app, no Stitch screen) | /holds/:id, /orders, /orders/:id | Customer | Pay by UPI and enter the UTR; list and follow orders; resend a corrected UTR; cancel |
-| Orders, Shop settings (seller app, no Stitch screen) | /seller/orders, /seller/shop | Seller | Confirm, reject, pack, ship, deliver; UPI ID and shipping fee |
+| Payment hold, Orders, Order detail (customer app, no Stitch screen) | /holds/:id, /orders, /orders/:id | Customer | Pay by UPI and enter the UTR; list and follow orders; copy the tracking number; mark received; cancel before it ships |
+| Orders, Shop settings (seller app, no Stitch screen) | /seller/orders, /seller/shop | Seller | Add or edit tracking, cancel; UPI ID and shipping fee |
 | Desktop catalog (`screen-desktop-catalog`) | /catalog (wide) | Customer | Web layout only; not built in Android |
 | Admin (`screen-admin`) | /admin | Admin | Phase 2 only; users |
 

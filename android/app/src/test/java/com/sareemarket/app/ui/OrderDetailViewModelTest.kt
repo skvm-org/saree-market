@@ -17,7 +17,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -48,83 +47,77 @@ class OrderDetailViewModelTest {
     }
 
     @Test
-    fun resubmitNeedsTwelveDigitsAndARejectedOrder() {
-        api.onOrder = { order(it, OrderStatus.PAYMENT_REJECTED) }
-        val vm = vm()
-
-        vm.onUtr("41234567890")
-        vm.resubmit()
-        assertTrue(api.calls.none { it.startsWith("resubmit") })
-
-        vm.onUtr("412345678902")
-        vm.resubmit()
-        assertTrue("resubmit 5 false" in api.calls)
-    }
-
-    @Test
-    fun resubmitIsIgnoredWhenTheOrderIsNotRejected() {
+    fun receiveWorksOnlyForAShippedOrderAndReplacesIt() {
         api.onOrder = { order(it, OrderStatus.CONFIRMED) }
-        val vm = vm()
-        vm.onUtr("412345678902")
+        val waiting = vm()
+        waiting.receive()
+        assertTrue(api.calls.none { it.startsWith("receive") })
 
-        vm.resubmit()
+        api.onOrder = { order(it, OrderStatus.SHIPPED, courier = "DTDC", trackingNumber = "D123") }
+        val shipped = vm()
+        shipped.receive()
 
-        assertTrue(api.calls.none { it.startsWith("resubmit") })
+        assertTrue("receive 5" in api.calls)
+        assertEquals(OrderStatus.DELIVERED, shipped.state.value.order?.status)
+        assertFalse(shipped.state.value.busy)
     }
 
     @Test
-    fun resubmitReplacesTheOrderAndClearsTheForm() {
-        api.onOrder = { order(it, OrderStatus.PAYMENT_REJECTED) }
-        api.onPay = { id, _, _ -> order(id, OrderStatus.PAYMENT_SUBMITTED) }
+    fun aFailedReceiveShowsTheMessageAndKeepsTheOrder() {
+        api.onOrder = { order(it, OrderStatus.SHIPPED) }
+        api.onReceive = { throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is DELIVERED"}""") }
         val vm = vm()
-        vm.onUtr("412345678902")
-        vm.onProof("content://proof/1")
 
-        vm.resubmit()
+        vm.receive()
 
-        assertEquals(OrderStatus.PAYMENT_SUBMITTED, vm.state.value.order?.status)
-        assertEquals("", vm.state.value.utr)
-        assertNull(vm.state.value.proof)
-        assertTrue("resubmit 5 true" in api.calls)
+        assertEquals("This can't be done to an order that is DELIVERED", vm.state.value.actionError)
+        assertEquals(OrderStatus.SHIPPED, vm.state.value.order?.status)
     }
 
     @Test
-    fun aRefusedResubmitShowsTheServersMessage() {
-        api.onOrder = { order(it, OrderStatus.PAYMENT_REJECTED) }
-        api.onPay = { _, _, _ -> throw httpError(409, """{"code":"UTR_IN_USE","message":"That UTR is already used on another order"}""") }
-        val vm = vm()
-        vm.onUtr("412345678902")
-
-        vm.resubmit()
-
-        assertEquals("That UTR is already used on another order", vm.state.value.actionError)
-        assertEquals(OrderStatus.PAYMENT_REJECTED, vm.state.value.order?.status)
-    }
-
-    @Test
-    fun cancelWorksOnlyForSubmittedOrRejectedOrders() {
+    fun cancelWorksOnlyForAConfirmedOrder() {
         api.onOrder = { order(it, OrderStatus.SHIPPED) }
         val shipped = vm()
         shipped.cancel()
         assertTrue(api.calls.none { it.startsWith("cancel") })
 
-        api.onOrder = { order(it, OrderStatus.PAYMENT_SUBMITTED) }
+        api.onOrder = { order(it, OrderStatus.CONFIRMED) }
         val waiting = vm()
-        waiting.cancel()
+        waiting.cancel("Ordered by mistake")
 
-        assertTrue("cancel 5" in api.calls)
+        assertTrue("cancel 5 Ordered by mistake" in api.calls)
         assertEquals(OrderStatus.CANCELLED, waiting.state.value.order?.status)
     }
 
     @Test
-    fun aFailedCancelShowsTheMessageAndKeepsTheOrder() {
-        api.onOrder = { order(it, OrderStatus.PAYMENT_SUBMITTED) }
-        api.onCancel = { throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is CONFIRMED"}""") }
+    fun cancelWithoutAReasonSendsNone() {
+        api.onOrder = { order(it, OrderStatus.CONFIRMED) }
         val vm = vm()
 
         vm.cancel()
 
-        assertEquals("This can't be done to an order that is CONFIRMED", vm.state.value.actionError)
-        assertEquals(OrderStatus.PAYMENT_SUBMITTED, vm.state.value.order?.status)
+        assertTrue("cancel 5 null" in api.calls)
+    }
+
+    @Test
+    fun aFailedCancelShowsTheMessageAndKeepsTheOrder() {
+        api.onOrder = { order(it, OrderStatus.CONFIRMED) }
+        api.onCancel = { _, _ -> throw httpError(409, """{"code":"BAD_STATE","message":"This can't be done to an order that is SHIPPED"}""") }
+        val vm = vm()
+
+        vm.cancel()
+
+        assertEquals("This can't be done to an order that is SHIPPED", vm.state.value.actionError)
+        assertEquals(OrderStatus.CONFIRMED, vm.state.value.order?.status)
+    }
+
+    @Test
+    fun theTrackingNumberComesWithTheOrder() {
+        api.onOrder = { order(it, OrderStatus.SHIPPED, courier = "DTDC", trackingNumber = "D123") }
+
+        val vm = vm()
+
+        assertEquals("D123", vm.state.value.order?.trackingNumber)
+        assertEquals("DTDC", vm.state.value.order?.courier)
     }
 }

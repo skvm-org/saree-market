@@ -81,7 +81,7 @@ fun SellerNavHost(session: Session, onLogout: () -> Unit) {
                     location = shop?.marketLocation.orEmpty(),
                     onNewCollection = { nav.navigate(SELLER_NEW) },
                     onOpen = { id -> nav.navigate("collection/$id") },
-                    toConfirm = pending,
+                    toShip = pending,
                     onOpenOrders = { nav.navigate(SELLER_ORDERS) { popUpTo(HOME); launchSingleTop = true } },
                     hasUpiId = shopHasUpiId(shop),
                     onAddUpi = { nav.navigate(SHOP) },

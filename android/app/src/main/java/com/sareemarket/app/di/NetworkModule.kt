@@ -36,6 +36,8 @@ object NetworkModule {
     @Singleton
     fun json(): Json = Json {
         ignoreUnknownKeys = true
+        // A status or other enum value this app does not know decodes to the property's default instead of failing the page.
+        coerceInputValues = true
         explicitNulls = false
     }
 

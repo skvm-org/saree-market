@@ -61,9 +61,9 @@ class AlertPlannerTest {
     }
 
     @Test
-    fun announcesNewOrdersToConfirm() {
-        assertEquals("1 new order to confirm", AlertPlanner.orderText(2, 0, OrderSummary(toConfirm = 3)))
-        assertEquals("3 new orders to confirm", AlertPlanner.orderText(0, 0, OrderSummary(toConfirm = 3)))
+    fun announcesNewOrdersToShip() {
+        assertEquals("1 new order to ship", AlertPlanner.orderText(2, 0, OrderSummary(toShip = 3)))
+        assertEquals("3 new orders to ship", AlertPlanner.orderText(0, 0, OrderSummary(toShip = 3)))
     }
 
     @Test
@@ -84,23 +84,23 @@ class AlertPlannerTest {
     @Test
     fun theGenericOrderTextStaysWhenThereIsNothingSpecificToSay() {
         assertEquals(AlertPlanner.ORDER_UPDATED, AlertPlanner.orderUpdateText(AlertPlanner.ORDER_UPDATED, emptyList()))
-        assertEquals("2 new orders to confirm", AlertPlanner.orderUpdateText("2 new orders to confirm", listOf(note(1, type = NotificationType.ORDER_UPDATE))))
+        assertEquals("2 new orders to ship", AlertPlanner.orderUpdateText("2 new orders to ship", listOf(note(1, type = NotificationType.ORDER_UPDATE))))
     }
 
     @Test
     fun newOrdersWinOverUpdates() {
-        assertEquals("2 new orders to confirm", AlertPlanner.orderText(0, 0, OrderSummary(toConfirm = 2, unread = 5)))
+        assertEquals("2 new orders to ship", AlertPlanner.orderText(0, 0, OrderSummary(toShip = 2, unread = 5)))
     }
 
     @Test
     fun staysQuietWhenNothingRose() {
-        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toConfirm = 3, unread = 2)))
+        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toShip = 3, unread = 2)))
         assertNull(AlertPlanner.orderText(0, 0, OrderSummary()))
     }
 
     @Test
     fun staysQuietWhenCountsFell() {
         // answered or seen in the app: the next rise is announced against the lower mark
-        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toConfirm = 1, unread = 0)))
+        assertNull(AlertPlanner.orderText(3, 2, OrderSummary(toShip = 1, unread = 0)))
     }
 }

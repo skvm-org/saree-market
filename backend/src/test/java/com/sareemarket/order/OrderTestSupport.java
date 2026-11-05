@@ -90,10 +90,6 @@ abstract class OrderTestSupport extends IntegrationTestBase {
 		return mvc.perform(paymentRequest("/api/v1/holds/{id}/payment", holdId, token, utr, proof));
 	}
 
-	ResultActions repay(String token, long orderId, String utr, byte[] proof) throws Exception {
-		return mvc.perform(paymentRequest("/api/v1/orders/{id}/payment", orderId, token, utr, proof));
-	}
-
 	private MockMultipartHttpServletRequestBuilder paymentRequest(String path, long id, String token, String utr,
 			byte[] proof) {
 		MockMultipartHttpServletRequestBuilder request = multipart(path, id);

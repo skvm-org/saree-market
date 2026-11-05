@@ -123,8 +123,8 @@ public class CatalogService {
 				SELECT cc.id, cc.title, cc.price, cc.created_at,
 				       cc.seller_id, sp.shop_name,
 				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id) AS item_count,
-				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE') AS available,
-				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'SOLD_OUT') AS sold_out,
+				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND x.status = 'AVAILABLE' AND x.quantity > 0) AS available,
+				       (SELECT count(*) FROM item x WHERE x.collection_id = cc.id AND (x.status = 'SOLD_OUT' OR x.quantity = 0)) AS sold_out,
 				       (SELECT min(x.id) FROM item x WHERE x.collection_id = cc.id) AS cover
 				FROM collection cc
 				JOIN seller_profile sp ON sp.user_id = cc.seller_id

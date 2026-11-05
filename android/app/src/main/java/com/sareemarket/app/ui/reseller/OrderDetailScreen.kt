@@ -48,7 +48,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -68,6 +70,7 @@ import com.sareemarket.app.ui.components.SareeImage
 import com.sareemarket.app.ui.components.SecondaryButton
 import com.sareemarket.app.ui.components.SkeletonRows
 import com.sareemarket.app.ui.components.StatusPill
+import com.sareemarket.app.ui.seller.ReasonDialog
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.formatRupees
 import com.sareemarket.app.ui.theme.CardShape
@@ -80,38 +83,29 @@ import com.sareemarket.app.ui.timeRemaining
 import java.time.Instant
 import kotlinx.coroutines.delay
 
-/** One order: where it stands, what is in it, and what the customer can still do. */
+/** One order: where it stands, its tracking number, what is in it, and what the customer can still do. */
 @Composable
 fun OrderDetailScreen(onBack: () -> Unit, viewModel: OrderDetailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val now by produceState(Instant.now()) {
-        while (true) {
-            value = Instant.now()
-            delay(30_000L)
-        }
-    }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> viewModel.onProof(uri?.toString()) }
+    val clipboard = LocalClipboardManager.current
     OrderDetailContent(
-        state, now, onBack, viewModel::reload, viewModel::onUtr,
-        onPickProof = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-        onClearProof = { viewModel.onProof(null) },
-        onResubmit = viewModel::resubmit, onCancel = viewModel::cancel,
+        state, onBack, viewModel::reload,
+        onCopy = { clipboard.setText(AnnotatedString(it)) },
+        onReceive = viewModel::receive, onCancel = viewModel::cancel,
     )
 }
 
 @Composable
 fun OrderDetailContent(
     state: OrderDetailState,
-    now: Instant,
     onBack: () -> Unit,
     onRetry: () -> Unit,
-    onUtr: (String) -> Unit,
-    onPickProof: () -> Unit,
-    onClearProof: () -> Unit,
-    onResubmit: () -> Unit,
-    onCancel: () -> Unit,
+    onCopy: (String) -> Unit,
+    onReceive: () -> Unit,
+    onCancel: (String?) -> Unit,
 ) {
     var confirmingCancel by remember { mutableStateOf(false) }
+    var confirmingReceive by remember { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = Spacing.margin)) {
             BackHeader(state.order?.let { "Order #${it.id}" } ?: "Order", onBack)
@@ -127,7 +121,6 @@ fun OrderDetailContent(
                         OrderStatusPill(order.status, Modifier.testTag("order-status"))
                         Text(order.shopName, style = MaterialTheme.typography.titleLarge)
                     }
-                    if (order.status == OrderStatus.PAYMENT_REJECTED) RejectedBanner(order, state, now, onUtr, onPickProof, onClearProof, onResubmit)
                     if (order.status == OrderStatus.CANCELLED) {
                         Text(
                             "Cancelled by ${when (order.cancelledBy) { "CUSTOMER" -> "you"; "SELLER" -> order.shopName; else -> "the app" }}" +
@@ -137,13 +130,7 @@ fun OrderDetailContent(
                             modifier = Modifier.testTag("cancelled-note"),
                         )
                     }
-                    if (order.courier != null || order.trackingNumber != null) {
-                        Text(
-                            listOfNotNull(order.courier?.let { "Courier: $it" }, order.trackingNumber?.let { "Tracking: $it" }).joinToString("  ·  "),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.testTag("tracking"),
-                        )
-                    }
+                    if (order.courier != null || order.trackingNumber != null) TrackingCard(order, onCopy)
                     Timeline(order)
                     order.lines.forEach { line ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -168,7 +155,11 @@ fun OrderDetailContent(
                     )
                     order.paymentReference?.let { Text("UTR $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     state.actionError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("action-error")) }
-                    if (order.status == OrderStatus.PAYMENT_SUBMITTED || order.status == OrderStatus.PAYMENT_REJECTED) {
+                    if (order.status == OrderStatus.SHIPPED) {
+                        PrimaryButton("Received", onClick = { confirmingReceive = true }, loading = state.busy, modifier = Modifier.fillMaxWidth().testTag("receive-order"))
+                    }
+                    // Until the seller ships it the customer can still cancel; the app does not refund.
+                    if (order.status == OrderStatus.CONFIRMED) {
                         TextButton(onClick = { confirmingCancel = true }, enabled = !state.busy, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("cancel-order")) {
                             Text("Cancel order")
                         }
@@ -178,56 +169,43 @@ fun OrderDetailContent(
         }
     }
     if (confirmingCancel) {
+        ReasonDialog(
+            title = "Cancel this order?",
+            message = "The sarees go back on sale and ${state.order?.shopName ?: "the seller"} is told. The app does not refund you: " +
+                "ask ${state.order?.shopName ?: "the seller"} to send your money back.",
+            confirmLabel = "Cancel order",
+            onDismiss = { confirmingCancel = false },
+            required = false,
+        ) { reason -> confirmingCancel = false; onCancel(reason.ifEmpty { null }) }
+    }
+    if (confirmingReceive) {
         AlertDialog(
-            onDismissRequest = { confirmingCancel = false },
-            title = { Text("Cancel this order?") },
-            text = { Text("If you already paid, ask ${state.order?.shopName ?: "the seller"} for a refund.") },
+            onDismissRequest = { confirmingReceive = false },
+            modifier = Modifier.testTag("receive-dialog"),
+            title = { Text("Did the parcel arrive?") },
+            text = { Text("Mark it received once you have it with you.") },
             confirmButton = {
-                TextButton(onClick = { confirmingCancel = false; onCancel() }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("confirm-cancel-order")) { Text("Cancel order") }
+                TextButton(onClick = { confirmingReceive = false; onReceive() }, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("confirm-receive-order")) { Text("Yes, received") }
             },
-            dismissButton = { TextButton(onClick = { confirmingCancel = false }, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Keep") } },
+            dismissButton = { TextButton(onClick = { confirmingReceive = false }, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Not yet") } },
         )
     }
 }
 
+/** The courier and tracking number the seller entered, with a button that copies the number to track it elsewhere. */
 @Composable
-private fun RejectedBanner(
-    order: Order,
-    state: OrderDetailState,
-    now: Instant,
-    onUtr: (String) -> Unit,
-    onPickProof: () -> Unit,
-    onClearProof: () -> Unit,
-    onResubmit: () -> Unit,
-) {
-    val deadline = order.paymentDeadline
-    val left = if (deadline == null) "" else timeRemaining(deadline, now)
-    Surface(shape = CardShape, color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth().testTag("rejected-banner")) {
-        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text("${order.shopName} could not find your payment", style = MaterialTheme.typography.titleMedium)
-            order.rejectionReason?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("rejection-reason")) }
-            if (left.isNotEmpty()) {
-                Text("Send the correct UTR within $left", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("rejection-deadline"))
-                OutlinedTextField(
-                    value = state.utr,
-                    onValueChange = onUtr,
-                    label = { Text("UTR / transaction ID") },
-                    supportingText = { Text("12 digits, shown in your UPI app after paying") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("resubmit-utr"),
-                )
-                if (state.proof == null) {
-                    OutlinedButton(onClick = onPickProof, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("pick-proof")) { Text("Add a screenshot (optional)") }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Screenshot added", modifier = Modifier.weight(1f))
-                        IconButton(onClick = onClearProof, modifier = Modifier.size(MinTouchTarget)) { Icon(Icons.Filled.Close, contentDescription = "Remove screenshot") }
-                    }
-                }
-                PrimaryButton("Send corrected UTR", onClick = onResubmit, loading = state.busy, enabled = state.utr.length == 12, modifier = Modifier.fillMaxWidth().testTag("resubmit"))
-            } else {
-                Text("The time to send it has passed. The order will be cancelled.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("rejection-ended"))
+private fun TrackingCard(order: Order, onCopy: (String) -> Unit) {
+    var copied by remember(order.trackingNumber) { mutableStateOf(false) }
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, border = CardBorder, modifier = Modifier.fillMaxWidth().testTag("tracking-card")) {
+        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text("Tracking", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            order.courier?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("tracking-courier")) }
+            order.trackingNumber?.let { number ->
+                Text(number, style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("tracking-number"))
+                OutlinedButton(
+                    onClick = { onCopy(number); copied = true },
+                    modifier = Modifier.heightIn(min = MinTouchTarget).testTag("copy-tracking"),
+                ) { Text(if (copied) "Copied" else "Copy tracking number") }
             }
         }
     }

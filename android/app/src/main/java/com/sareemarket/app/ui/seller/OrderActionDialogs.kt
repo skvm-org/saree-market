@@ -79,29 +79,16 @@ import kotlinx.coroutines.delay
 private const val MAX_REASON = 200
 private const val MAX_DETAIL = 60
 
-/** Confirming a payment is the one step that is hard to undo, so the seller sees exactly what to check. */
+/** Asks for a reason; the button stays off until there is one, unless the reason is optional ([required] false). */
 @Composable
-internal fun ConfirmPaymentDialog(order: Order, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.testTag("confirm-payment-dialog"),
-        title = { Text("Payment received?") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Text("Did ${formatRupees(order.grandTotal)} arrive in your account with UTR ${order.paymentReference ?: "(none)"}?", style = MaterialTheme.typography.bodyLarge)
-                Text("Check your bank or UPI app first. A screenshot can be faked.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm, modifier = Modifier.heightIn(min = MinTouchTarget).testTag("confirm-payment-yes")) { Text("Yes, it arrived") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Not yet") } },
-    )
-}
-
-/** Asks for the reason the customer will read; the button stays off until there is one. */
-@Composable
-internal fun ReasonDialog(title: String, message: String, confirmLabel: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+internal fun ReasonDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    required: Boolean = true,
+    onConfirm: (String) -> Unit,
+) {
     var reason by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -113,40 +100,51 @@ internal fun ReasonDialog(title: String, message: String, confirmLabel: String, 
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it.take(MAX_REASON) },
-                    label = { Text("Reason") },
+                    label = { Text(if (required) "Reason" else "Reason (optional)") },
                     supportingText = { Text("${reason.length}/$MAX_REASON") },
                     modifier = Modifier.fillMaxWidth().testTag("reason"),
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(reason.trim()) }, enabled = reason.isNotBlank(), modifier = Modifier.heightIn(min = MinTouchTarget).testTag("reason-confirm")) { Text(confirmLabel) }
+            TextButton(onClick = { onConfirm(reason.trim()) }, enabled = !required || reason.isNotBlank(), modifier = Modifier.heightIn(min = MinTouchTarget).testTag("reason-confirm")) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Back") } },
     )
 }
 
-/** Courier and tracking number are both optional: plenty of sellers hand the parcel to a local transport. */
+/**
+ * Courier and tracking number, both required, so the customer can follow the parcel. Used to add them when shipping
+ * and, with the current values filled in, to correct them afterwards. The button stays off until both are filled in.
+ */
 @Composable
-internal fun ShipDialog(onDismiss: () -> Unit, onConfirm: (String?, String?) -> Unit) {
-    var courier by remember { mutableStateOf("") }
-    var tracking by remember { mutableStateOf("") }
+internal fun TrackingDialog(
+    title: String,
+    confirmLabel: String,
+    initialCourier: String,
+    initialTracking: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit,
+) {
+    var courier by remember { mutableStateOf(initialCourier) }
+    var tracking by remember { mutableStateOf(initialTracking) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.testTag("ship-dialog"),
-        title = { Text("Ship this order") },
+        modifier = Modifier.testTag("tracking-dialog"),
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Text("Both are optional. The customer sees them on their order.", style = MaterialTheme.typography.bodyMedium)
+                Text("Enter these once the courier has the parcel. The customer is notified and can copy the number.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(courier, { courier = it.take(MAX_DETAIL) }, label = { Text("Courier") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("courier"))
                 OutlinedTextField(tracking, { tracking = it.take(MAX_DETAIL) }, label = { Text("Tracking number") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("tracking"))
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(courier.trim().ifEmpty { null }, tracking.trim().ifEmpty { null }) },
-                modifier = Modifier.heightIn(min = MinTouchTarget).testTag("ship-confirm"),
-            ) { Text("Mark shipped") }
+                onClick = { onConfirm(courier.trim(), tracking.trim()) },
+                enabled = courier.isNotBlank() && tracking.isNotBlank(),
+                modifier = Modifier.heightIn(min = MinTouchTarget).testTag("tracking-confirm"),
+            ) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouchTarget)) { Text("Back") } },
     )

@@ -2,16 +2,18 @@ package com.sareemarket.app.data
 
 import kotlinx.serialization.Serializable
 
-/** PAYMENT_REJECTED: the seller could not find the payment, and the customer has two hours to send a correct UTR. */
+/**
+ * An order is CONFIRMED when the customer submits the UTR, SHIPPED when the seller adds the tracking number and
+ * DELIVERED when the customer taps Received. [UNKNOWN] is any status a newer server sends that this app does not know,
+ * so one new value cannot fail a whole page of orders (see `coerceInputValues` in the network module).
+ */
 @Serializable
 enum class OrderStatus(val label: String) {
-    PAYMENT_SUBMITTED("Waiting for seller"),
-    PAYMENT_REJECTED("Payment not found"),
     CONFIRMED("Confirmed"),
-    PACKED("Packed"),
     SHIPPED("Shipped"),
     DELIVERED("Delivered"),
-    CANCELLED("Cancelled");
+    CANCELLED("Cancelled"),
+    UNKNOWN("Updated");
 
     val isActive: Boolean get() = this != DELIVERED && this != CANCELLED
 }
@@ -72,17 +74,15 @@ data class CheckoutResult(
 )
 
 @Serializable
-data class StatusEntry(val status: OrderStatus, val at: String)
+data class StatusEntry(val status: OrderStatus = OrderStatus.UNKNOWN, val at: String)
 
 /** The customer, as the seller sees them. Only the seller's view carries it. */
 @Serializable
 data class OrderParty(val name: String, val phone: String)
 
+/** Both are required: the courier the parcel went with and the number the customer can track it by. */
 @Serializable
-data class RejectBody(val reason: String)
-
-@Serializable
-data class ShipBody(val courier: String? = null, val trackingNumber: String? = null)
+data class ShipBody(val courier: String, val trackingNumber: String)
 
 @Serializable
 data class CancelBody(val reason: String? = null)
@@ -90,7 +90,7 @@ data class CancelBody(val reason: String? = null)
 @Serializable
 data class Order(
     val id: Long,
-    val status: OrderStatus,
+    val status: OrderStatus = OrderStatus.UNKNOWN,
     val sellerId: Long,
     val shopName: String,
     val sellerUpiId: String? = null,
@@ -102,9 +102,6 @@ data class Order(
     val note: String? = null,
     val paymentReference: String? = null,
     val hasProof: Boolean = false,
-    val rejectionReason: String? = null,
-    /** Set while PAYMENT_REJECTED: the customer must send a correct UTR before this instant. */
-    val paymentDeadline: String? = null,
     val cancelReason: String? = null,
     val cancelledBy: String? = null,
     val courier: String? = null,
@@ -124,8 +121,7 @@ data class OrderPage(val items: List<Order>, val page: Int, val pageSize: Int, v
 data class OrderSummary(
     val unread: Int = 0,
     val activeHolds: Int = 0,
-    val toConfirm: Int = 0,
-    val toPack: Int = 0,
+    /** Seller only: confirmed orders still waiting for a tracking number. */
     val toShip: Int = 0,
     val shipped: Int = 0,
 )

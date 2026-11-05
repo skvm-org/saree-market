@@ -1,8 +1,8 @@
 package com.sareemarket.order.dto;
 
 /**
- * What the app badge and alerts need. Customers: unread order updates and payments in progress. Sellers: orders
- * waiting for confirmation, packing and shipping, shipped ones, and unread.
+ * What the app badge and alerts need. Customers: unread order updates and payments in progress. Sellers: unread
+ * orders, orders still to ship (confirmed) and shipped ones.
  */
-public record OrderSummaryDto(int unread, int activeHolds, int toConfirm, int toPack, int toShip, int shipped) {
+public record OrderSummaryDto(int unread, int activeHolds, int toShip, int shipped) {
 }

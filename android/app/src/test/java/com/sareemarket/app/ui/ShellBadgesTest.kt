@@ -14,7 +14,7 @@ class ShellBadgesTest {
 
     @Test
     fun theOrdersBadgeIgnoresTheSellerOnlyCounts() {
-        assertEquals(0L, orderBadge(OrderSummary(toConfirm = 4, toPack = 2, toShip = 1, shipped = 9)))
+        assertEquals(0L, orderBadge(OrderSummary(toShip = 4, shipped = 9)))
     }
 
     @Test

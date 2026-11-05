@@ -2,9 +2,12 @@ package com.sareemarket.app.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import com.sareemarket.app.data.AddressSnapshot
 import com.sareemarket.app.data.Hold
 import com.sareemarket.app.data.Order
@@ -31,18 +34,16 @@ class OrdersScreenTest {
 
     private fun order(
         id: Long,
-        status: OrderStatus = OrderStatus.PAYMENT_SUBMITTED,
+        status: OrderStatus = OrderStatus.CONFIRMED,
         unread: Boolean = false,
-        deadline: String? = null,
-        reason: String? = null,
         courier: String? = null,
         tracking: String? = null,
         cancelledBy: String? = null,
         cancelReason: String? = null,
     ) = Order(
         id, status, 1, "Lakshmi Silks", "lakshmi@okaxis", listOf(OrderLine(10, "Diwali silks", "maroon", 800, 1)), 800, 50, 850,
-        address, null, "412345678901", false, reason, deadline, cancelReason, cancelledBy, courier, tracking, unread,
-        "2026-10-28T09:00:00Z", "2026-10-28T09:00:00Z", listOf(StatusEntry(OrderStatus.PAYMENT_SUBMITTED, "2026-10-28T09:00:00Z")),
+        address, null, "412345678901", false, cancelReason, cancelledBy, courier, tracking, unread,
+        "2026-10-28T09:00:00Z", "2026-10-28T09:00:00Z", listOf(StatusEntry(OrderStatus.CONFIRMED, "2026-10-28T09:00:00Z")),
     )
 
     private val hold = Hold(
@@ -56,31 +57,28 @@ class OrdersScreenTest {
         SareeTheme { OrdersContent(state, now, { openedOrder = it }, { openedHold = it }, {}, {}, {}) }
     }
 
-    private var utr = ""
-    private var resubmitted = false
-    private var cancelled = false
+    private var copied: String? = null
+    private var received = false
+    private var cancelReason: String? = "unset"
 
     private fun showDetail(state: OrderDetailState) = compose.setContent {
         SareeTheme {
-            OrderDetailContent(state, now, {}, {}, { utr = it }, {}, {}, { resubmitted = true }, { cancelled = true })
+            OrderDetailContent(state, {}, {}, { copied = it }, { received = true }, { cancelReason = it })
         }
     }
 
     @Test
-    fun aRejectedOrderSaysWhatToDoAndComesFirst() {
-        showList(OrdersState(items = listOf(order(1, OrderStatus.DELIVERED), order(2, OrderStatus.PAYMENT_REJECTED, deadline = "2026-10-28T11:30:00Z")), loading = false))
+    fun aConfirmedOrderSaysItIsWaitingForTheSellerToShip() {
+        showList(OrdersState(items = listOf(order(3)), loading = false))
 
-        compose.onNodeWithTag("next-2", useUnmergedTree = true).assertTextContains("Send the right UTR within", substring = true)
-        val top = compose.onNodeWithTag("order-2").fetchSemanticsNode().boundsInRoot.top
-        val below = compose.onNodeWithTag("order-1").fetchSemanticsNode().boundsInRoot.top
-        assert(top < below) { "rejected order should be above the delivered one" }
+        compose.onNodeWithTag("next-3", useUnmergedTree = true).assertTextContains("Waiting for the seller to ship", substring = true)
     }
 
     @Test
-    fun aSubmittedOrderSaysItIsWaitingForTheSeller() {
-        showList(OrdersState(items = listOf(order(3)), loading = false))
+    fun aShippedOrderSaysItIsOnItsWay() {
+        showList(OrdersState(items = listOf(order(3, OrderStatus.SHIPPED, courier = "DTDC", tracking = "D123")), loading = false))
 
-        compose.onNodeWithTag("next-3", useUnmergedTree = true).assertTextContains("Waiting for the seller", substring = true)
+        compose.onNodeWithTag("next-3", useUnmergedTree = true).assertTextContains("On its way", substring = true)
     }
 
     @Test
@@ -131,30 +129,35 @@ class OrdersScreenTest {
     }
 
     @Test
-    fun aRejectedOrderShowsTheReasonAndTheResubmitForm() {
-        showDetail(OrderDetailState(order(5, OrderStatus.PAYMENT_REJECTED, reason = "Not received", deadline = "2026-10-28T11:30:00Z"), loading = false, utr = "412345678902"))
-
-        compose.onNodeWithTag("rejection-reason", useUnmergedTree = true).assertTextContains("Not received")
-        compose.onNodeWithTag("rejection-deadline", useUnmergedTree = true).assertTextContains("1 h 30 min", substring = true)
-        compose.onNodeWithTag("resubmit").performClick()
-        assertEquals(true, resubmitted)
-    }
-
-    @Test
-    fun aRejectedOrderPastItsDeadlineHidesTheForm() {
-        showDetail(OrderDetailState(order(5, OrderStatus.PAYMENT_REJECTED, reason = "Not received", deadline = "2026-10-28T09:00:00Z"), loading = false))
-
-        compose.onNodeWithTag("rejection-ended", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithTag("resubmit-utr").assertDoesNotExist()
-    }
-
-    @Test
-    fun aShippedOrderShowsCourierAndTracking() {
+    fun aShippedOrderShowsCourierAndTrackingNumberAndCopiesTheNumber() {
         showDetail(OrderDetailState(order(5, OrderStatus.SHIPPED, courier = "DTDC", tracking = "D123"), loading = false))
 
-        compose.onNodeWithTag("tracking").assertTextContains("DTDC", substring = true)
-        compose.onNodeWithTag("tracking").assertTextContains("D123", substring = true)
+        compose.onNodeWithTag("tracking-courier", useUnmergedTree = true).assertTextContains("DTDC")
+        compose.onNodeWithTag("tracking-number", useUnmergedTree = true).assertTextContains("D123")
+        compose.onNodeWithTag("copy-tracking").performClick()
+
+        assertEquals("D123", copied)
+        compose.onNodeWithTag("copy-tracking").assertTextContains("Copied")
+    }
+
+    @Test
+    fun aShippedOrderCannotBeCancelledButCanBeMarkedReceivedAfterConfirming() {
+        showDetail(OrderDetailState(order(5, OrderStatus.SHIPPED, courier = "DTDC", tracking = "D123"), loading = false))
+
         compose.onNodeWithTag("cancel-order").assertDoesNotExist()
+        compose.onNodeWithTag("receive-order").performClick()
+        assertEquals(false, received)
+        compose.onNodeWithTag("confirm-receive-order").performClick()
+
+        assertEquals(true, received)
+    }
+
+    @Test
+    fun aConfirmedOrderHasNoTrackingAndNoReceivedButton() {
+        showDetail(OrderDetailState(order(5), loading = false))
+
+        compose.onNodeWithTag("tracking-card").assertDoesNotExist()
+        compose.onNodeWithTag("receive-order").assertDoesNotExist()
     }
 
     @Test
@@ -163,16 +166,30 @@ class OrdersScreenTest {
 
         compose.onNodeWithTag("cancelled-note").assertTextContains("Lakshmi Silks", substring = true)
         compose.onNodeWithTag("cancelled-note").assertTextContains("Sold in shop", substring = true)
+        compose.onNodeWithTag("cancel-order").assertDoesNotExist()
     }
 
     @Test
-    fun cancelAsksForConfirmationFirst() {
+    fun cancellingAConfirmedOrderWarnsAboutTheRefundAndTheReasonIsOptional() {
         showDetail(OrderDetailState(order(5), loading = false))
 
         compose.onNodeWithTag("cancel-order").performClick()
-        assertEquals(false, cancelled)
-        compose.onNodeWithTag("confirm-cancel-order").performClick()
+        compose.onNodeWithText("The app does not refund you", substring = true).assertIsDisplayed()
+        compose.onNodeWithTag("reason-confirm").assertIsEnabled()
+        assertEquals("unset", cancelReason)
+        compose.onNodeWithTag("reason-confirm").performClick()
 
-        assertEquals(true, cancelled)
+        assertEquals(null, cancelReason)
+    }
+
+    @Test
+    fun theCancelReasonIsSentWhenTyped() {
+        showDetail(OrderDetailState(order(5), loading = false))
+
+        compose.onNodeWithTag("cancel-order").performClick()
+        compose.onNodeWithTag("reason").performTextInput("Ordered by mistake")
+        compose.onNodeWithTag("reason-confirm").performClick()
+
+        assertEquals("Ordered by mistake", cancelReason)
     }
 }

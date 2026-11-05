@@ -15,15 +15,18 @@ import com.sareemarket.collection.dto.CollectionSummaryDto;
 public interface SareeCollectionRepository extends JpaRepository<SareeCollection, Long> {
 
 	/**
-	 * The seller's dashboard rows, newest first: for each collection the number of photos, how many are AVAILABLE
-	 * and SOLD_OUT, and the id of the first photo (null for an empty collection). The left join keeps empty
+	 * The seller's dashboard rows, newest first: for each collection the number of photos, how many can be ordered
+	 * (marked AVAILABLE with at least one piece) and how many cannot (marked SOLD_OUT, or no pieces left whatever the
+	 * mark says), and the id of the first photo (null for an empty collection). The left join keeps empty
 	 * collections. The preview list is left empty; fill it with previewItems().
 	 */
 	@Query("""
 			select new com.sareemarket.collection.dto.CollectionSummaryDto(
 			    c.id, c.title, c.price, c.createdAt,
-			    count(i), count(case when i.status = com.sareemarket.item.ItemStatus.AVAILABLE then 1 end),
-			    count(case when i.status = com.sareemarket.item.ItemStatus.SOLD_OUT then 1 end), min(i.id))
+			    count(i),
+			    count(case when i.status = com.sareemarket.item.ItemStatus.AVAILABLE and i.quantity > 0 then 1 end),
+			    count(case when i.status = com.sareemarket.item.ItemStatus.SOLD_OUT or i.quantity = 0 then 1 end),
+			    min(i.id))
 			from SareeCollection c
 			left join Item i on i.collectionId = c.id
 			where c.sellerId = :sellerId

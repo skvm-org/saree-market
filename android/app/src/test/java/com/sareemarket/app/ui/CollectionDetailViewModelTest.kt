@@ -239,6 +239,20 @@ class CollectionDetailViewModelTest {
     }
 
     @Test
+    fun aSareeWithNoPiecesLeftCountsAsSoldOutWhateverItsMark() {
+        api.get = { detail(items = listOf(item(10), item(11).copy(quantity = 0), item(12, status = ItemStatus.SOLD_OUT).copy(quantity = 4))) }
+
+        assertEquals(1, vm.state.value.availableCount)
+        assertEquals(2, vm.state.value.soldOutCount)
+        vm.setFilter(ItemFilter.SOLD_OUT)
+        assertEquals(listOf(11L, 12L), vm.state.value.visibleItems.map { it.id })
+        vm.setFilter(ItemFilter.AVAILABLE)
+        assertEquals(listOf(10L), vm.state.value.visibleItems.map { it.id })
+        // The "Mark all" menu still goes by the seller's mark.
+        assertEquals(2, vm.state.value.count(ItemStatus.AVAILABLE))
+    }
+
+    @Test
     fun markAllOffersUndoNamingHowManyChanged() {
         api.get = { detail(items = listOf(item(10), item(11, status = ItemStatus.SOLD_OUT), item(12))) }
         api.onSetAllStatus = { st -> detail(items = listOf(item(10, status = st), item(11, status = st), item(12, status = st))) }

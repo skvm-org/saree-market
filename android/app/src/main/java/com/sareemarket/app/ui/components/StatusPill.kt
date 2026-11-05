@@ -60,13 +60,13 @@ private fun readableOn(status: Color) = when (status) {
     else -> status
 }
 
-/** The state of an order, in the customer's words: waiting, problem, moving, done. */
+/** The state of an order: confirmed and shipped are neutral, cancelled is the problem, delivered is done. */
 @Composable
 fun OrderStatusPill(status: com.sareemarket.app.data.OrderStatus, modifier: Modifier = Modifier) {
     val color = when (status) {
-        com.sareemarket.app.data.OrderStatus.PAYMENT_SUBMITTED -> SareeColors.OnHold
-        com.sareemarket.app.data.OrderStatus.PAYMENT_REJECTED, com.sareemarket.app.data.OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
-        com.sareemarket.app.data.OrderStatus.CONFIRMED, com.sareemarket.app.data.OrderStatus.PACKED, com.sareemarket.app.data.OrderStatus.SHIPPED -> SareeColors.SlateNeutral
+        com.sareemarket.app.data.OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
+        com.sareemarket.app.data.OrderStatus.CONFIRMED, com.sareemarket.app.data.OrderStatus.SHIPPED,
+        com.sareemarket.app.data.OrderStatus.UNKNOWN -> SareeColors.SlateNeutral
         com.sareemarket.app.data.OrderStatus.DELIVERED -> SareeColors.Available
     }
     StatusPill(status.label, color, modifier)

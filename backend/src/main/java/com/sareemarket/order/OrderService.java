@@ -11,7 +11,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sareemarket.common.ApiException;
@@ -29,8 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Orders from the first payment proof onward. Every state change locks the order row, re-checks the status, writes
- * a history row and sets the other side's unread flag, so two clicks or a click racing the expiry job cannot both win.
- * Called by {@link OrderController} and by {@link OrderExpiryJob}. Uses plain SQL; it owns customer_order,
+ * a history row and sets the other side's unread flag, so two clicks cannot both win.
+ * Called by {@link OrderController}. Uses plain SQL; it owns customer_order,
  * order_line, order_status_history and the proof images, and returns stock through {@link StockReturn} on cancel.
  */
 @Service
@@ -53,14 +52,11 @@ public class OrderService {
 
 	private final ImageStorage storage;
 
-	private final TransactionTemplate tx;
-
 	private final org.springframework.context.ApplicationEventPublisher events;
 
 	OrderService(NamedParameterJdbcTemplate jdbc, JsonMapper json, ImageProcessor images, ImageStorage storage,
-			TransactionTemplate tx, org.springframework.context.ApplicationEventPublisher events) {
+			org.springframework.context.ApplicationEventPublisher events) {
 		this.events = events;
-		this.tx = tx;
 		this.jdbc = jdbc;
 		this.json = json;
 		this.images = images;
@@ -68,7 +64,7 @@ public class OrderService {
 	}
 
 	/**
-	 * The customer paid: the hold becomes an order awaiting the seller's confirmation. Copies the hold's totals,
+	 * The customer paid: the hold becomes a CONFIRMED order and the seller is told it is new. Copies the hold's totals,
 	 * address and lines into the order, removes the ordered sarees from the customer's cart and deletes the hold.
 	 * The hold's stock was already taken at checkout, so no stock changes here. The proof image is optional.
 	 *
@@ -97,7 +93,7 @@ public class OrderService {
 			orderId = jdbc.queryForObject("""
 					INSERT INTO customer_order (customer_id, seller_id, status, items_total, shipping_fee, grand_total,
 					                            address, customer_note, payment_reference, seller_unread)
-					SELECT customer_id, seller_id, 'PAYMENT_SUBMITTED', items_total, shipping_fee, grand_total, address,
+					SELECT customer_id, seller_id, 'CONFIRMED', items_total, shipping_fee, grand_total, address,
 					       customer_note, :utr, TRUE
 					FROM payment_hold WHERE id = :h RETURNING id""", params, Long.class);
 		}
@@ -116,7 +112,7 @@ public class OrderService {
 			jdbc.update("""
 					DELETE FROM cart_line WHERE customer_id = :c
 					  AND item_id IN (SELECT item_id FROM hold_line WHERE hold_id = :h AND item_id IS NOT NULL)""", params);
-			history(orderId, OrderStatus.PAYMENT_SUBMITTED);
+			history(orderId, OrderStatus.CONFIRMED);
 			jdbc.update("DELETE FROM payment_hold WHERE id = :h", params);
 		}
 		catch (RuntimeException e) {
@@ -174,100 +170,92 @@ public class OrderService {
 	}
 
 	/**
-	 * The customer cancels their own order. Allowed only before the seller has confirmed it (payment submitted or
-	 * rejected); stock goes back on sale.
+	 * The customer cancels their own order. Allowed only while it is CONFIRMED, before it ships. The stock goes back on
+	 * sale and the seller is told (unread flag) with the reason if one was given. The app does not refund: the seller
+	 * and customer settle that between themselves.
 	 *
+	 * @param reason optional, shown to the seller; blank is stored as null
 	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
 	 */
 	@Transactional
-	public OrderDto cancelByCustomer(long customerId, long orderId) {
+	public OrderDto cancelByCustomer(long customerId, long orderId, String reason) {
 		OrderStatus status = lock(orderId, Viewer.CUSTOMER, customerId);
-		if (status != OrderStatus.PAYMENT_SUBMITTED && status != OrderStatus.PAYMENT_REJECTED) {
+		if (status != OrderStatus.CONFIRMED) {
 			throw badState(status);
 		}
-		cancel(orderId, "CUSTOMER", null);
+		cancel(orderId, "CUSTOMER", blankToNull(reason));
 		return one(orderId, Viewer.CUSTOMER, customerId);
 	}
 
-	/** The seller's orders: ones waiting for payment confirmation first, then newest first. page is zero-based. */
+	/** The seller's orders: ones still to ship first, then newest first. page is zero-based. */
 	public PageDto<OrderDto> received(long sellerId, OrderStatus state, int page) {
 		return page(Viewer.SELLER, sellerId, state, page);
 	}
 
 	/**
-	 * The seller found the payment: PAYMENT_SUBMITTED to CONFIRMED.
+	 * The seller handed the parcel to a courier: CONFIRMED to SHIPPED. Courier and tracking number are both required;
+	 * the customer is notified with them.
 	 *
-	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
-	 */
-	@Transactional
-	public OrderDto confirmPayment(long sellerId, long orderId) {
-		return advance(sellerId, orderId, OrderStatus.PAYMENT_SUBMITTED, OrderStatus.CONFIRMED, "", new MapSqlParameterSource());
-	}
-
-	/**
-	 * CONFIRMED to PACKED.
-	 *
-	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
-	 */
-	@Transactional
-	public OrderDto pack(long sellerId, long orderId) {
-		return advance(sellerId, orderId, OrderStatus.CONFIRMED, OrderStatus.PACKED, "", new MapSqlParameterSource());
-	}
-
-	/**
-	 * PACKED to SHIPPED. Courier and tracking number are optional; blanks are stored as null.
-	 *
-	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
+	 * @throws ApiException 400 VALIDATION_ERROR (blank courier or tracking number), 404 NOT_FOUND, 409 BAD_STATE
 	 */
 	@Transactional
 	public OrderDto ship(long sellerId, long orderId, String courier, String trackingNumber) {
-		return advance(sellerId, orderId, OrderStatus.PACKED, OrderStatus.SHIPPED,
+		checkTracking(courier, trackingNumber);
+		return advance(sellerId, orderId, OrderStatus.CONFIRMED, OrderStatus.SHIPPED,
 				", courier = :courier, tracking_number = :tracking", new MapSqlParameterSource()
-					.addValue("courier", blankToNull(courier))
-					.addValue("tracking", blankToNull(trackingNumber)));
+					.addValue("courier", courier.strip())
+					.addValue("tracking", trackingNumber.strip()));
 	}
 
 	/**
-	 * SHIPPED to DELIVERED.
+	 * The seller corrects the courier or tracking number of a shipped order. The status does not change; the customer is
+	 * notified again.
 	 *
-	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
+	 * @throws ApiException 400 VALIDATION_ERROR (blank courier or tracking number), 404 NOT_FOUND, 409 BAD_STATE
+	 * (not shipped)
 	 */
 	@Transactional
-	public OrderDto deliver(long sellerId, long orderId) {
-		return advance(sellerId, orderId, OrderStatus.SHIPPED, OrderStatus.DELIVERED, "", new MapSqlParameterSource());
-	}
-
-	/**
-	 * The first rejection gives the customer two hours to send a correct UTR; the second cancels the order and puts
-	 * the stock back on sale. Only valid while the payment is submitted.
-	 *
-	 * @param reason shown to the customer; stored stripped
-	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE
-	 */
-	@Transactional
-	public OrderDto rejectPayment(long sellerId, long orderId, String reason) {
+	public OrderDto updateTracking(long sellerId, long orderId, String courier, String trackingNumber) {
+		checkTracking(courier, trackingNumber);
 		OrderStatus status = lock(orderId, Viewer.SELLER, sellerId);
-		if (status != OrderStatus.PAYMENT_SUBMITTED) {
+		if (status != OrderStatus.SHIPPED) {
 			throw badState(status);
 		}
-		Integer rejections = jdbc.queryForObject("SELECT rejection_count FROM customer_order WHERE id = :o",
-				new MapSqlParameterSource("o", orderId), Integer.class);
-		if (rejections > 0) {
-			cancel(orderId, "SELLER", reason.strip());
-		}
-		else {
-			setStatus(orderId, OrderStatus.PAYMENT_REJECTED,
-					", rejection_count = 1, rejection_reason = :reason, payment_deadline = now() + make_interval(hours => 2)",
-					new MapSqlParameterSource().addValue("reason", reason.strip()));
-		}
+		jdbc.update("""
+				UPDATE customer_order SET courier = :courier, tracking_number = :tracking, customer_unread = TRUE,
+				       updated_at = now() WHERE id = :o""", new MapSqlParameterSource("o", orderId)
+			.addValue("courier", courier.strip()).addValue("tracking", trackingNumber.strip()));
+		log.info("Order {} tracking updated", orderId);
+		events.publishEvent(new com.sareemarket.notification.event.OrderUpdated(orderId,
+				com.sareemarket.notification.event.OrderUpdated.TRACKING_UPDATED));
 		return one(orderId, Viewer.SELLER, sellerId);
 	}
 
 	/**
-	 * The seller cancels an order that has not shipped yet; the customer is told why and the stock goes back on sale.
+	 * The customer got the parcel: SHIPPED to DELIVERED. The seller is told through the unread flag; the customer is
+	 * not notified of their own action.
 	 *
-	 * @throws ApiException 400 VALIDATION_ERROR (blank reason), 404 NOT_FOUND, 409 BAD_STATE (shipped, delivered or
-	 * already cancelled)
+	 * @throws ApiException 404 NOT_FOUND, 409 BAD_STATE (not shipped)
+	 */
+	@Transactional
+	public OrderDto receive(long customerId, long orderId) {
+		OrderStatus status = lock(orderId, Viewer.CUSTOMER, customerId);
+		if (status != OrderStatus.SHIPPED) {
+			throw badState(status);
+		}
+		jdbc.update("""
+				UPDATE customer_order SET status = 'DELIVERED', seller_unread = TRUE, customer_unread = FALSE,
+				       updated_at = now() WHERE id = :o""", new MapSqlParameterSource("o", orderId));
+		history(orderId, OrderStatus.DELIVERED);
+		return one(orderId, Viewer.CUSTOMER, customerId);
+	}
+
+	/**
+	 * The seller cancels an order that has not shipped yet (it must still be CONFIRMED); the customer is told why and
+	 * the stock goes back on sale.
+	 *
+	 * @throws ApiException 400 VALIDATION_ERROR (blank reason), 404 NOT_FOUND, 409 BAD_STATE (not CONFIRMED: shipped,
+	 * delivered or already cancelled)
 	 */
 	@Transactional
 	public OrderDto cancelBySeller(long sellerId, long orderId, String reason) {
@@ -276,85 +264,11 @@ public class OrderService {
 					java.util.Map.of("reason", "tell the customer why"));
 		}
 		OrderStatus status = lock(orderId, Viewer.SELLER, sellerId);
-		if (status == OrderStatus.SHIPPED || status == OrderStatus.DELIVERED || status == OrderStatus.CANCELLED) {
+		if (status != OrderStatus.CONFIRMED) {
 			throw badState(status);
 		}
 		cancel(orderId, "SELLER", reason.strip());
 		return one(orderId, Viewer.SELLER, sellerId);
-	}
-
-	/**
-	 * The customer sends a corrected UTR (and optionally a new screenshot) after a rejection. The order returns to
-	 * PAYMENT_SUBMITTED and the old screenshot is deleted. Without a new screenshot the order keeps no proof.
-	 *
-	 * @throws ApiException 400 VALIDATION_ERROR (bad UTR), 404 NOT_FOUND, 409 BAD_STATE (not rejected),
-	 * 409 HOLD_EXPIRED (the two hours passed), 409 UTR_IN_USE
-	 */
-	@Transactional
-	public OrderDto resubmitPayment(long customerId, long orderId, String utr, MultipartFile proof) {
-		checkUtr(utr);
-		byte[] image = proofBytes(proof);
-		OrderStatus status = lock(orderId, Viewer.CUSTOMER, customerId);
-		if (status != OrderStatus.PAYMENT_REJECTED) {
-			throw badState(status);
-		}
-		MapSqlParameterSource params = new MapSqlParameterSource("o", orderId);
-		Boolean lapsed = jdbc.queryForObject("SELECT payment_deadline <= now() FROM customer_order WHERE id = :o", params,
-				Boolean.class);
-		if (Boolean.TRUE.equals(lapsed)) {
-			throw new ApiException(HttpStatus.CONFLICT, "HOLD_EXPIRED",
-					"This payment window has ended; contact the seller if you already paid");
-		}
-		String oldKey = jdbc.queryForObject("SELECT payment_proof_key FROM customer_order WHERE id = :o", params, String.class);
-		String key = image == null ? null : saveProof(orderId, image);
-		try {
-			jdbc.update("UPDATE customer_order SET payment_reference = :utr, payment_proof_key = :key WHERE id = :o",
-					params.addValue("utr", utr).addValue("key", key));
-		}
-		catch (DuplicateKeyException e) {
-			if (key != null) {
-				storage.delete(key);
-			}
-			throw new ApiException(HttpStatus.CONFLICT, "UTR_IN_USE", "That UTR is already used on another order");
-		}
-		jdbc.update("""
-				UPDATE customer_order SET status = 'PAYMENT_SUBMITTED', payment_deadline = NULL, seller_unread = TRUE,
-				       customer_unread = FALSE, updated_at = now() WHERE id = :o""", params);
-		history(orderId, OrderStatus.PAYMENT_SUBMITTED);
-		if (oldKey != null) {
-			storage.delete(oldKey);
-		}
-		return one(orderId, Viewer.CUSTOMER, customerId);
-	}
-
-	/**
-	 * Cancels rejected-payment orders whose two hours ran out, one transaction each so one bad row cannot block the
-	 * rest. Called by {@link OrderExpiryJob}; each order is locked and re-checked first, so a customer resubmitting at
-	 * the same moment wins. Returns how many were cancelled.
-	 */
-	public int expireRejected() {
-		int cancelled = 0;
-		for (Long id : jdbc.queryForList("""
-				SELECT id FROM customer_order WHERE status = 'PAYMENT_REJECTED' AND payment_deadline <= now() ORDER BY id""",
-				new MapSqlParameterSource(), Long.class)) {
-			try {
-			Integer one = tx.execute(status -> {
-				List<Long> locked = jdbc.queryForList("""
-						SELECT id FROM customer_order WHERE id = :o AND status = 'PAYMENT_REJECTED'
-						  AND payment_deadline <= now() FOR UPDATE""", new MapSqlParameterSource("o", id), Long.class);
-				if (locked.isEmpty()) {
-					return 0;
-				}
-				cancel(id, "SYSTEM", "The payment window ended");
-				return 1;
-			});
-			cancelled += one == null ? 0 : one;
-			}
-			catch (RuntimeException e) {
-				log.warn("Could not cancel order {} after its payment window; the next run will try again", id, e);
-			}
-		}
-		return cancelled;
 	}
 
 	/** Moves the seller's locked order from one expected status to the next; any other current status is 409 BAD_STATE. */
@@ -377,6 +291,20 @@ public class OrderService {
 		events.publishEvent(new com.sareemarket.notification.event.OrderUpdated(orderId, to.name()));
 	}
 
+	/** Courier and tracking number are both required; 400 VALIDATION_ERROR names the blank ones. */
+	static void checkTracking(String courier, String trackingNumber) {
+		java.util.Map<String, String> fields = new java.util.LinkedHashMap<>();
+		if (courier == null || courier.isBlank()) {
+			fields.put("courier", "enter the courier name");
+		}
+		if (trackingNumber == null || trackingNumber.isBlank()) {
+			fields.put("trackingNumber", "enter the tracking number");
+		}
+		if (!fields.isEmpty()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Some fields are invalid", fields);
+		}
+	}
+
 	private static String blankToNull(String value) {
 		return value == null || value.isBlank() ? null : value.strip();
 	}
@@ -388,19 +316,17 @@ public class OrderService {
 	}
 
 	/**
-	 * Counts for badges and alerts. A customer gets unread orders and open holds; a seller gets unread orders and the
-	 * number of orders to confirm, pack, ship and already shipped.
+	 * Counts for badges and alerts. A customer gets unread orders and open holds; a seller gets unread orders, the
+	 * number of orders still to ship and the number already shipped.
 	 */
 	public OrderSummaryDto summary(long userId, boolean seller) {
 		MapSqlParameterSource params = new MapSqlParameterSource("u", userId);
 		if (!seller) {
 			return new OrderSummaryDto(count("customer_id = :u AND customer_unread", params),
-					holdCount(params), 0, 0, 0, 0);
+					holdCount(params), 0, 0);
 		}
 		return new OrderSummaryDto(count("seller_id = :u AND seller_unread", params), 0,
-				count("seller_id = :u AND status = 'PAYMENT_SUBMITTED'", params),
 				count("seller_id = :u AND status = 'CONFIRMED'", params),
-				count("seller_id = :u AND status = 'PACKED'", params),
 				count("seller_id = :u AND status = 'SHIPPED'", params));
 	}
 
@@ -425,7 +351,7 @@ public class OrderService {
 		}
 		Long total = jdbc.queryForObject("SELECT count(*) FROM customer_order o" + where, params, Long.class);
 		String order = viewer == Viewer.SELLER
-				? " ORDER BY (o.status = 'PAYMENT_SUBMITTED') DESC, o.created_at DESC, o.id DESC"
+				? " ORDER BY (o.status = 'CONFIRMED') DESC, o.created_at DESC, o.id DESC"
 				: " ORDER BY o.created_at DESC, o.id DESC";
 		List<OrderDto> items = jdbc.query(SELECT + where + order + " LIMIT :limit OFFSET :offset", params,
 				(rs, n) -> map(rs, viewer, false));
@@ -513,8 +439,8 @@ public class OrderService {
 				lines(id), rs.getInt("items_total"), rs.getInt("shipping_fee"), rs.getInt("grand_total"),
 				json.readValue(rs.getString("address"), AddressSnapshotDto.class), rs.getString("customer_note"),
 				rs.getString("payment_reference"), rs.getString("payment_proof_key") != null,
-				rs.getString("rejection_reason"), instant(rs, "payment_deadline"), rs.getString("cancel_reason"),
-				rs.getString("cancelled_by"), rs.getString("courier"), rs.getString("tracking_number"),
+				rs.getString("cancel_reason"), rs.getString("cancelled_by"), rs.getString("courier"),
+				rs.getString("tracking_number"),
 				rs.getBoolean(seller ? "seller_unread" : "customer_unread"), instant(rs, "created_at"),
 				instant(rs, "updated_at"), withHistory ? historyOf(id) : List.of());
 	}
@@ -528,7 +454,10 @@ public class OrderService {
 	private List<StatusEntryDto> historyOf(long orderId) {
 		return jdbc.query("SELECT status, at FROM order_status_history WHERE order_id = :o ORDER BY id",
 				new MapSqlParameterSource("o", orderId), (rs, n) -> new StatusEntryDto(
-						OrderStatus.valueOf(rs.getString("status")), instant(rs, "at")));
+						OrderStatus.valueOf(rs.getString("status")), instant(rs, "at")))
+			.stream()
+			.filter(entry -> !entry.status().legacy())
+			.toList();
 	}
 
 	static java.time.Instant instant(java.sql.ResultSet rs, String column) throws java.sql.SQLException {

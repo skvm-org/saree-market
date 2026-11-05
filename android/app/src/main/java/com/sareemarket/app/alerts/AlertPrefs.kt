@@ -27,12 +27,12 @@ class AlertPrefs @Inject constructor(@ApplicationContext context: Context) {
         store.edit { it[LAST] = time.toEpochMilli() }
     }
 
-    /** What the last order check saw: (orders to confirm, orders with unseen updates). */
+    /** What the last order check saw: (orders to ship, orders with unseen updates). The stored key keeps its old name. */
     suspend fun orderMarks(): Pair<Int, Int> = store.data.first().let { (it[TO_CONFIRM_MARK] ?: 0) to (it[ORDER_UNREAD_MARK] ?: 0) }
 
-    suspend fun setOrderMarks(toConfirm: Int, unread: Int) {
+    suspend fun setOrderMarks(toShip: Int, unread: Int) {
         store.edit {
-            it[TO_CONFIRM_MARK] = toConfirm
+            it[TO_CONFIRM_MARK] = toShip
             it[ORDER_UNREAD_MARK] = unread
         }
     }

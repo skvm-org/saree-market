@@ -22,14 +22,14 @@ class OrderAlertsWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val summary = orders.refreshSummary().getOrElse { return Result.retry() } // offline: try again later
-        val (lastToConfirm, lastUnread) = prefs.orderMarks()
-        AlertPlanner.orderText(lastToConfirm, lastUnread, summary)?.let { generic ->
-            // A customer's alert can say what happened ("Lakshmi Silks confirmed your order #12"); a seller has no such rows.
+        val (lastToShip, lastUnread) = prefs.orderMarks()
+        AlertPlanner.orderText(lastToShip, lastUnread, summary)?.let { generic ->
+            // A customer's alert can say what happened ("Lakshmi Silks shipped your order #12"); a seller has no such rows.
             val latest = notifications.page(0).getOrNull()?.items.orEmpty()
             alerts.showOrder(AlertPlanner.orderUpdateText(generic, latest))
         }
         // Remember the counts even when they went down, so the next increase is announced.
-        prefs.setOrderMarks(summary.toConfirm, summary.unread)
+        prefs.setOrderMarks(summary.toShip, summary.unread)
         return Result.success()
     }
 }

@@ -9,14 +9,27 @@ class OrderModelsTest {
 
     @Test
     fun decodesEveryStatusTheBackendCanSend() {
-        listOf("PAYMENT_SUBMITTED", "PAYMENT_REJECTED", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED").forEach {
+        listOf("CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED").forEach {
             assertEquals(it, testJson.decodeFromString<OrderStatus>("\"$it\"").name)
         }
     }
 
     @Test
+    fun aStatusThisAppDoesNotKnowDecodesAsUnknownInsteadOfFailingThePage() {
+        val order = testJson.decodeFromString<Order>(
+            """{"id":1,"status":"RETURN_REQUESTED","sellerId":2,"shopName":"S","lines":[],"itemsTotal":0,"shippingFee":0,"grandTotal":0,
+            "address":{"name":"H","phone":"9","line1":"l","city":"c","state":"s","pin":"638001"},
+            "history":[{"status":"SOMETHING_ELSE","at":"2026-10-28T16:00:00Z"}],
+            "createdAt":"2026-10-28T16:00:00Z","updatedAt":"2026-10-28T16:00:00Z"}""",
+        )
+
+        assertEquals(OrderStatus.UNKNOWN, order.status)
+        assertEquals(OrderStatus.UNKNOWN, order.history.single().status)
+    }
+
+    @Test
     fun activeStatusesAreTheOnesStillInProgress() {
-        assertTrue(OrderStatus.PAYMENT_REJECTED.isActive)
+        assertTrue(OrderStatus.CONFIRMED.isActive)
         assertTrue(OrderStatus.SHIPPED.isActive)
         assertFalse(OrderStatus.DELIVERED.isActive)
         assertFalse(OrderStatus.CANCELLED.isActive)
@@ -29,10 +42,10 @@ class OrderModelsTest {
             "customer":null,"lines":[{"itemId":3,"title":"Diwali soft silks","colour":"Bottle green","unitPrice":4500,"quantity":1}],
             "itemsTotal":4500,"shippingFee":60,"grandTotal":4560,
             "address":{"name":"Home","phone":"9876543210","line1":"12 Gandhi Rd","line2":null,"city":"Erode","state":"Tamil Nadu","pin":"638001"},
-            "note":null,"paymentReference":"412345678901","hasProof":true,"rejectionReason":null,"paymentDeadline":null,
+            "note":null,"paymentReference":"412345678901","hasProof":true,
             "cancelReason":null,"cancelledBy":null,"courier":"DTDC","trackingNumber":"D1","unread":true,
             "createdAt":"2026-10-28T16:00:00Z","updatedAt":"2026-10-28T17:00:00Z",
-            "history":[{"status":"PAYMENT_SUBMITTED","at":"2026-10-28T16:00:00Z"},{"status":"SHIPPED","at":"2026-10-28T17:00:00Z"}],
+            "history":[{"status":"CONFIRMED","at":"2026-10-28T16:00:00Z"},{"status":"SHIPPED","at":"2026-10-28T17:00:00Z"}],
             "somethingNew":1}""",
         )
 
@@ -45,7 +58,7 @@ class OrderModelsTest {
     @Test
     fun decodesTheCustomerPartyInTheSellersView() {
         val order = testJson.decodeFromString<Order>(
-            """{"id":1,"status":"PAYMENT_SUBMITTED","sellerId":2,"shopName":"S","sellerUpiId":"s@ybl",
+            """{"id":1,"status":"CONFIRMED","sellerId":2,"shopName":"S","sellerUpiId":"s@ybl",
             "customer":{"name":"Priya","phone":"9876543210"},"lines":[],"itemsTotal":0,"shippingFee":0,"grandTotal":0,
             "address":{"name":"H","phone":"9","line1":"l","line2":null,"city":"c","state":"s","pin":"638001"},
             "note":null,"paymentReference":"412345678901","hasProof":true,"createdAt":"2026-10-28T16:00:00Z","updatedAt":"2026-10-28T16:00:00Z"}""",

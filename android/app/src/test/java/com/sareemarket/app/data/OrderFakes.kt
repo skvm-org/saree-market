@@ -33,20 +33,20 @@ fun hold(id: Long, expiresAt: String = "2099-01-01T12:00:00Z", total: Int = 850)
 
 fun order(
     id: Long,
-    status: OrderStatus = OrderStatus.PAYMENT_SUBMITTED,
+    status: OrderStatus = OrderStatus.CONFIRMED,
     unread: Boolean = false,
-    rejectionReason: String? = null,
-    paymentDeadline: String? = null,
+    courier: String? = null,
+    trackingNumber: String? = null,
     history: List<StatusEntry> = emptyList(),
 ) = Order(
     id = id, status = status, sellerId = 1, shopName = "Lakshmi Silks", sellerUpiId = "lakshmi@okaxis",
     lines = listOf(OrderLine(10, "Diwali silks", "maroon", 800, 1)), itemsTotal = 800, shippingFee = 50, grandTotal = 850,
-    address = snapshot, note = null, paymentReference = "412345678901", hasProof = false, rejectionReason = rejectionReason,
-    paymentDeadline = paymentDeadline, cancelReason = null, cancelledBy = null, courier = null, trackingNumber = null,
+    address = snapshot, note = null, paymentReference = "412345678901", hasProof = false,
+    cancelReason = null, cancelledBy = null, courier = courier, trackingNumber = trackingNumber,
     unread = unread, createdAt = "2026-10-28T10:00:00Z", updatedAt = "2026-10-28T10:00:00Z", history = history,
 )
 
-fun orderPage(page: Int, totalPages: Int, perPage: Int = 2, status: OrderStatus = OrderStatus.PAYMENT_SUBMITTED) = OrderPage(
+fun orderPage(page: Int, totalPages: Int, perPage: Int = 2, status: OrderStatus = OrderStatus.CONFIRMED) = OrderPage(
     items = (0 until perPage).map { order(page * 100L + it, status) },
     page = page, pageSize = perPage, totalItems = totalPages.toLong() * perPage, totalPages = totalPages,
 )
@@ -119,7 +119,8 @@ class FakeOrderApi : OrderApi {
     var onPay: (Long, String, Boolean) -> Order = { _, _, _ -> com.sareemarket.app.data.order(5) }
     var onMine: (String?, Int) -> OrderPage = { _, page -> orderPage(page, totalPages = 1) }
     var onOrder: (Long) -> Order = { com.sareemarket.app.data.order(it) }
-    var onCancel: (Long) -> Order = { com.sareemarket.app.data.order(it, OrderStatus.CANCELLED) }
+    var onCancel: (Long, String?) -> Order = { id, _ -> com.sareemarket.app.data.order(id, OrderStatus.CANCELLED) }
+    var onReceive: (Long) -> Order = { com.sareemarket.app.data.order(it, OrderStatus.DELIVERED) }
     var summary: () -> OrderSummary = { OrderSummary() }
     var holds: () -> List<Hold> = { listOf(hold(1)) }
 
@@ -143,11 +144,6 @@ class FakeOrderApi : OrderApi {
         return onPay(id, utr.text(), proof != null)
     }
 
-    override suspend fun resubmit(id: Long, utr: RequestBody, proof: MultipartBody.Part?): Order {
-        calls += "resubmit $id ${proof != null}"
-        return onPay(id, utr.text(), proof != null)
-    }
-
     override suspend fun mine(state: String?, page: Int): OrderPage {
         calls += "mine $state $page"
         return onMine(state, page)
@@ -158,23 +154,14 @@ class FakeOrderApi : OrderApi {
         return onOrder(id)
     }
 
-    override suspend fun cancel(id: Long): Order {
-        calls += "cancel $id"
-        return onCancel(id)
+    override suspend fun receive(id: Long): Order {
+        calls += "receive $id"
+        return onReceive(id)
     }
 
+    /** What the seller's ship and tracking calls answer with: the order as the server would return it. */
     var onAction: (String, Long) -> Order = { action, id ->
-        com.sareemarket.app.data.order(
-            id,
-            when (action) {
-                "confirm" -> OrderStatus.CONFIRMED
-                "pack" -> OrderStatus.PACKED
-                "ship" -> OrderStatus.SHIPPED
-                "deliver" -> OrderStatus.DELIVERED
-                "reject" -> OrderStatus.PAYMENT_REJECTED
-                else -> OrderStatus.CANCELLED
-            },
-        )
+        com.sareemarket.app.data.order(id, OrderStatus.SHIPPED, courier = "DTDC", trackingNumber = "D123")
     }
 
     override suspend fun received(state: String?, page: Int): OrderPage {
@@ -182,34 +169,19 @@ class FakeOrderApi : OrderApi {
         return onMine(state, page)
     }
 
-    override suspend fun confirmPayment(id: Long): Order {
-        calls += "confirm $id"
-        return onAction("confirm", id)
-    }
-
-    override suspend fun rejectPayment(id: Long, body: RejectBody): Order {
-        calls += "reject $id ${body.reason}"
-        return onAction("reject", id)
-    }
-
-    override suspend fun pack(id: Long): Order {
-        calls += "pack $id"
-        return onAction("pack", id)
-    }
-
     override suspend fun ship(id: Long, body: ShipBody): Order {
         calls += "ship $id ${body.courier} ${body.trackingNumber}"
         return onAction("ship", id)
     }
 
-    override suspend fun deliver(id: Long): Order {
-        calls += "deliver $id"
-        return onAction("deliver", id)
+    override suspend fun updateTracking(id: Long, body: ShipBody): Order {
+        calls += "tracking $id ${body.courier} ${body.trackingNumber}"
+        return onAction("tracking", id)
     }
 
-    override suspend fun cancelWithReason(id: Long, body: CancelBody): Order {
-        calls += "cancel-reason $id ${body.reason}"
-        return onAction("cancel", id)
+    override suspend fun cancel(id: Long, body: CancelBody): Order {
+        calls += "cancel $id ${body.reason}"
+        return onCancel(id, body.reason)
     }
 
     override suspend fun seen(): Response<Unit> {
