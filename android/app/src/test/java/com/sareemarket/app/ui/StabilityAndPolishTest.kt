@@ -83,7 +83,9 @@ class StabilityAndPolishTest {
 
     @Test
     fun profileSaveTurnsOnOnlyAfterTheNameChanges() {
-        val vm = ProfileViewModel(AuthRepository(FakeAuthApi(), FakeSessionStore(session(Role.SELLER)), testJson))
+        val api = FakeAuthApi()
+        val store = FakeSessionStore(session(Role.SELLER))
+        val vm = ProfileViewModel(AuthRepository(api, store, testJson), com.sareemarket.app.data.ProfilePhotoRepository(api, store, com.sareemarket.app.data.FakePhotoSource(), testJson))
         assertFalse(vm.state.value.dirty)
 
         vm.onNameChange("Meena")

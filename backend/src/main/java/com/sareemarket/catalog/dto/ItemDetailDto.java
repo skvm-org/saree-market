@@ -18,10 +18,11 @@ public record ItemDetailDto(Long id, Long collectionId, String collectionTitle, 
 
 	/**
 	 * Phone numbers are null unless the viewer is a reseller or admin. followMode is INSTANT or MUTED when the
-	 * viewing reseller follows this seller, otherwise null.
+	 * viewing reseller follows this seller, otherwise null. photoVersion is the version of the seller's profile picture,
+	 * or null when they have none.
 	 */
 	public record SellerContactDto(Long id, String shopName, String marketLocation, String contactPhone,
-			String whatsappNumber, String followMode) {
+			String whatsappNumber, String followMode, Long photoVersion) {
 	}
 
 }

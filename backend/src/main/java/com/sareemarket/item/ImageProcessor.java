@@ -21,6 +21,7 @@ import com.sareemarket.common.ApiException;
 import com.sareemarket.imagesearch.ImageHasher;
 
 import net.coobird.thumbnailator.Thumbnails;
+import net.coobird.thumbnailator.geometry.Positions;
 
 /** Checks an uploaded photo is a real JPG/PNG/WebP, then makes the stored copy, the thumbnail and the hash. */
 @Component
@@ -29,6 +30,9 @@ public class ImageProcessor {
 	static final int MAX_FULL = 1600;
 
 	static final int MAX_THUMB = 400;
+
+	/** Side of a profile picture in pixels. */
+	static final int AVATAR_SIZE = 512;
 
 	private static final float QUALITY = 0.85f;
 
@@ -73,6 +77,65 @@ public class ImageProcessor {
 		}
 		finally {
 			slots.release();
+		}
+	}
+
+	/**
+	 * Turns an upload into a profile picture: centre-cropped to a square and scaled to at most {@value #AVATAR_SIZE} px
+	 * (never enlarged), as JPEG. The type is judged from the first bytes, and EXIF rotation is applied, as for photos.
+	 *
+	 * @return the JPEG bytes
+	 * @throws ApiException 400 {@code INVALID_IMAGE} if the file cannot be read, is not a JPG, PNG or WebP, or cannot be decoded
+	 */
+	public byte[] avatar(MultipartFile file) {
+		String name = file.getOriginalFilename() == null ? "photo" : file.getOriginalFilename();
+		byte[] original;
+		try {
+			original = file.getBytes();
+		}
+		catch (IOException e) {
+			log.warn("Could not read upload \"{}\"", name, e);
+			throw invalid(name);
+		}
+		if (!looksLikeImage(original)) {
+			throw invalid(name);
+		}
+		slots.acquireUninterruptibly();
+		try {
+			int side = Math.min(AVATAR_SIZE, shortestSide(original));
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			Thumbnails.of(new ByteArrayInputStream(original))
+				.crop(Positions.CENTER)
+				.size(side, side)
+				.outputFormat("jpg")
+				.outputQuality(QUALITY)
+				.toOutputStream(out);
+			return out.toByteArray();
+		}
+		catch (IOException | RuntimeException e) {
+			log.warn("Could not process profile picture \"{}\"", name, e);
+			throw invalid(name);
+		}
+		finally {
+			slots.release();
+		}
+	}
+
+	/** The shorter side of the picture, read from the header only. */
+	private static int shortestSide(byte[] source) throws IOException {
+		try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(source))) {
+			Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
+			if (!readers.hasNext()) {
+				throw new IOException("No reader for this image");
+			}
+			ImageReader reader = readers.next();
+			try {
+				reader.setInput(in);
+				return Math.min(reader.getWidth(0), reader.getHeight(0));
+			}
+			finally {
+				reader.dispose();
+			}
 		}
 	}
 

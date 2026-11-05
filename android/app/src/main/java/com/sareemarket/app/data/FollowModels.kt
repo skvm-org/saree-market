@@ -14,6 +14,8 @@ data class FollowItem(
     val notifyMode: NotifyMode,
     /** ISO-8601 instant of the seller's newest collection, or null if they have none. */
     val lastUploadAt: String? = null,
+    /** When the seller's profile picture last changed, or null when they have none. */
+    val sellerPhotoVersion: Long? = null,
 )
 
 @Serializable
@@ -42,6 +44,8 @@ data class AppNotification(
     val orderId: Long? = null,
     /** The order's new status for an order update, e.g. CONFIRMED. */
     val orderStatus: String? = null,
+    /** When the seller's profile picture last changed, or null when they have none. */
+    val sellerPhotoVersion: Long? = null,
 )
 
 @Serializable

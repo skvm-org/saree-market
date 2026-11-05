@@ -71,6 +71,7 @@ import com.sareemarket.app.data.ItemStatus
 import com.sareemarket.app.data.Order
 import com.sareemarket.app.data.OrderStatus
 import com.sareemarket.app.data.OrderSummary
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.components.CardBorder
 import com.sareemarket.app.ui.components.OrderStatusPill
 import com.sareemarket.app.ui.components.PhotoViewer
@@ -256,6 +257,7 @@ private fun OrderCard(
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth().testTag("order-${order.id}")) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                order.customer?.let { Avatar(it.name, it.id, it.photoVersion, 40.dp, modifier = Modifier.testTag("customer-avatar-${order.id}")) }
                 Column(Modifier.weight(1f)) {
                     Text(order.customer?.name ?: "Customer", style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("customer-${order.id}"))
                     order.customer?.phone?.let { Text("+91 $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }

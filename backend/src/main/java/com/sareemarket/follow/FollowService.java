@@ -53,7 +53,9 @@ public class FollowService {
 	public List<FollowDto> list(long resellerId) {
 		return jdbc.query("""
 				SELECT f.seller_id, sp.shop_name, sp.market_location, f.notify_mode, f.created_at,
-				       (SELECT max(c.created_at) FROM collection c WHERE c.seller_id = f.seller_id) AS last_upload_at
+				       (SELECT max(c.created_at) FROM collection c WHERE c.seller_id = f.seller_id) AS last_upload_at,
+				       """ + com.sareemarket.common.PhotoVersions.sql("f.seller_id") + """
+				        AS seller_photo_version
 				FROM seller_follow f
 				JOIN seller_profile sp ON sp.user_id = f.seller_id
 				JOIN app_user u ON u.id = f.seller_id AND u.enabled
@@ -62,7 +64,8 @@ public class FollowService {
 				(rs, n) -> new FollowDto(rs.getLong("seller_id"), rs.getString("shop_name"),
 						rs.getString("market_location"), NotifyMode.valueOf(rs.getString("notify_mode")),
 						rs.getObject("created_at", OffsetDateTime.class).toInstant(),
-						instantOrNull(rs.getObject("last_upload_at", OffsetDateTime.class))));
+						instantOrNull(rs.getObject("last_upload_at", OffsetDateTime.class)),
+						rs.getObject("seller_photo_version", Long.class)));
 	}
 
 	/**

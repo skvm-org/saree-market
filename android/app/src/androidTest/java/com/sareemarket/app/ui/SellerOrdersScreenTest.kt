@@ -132,6 +132,13 @@ class SellerOrdersScreenTest {
     }
 
     @Test
+    fun aCardShowsTheCustomersAvatarNextToTheirName() {
+        show(state(order(1)))
+
+        compose.onNodeWithTag("customer-avatar-1", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun noScreenshotLinkWithoutAScreenshot() {
         show(state(order(1, proof = false)))
 

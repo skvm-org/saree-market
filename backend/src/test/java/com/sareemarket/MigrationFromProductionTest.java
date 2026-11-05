@@ -164,7 +164,11 @@ class MigrationFromProductionTest {
 				versions.add(rs.getString(1));
 			}
 		}
-		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17");
+		// Every migration file ran exactly once and in order, however many there are by now.
+		int files = new org.springframework.core.io.support.PathMatchingResourcePatternResolver()
+			.getResources("classpath:db/migration/V*__*.sql").length;
+		assertThat(versions).containsExactlyElementsOf(
+				java.util.stream.IntStream.rangeClosed(1, files).mapToObj(String::valueOf).toList());
 	}
 
 }

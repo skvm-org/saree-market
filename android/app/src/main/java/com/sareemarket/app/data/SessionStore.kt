@@ -37,6 +37,7 @@ class DataStoreSessionStore(context: Context) : SessionStore {
             name = p[NAME] ?: return@map null,
             phone = p[PHONE] ?: return@map null,
             role = roleFromStored(p[ROLE]) ?: return@map null,
+            photoVersion = p[PHOTO_VERSION],
         )
     }
 
@@ -47,6 +48,7 @@ class DataStoreSessionStore(context: Context) : SessionStore {
             it[NAME] = session.name
             it[PHONE] = session.phone
             it[ROLE] = session.role.name
+            if (session.photoVersion == null) it.remove(PHOTO_VERSION) else it[PHOTO_VERSION] = session.photoVersion
         }
     }
 
@@ -60,5 +62,6 @@ class DataStoreSessionStore(context: Context) : SessionStore {
         val NAME = stringPreferencesKey("name")
         val PHONE = stringPreferencesKey("phone")
         val ROLE = stringPreferencesKey("role")
+        val PHOTO_VERSION = longPreferencesKey("photo_version")
     }
 }

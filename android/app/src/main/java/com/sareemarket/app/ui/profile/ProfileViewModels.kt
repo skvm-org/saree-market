@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sareemarket.app.data.AuthRepository
 import com.sareemarket.app.data.Role
 import com.sareemarket.app.data.ApiFailure
+import com.sareemarket.app.data.ProfilePhotoRepository
 import com.sareemarket.app.data.ShopDetails
 import com.sareemarket.app.ui.auth.PHONE_LENGTH
 import com.sareemarket.app.ui.auth.digitsOnly
@@ -29,12 +30,24 @@ data class ProfileUiState(
     val saving: Boolean = false,
     val saved: Boolean = false,
     val error: String? = null,
+    val userId: Long? = null,
+    /** When the profile picture last changed, or null when there is none; the avatar's URL carries it. */
+    val photoVersion: Long? = null,
+    /** A picture is being sent or removed. */
+    val photoBusy: Boolean = false,
+    val photoError: String? = null,
+    /** Said once in a snackbar after the picture changed. */
+    val photoMessage: String? = null,
 ) {
     val dirty get() = name.trim() != original
+    val hasPhoto get() = photoVersion != null
 }
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class ProfileViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val photos: ProfilePhotoRepository,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileUiState())
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
@@ -46,7 +59,8 @@ class ProfileViewModel @Inject constructor(private val repository: AuthRepositor
             repository.session.collect { s ->
                 if (s == null) return@collect
                 _state.update {
-                    if (seeded) it.copy(phone = s.phone, role = s.role) else it.copy(name = s.name, original = s.name, phone = s.phone, role = s.role)
+                    if (seeded) it.copy(phone = s.phone, role = s.role, userId = s.userId, photoVersion = s.photoVersion)
+                    else it.copy(name = s.name, original = s.name, phone = s.phone, role = s.role, userId = s.userId, photoVersion = s.photoVersion)
                 }
                 seeded = true
             }
@@ -81,7 +95,21 @@ class ProfileViewModel @Inject constructor(private val repository: AuthRepositor
     }
 
     /** The screen has told the user it saved; forget it so it is not announced again. */
-    fun onSavedShown() = _state.update { it.copy(saved = false) }
+    fun onSavedShown() = _state.update { it.copy(saved = false, photoMessage = null) }
+
+    /** Sends the picked or just-taken photo (a URI string) as the profile picture. */
+    fun uploadPhoto(uri: String) = changePhoto("Profile picture updated") { photos.upload(uri) }
+
+    fun removePhoto() = changePhoto("Profile picture removed") { photos.remove() }
+
+    private fun changePhoto(done: String, call: suspend () -> Result<Unit>) {
+        if (_state.value.photoBusy) return
+        _state.update { it.copy(photoBusy = true, photoError = null) }
+        viewModelScope.launch {
+            val error = call().exceptionOrNull()?.message
+            _state.update { it.copy(photoBusy = false, photoError = error, photoMessage = if (error == null) done else null) }
+        }
+    }
 }
 
 data class ChangePasswordUiState(

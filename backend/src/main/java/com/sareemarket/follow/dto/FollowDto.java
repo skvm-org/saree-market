@@ -6,8 +6,9 @@ import com.sareemarket.follow.NotifyMode;
 
 /**
  * One followed seller in the reseller's list. followedAt is when the reseller started following. lastUploadAt is
- * when the seller last published a collection, or null if they have none.
+ * when the seller last published a collection, or null if they have none. sellerPhotoVersion is the version of the
+ * seller's profile picture, or null when they have none.
  */
 public record FollowDto(Long sellerId, String shopName, String marketLocation, NotifyMode notifyMode,
-		Instant followedAt, Instant lastUploadAt) {
+		Instant followedAt, Instant lastUploadAt, Long sellerPhotoVersion) {
 }

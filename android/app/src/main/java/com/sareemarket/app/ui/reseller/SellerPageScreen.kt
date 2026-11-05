@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.sareemarket.app.data.CollectionSummary
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.components.imageUrl
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.theme.MinTouchTarget
@@ -101,6 +102,7 @@ fun SellerPageContent(
                         CircleAction(Icons.AutoMirrored.Filled.Chat, "WhatsApp", "whatsapp", SareeColors.WhatsApp, MaterialTheme.colorScheme.onSurface) { onWhatsApp(page.whatsappNumber) }
                     }
                 }
+                Avatar(page.shopName, page.id, page.photoVersion, 72.dp, modifier = Modifier.testTag("seller-avatar"))
                 Text(page.shopName, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("shop-name"))
                 Text(page.marketLocation, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (page.collections.isNotEmpty()) {

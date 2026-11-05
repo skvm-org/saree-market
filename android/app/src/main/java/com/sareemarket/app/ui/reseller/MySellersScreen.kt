@@ -19,7 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import com.sareemarket.app.ui.components.CardBorder
-import com.sareemarket.app.ui.components.InitialAvatar
+import com.sareemarket.app.ui.components.Avatar
 import com.sareemarket.app.ui.theme.CardShape
 import com.sareemarket.app.ui.timeAgo
 import androidx.compose.material3.SnackbarDuration
@@ -166,7 +166,7 @@ private fun SellerRow(seller: FollowItem, onOpen: (Long) -> Unit, onMute: (Long,
         modifier = modifier.fillMaxWidth().testTag("seller-${seller.sellerId}"),
     ) {
         Row(Modifier.padding(start = Spacing.md, top = Spacing.sm + Spacing.xs, bottom = Spacing.sm + Spacing.xs, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm + Spacing.xs)) {
-            InitialAvatar(seller.shopName, 48.dp, filled = notifying)
+            Avatar(seller.shopName, seller.sellerId, seller.sellerPhotoVersion, 48.dp, filled = notifying)
             Column(Modifier.weight(1f)) {
                 Text(seller.shopName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(

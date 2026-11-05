@@ -19,7 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import com.sareemarket.app.BuildConfig
 import com.sareemarket.app.R
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.SubcomposeAsyncImage
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sareemarket.app.ui.theme.MinTouchTarget
@@ -47,6 +51,29 @@ fun InitialAvatar(name: String, size: Dp, modifier: Modifier = Modifier, filled:
             color = if (filled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
         )
     }
+}
+
+/** Where a profile picture is served; [version] (when it last changed) makes a new picture a new URL, so a cached old one is never shown. */
+fun profilePhotoUrl(userId: Long, version: Long) = "${BuildConfig.API_BASE_URL}api/v1/users/$userId/photo?v=$version"
+
+/**
+ * A person's or shop's picture as a circle, or the two-letter badge when there is none ([photoVersion] null), while it
+ * loads, or if it cannot be loaded.
+ */
+@Composable
+fun Avatar(name: String, userId: Long?, photoVersion: Long?, size: Dp, modifier: Modifier = Modifier, filled: Boolean = true) {
+    if (userId == null || photoVersion == null) {
+        InitialAvatar(name, size, modifier, filled)
+        return
+    }
+    SubcomposeAsyncImage(
+        model = profilePhotoUrl(userId, photoVersion),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier.size(size).clip(CircleShape),
+        loading = { InitialAvatar(name, size, filled = filled) },
+        error = { InitialAvatar(name, size, filled = filled) },
+    )
 }
 
 /** A pill the user can switch on: crimson with white text when selected, warm and flat when not. */

@@ -157,4 +157,64 @@ class ProfileScreensTest {
         compose.onNodeWithTag("change-password").assertIsDisplayed()
         compose.onNodeWithTag("shop-details").assertDoesNotExist()
     }
+
+    @Test
+    fun tappingTheAvatarOffersGalleryAndCameraButNotRemoveWithoutAPicture() {
+        var gallery = 0
+        var camera = 0
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.CUSTOMER, userId = 7), {}, {}, {}, onPickPhoto = { gallery++ }, onTakePhoto = { camera++ })
+            }
+        }
+
+        compose.onNodeWithTag("avatar").performClick()
+        compose.onNodeWithTag("photo-sheet").assertIsDisplayed()
+        compose.onNodeWithTag("remove-photo").assertDoesNotExist()
+        compose.onNodeWithTag("choose-photo").performClick()
+        compose.onNodeWithTag("avatar").performClick()
+        compose.onNodeWithTag("take-photo").performClick()
+
+        assertEquals(1, gallery)
+        assertEquals(1, camera)
+    }
+
+    @Test
+    fun withAPictureTheSheetOffersRemove() {
+        var removed = 0
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.SELLER, userId = 7, photoVersion = 123), {}, {}, {}, onRemovePhoto = { removed++ })
+            }
+        }
+
+        compose.onNodeWithTag("avatar").performClick()
+        compose.onNodeWithTag("remove-photo").performClick()
+
+        assertEquals(1, removed)
+    }
+
+    @Test
+    fun whileAPictureIsBeingSentTheAvatarShowsProgressAndCannotBeTapped() {
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.CUSTOMER, userId = 7, photoBusy = true), {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithTag("photo-busy", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("avatar").performClick()
+        compose.onNodeWithTag("photo-sheet").assertDoesNotExist()
+    }
+
+    @Test
+    fun aRefusedPictureShowsItsMessageUnderTheAvatar() {
+        compose.setContent {
+            SareeTheme {
+                ProfileContent(ProfileUiState(name = "Priya", phone = "9876543210", role = Role.CUSTOMER, photoError = "That is not a valid JPG, PNG or WebP photo"), {}, {}, {})
+            }
+        }
+
+        compose.onNodeWithText("That is not a valid JPG, PNG or WebP photo").assertIsDisplayed()
+    }
 }
