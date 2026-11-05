@@ -197,8 +197,8 @@ fun CollectionDetailScreen(onBack: () -> Unit, viewModel: CollectionDetailViewMo
                     } else {
                         StockControls(
                             total = detail.items.size,
-                            available = state.count(ItemStatus.AVAILABLE),
-                            soldOut = state.count(ItemStatus.SOLD_OUT),
+                            available = state.availableCount,
+                            soldOut = state.soldOutCount,
                             filter = state.filter,
                             onFilter = viewModel::setFilter,
                         )
@@ -314,7 +314,7 @@ internal fun StockControls(total: Int, available: Int, soldOut: Int, filter: Ite
 @Composable
 internal fun ItemCard(item: Item, onClick: () -> Unit, onToggle: () -> Unit) {
     // No pieces left looks sold out whatever the seller's own mark says: checkout lowers the count but not the mark.
-    val soldOut = item.status == ItemStatus.SOLD_OUT || item.quantity == 0
+    val soldOut = item.isSoldOut
     val haptics = LocalHapticFeedback.current
     Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.testTag("item-${item.id}")) {
         Column(Modifier.padding(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

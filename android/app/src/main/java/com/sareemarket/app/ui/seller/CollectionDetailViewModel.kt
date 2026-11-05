@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 
 enum class ItemFilter { ALL, AVAILABLE, SOLD_OUT }
 
+/** A saree with no pieces left is sold out whatever its mark says, so ordering the last piece needs no change of mark. */
+internal val Item.isSoldOut: Boolean get() = status == ItemStatus.SOLD_OUT || quantity == 0
+
 /** "Marked 18 sold out" and the statuses to put back if the seller taps Undo. */
 data class BulkUndo(val message: String, val previous: Map<Long, ItemStatus>)
 
@@ -41,12 +44,19 @@ data class DetailState(
         get() = detail?.items.orEmpty().filter {
             when (filter) {
                 ItemFilter.ALL -> true
-                ItemFilter.AVAILABLE -> it.status == ItemStatus.AVAILABLE
-                ItemFilter.SOLD_OUT -> it.status == ItemStatus.SOLD_OUT
+                ItemFilter.AVAILABLE -> !it.isSoldOut
+                ItemFilter.SOLD_OUT -> it.isSoldOut
             }
         }
 
+    /** Sarees the seller has marked [status], whatever their piece count (the "Mark all" menu goes by the mark). */
     fun count(status: ItemStatus) = detail?.items.orEmpty().count { it.status == status }
+
+    /** Sarees customers can order: marked available with at least one piece. */
+    val availableCount: Int get() = detail?.items.orEmpty().count { !it.isSoldOut }
+
+    /** Sarees customers cannot order: marked sold out, or no pieces left whatever the mark says. */
+    val soldOutCount: Int get() = detail?.items.orEmpty().count { it.isSoldOut }
 }
 
 @HiltViewModel
